@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from apps.teams.models import Team
 
 # TABELAS: Championship, TiebreakerRule, Registration
 
@@ -313,8 +314,13 @@ class Registration(models.Model):
         on_delete=models.CASCADE,
         related_name="registrations"
     )
-    
-    # team = chave estrangeira de teams
+
+    team = models.ForeignKey(
+        Team,
+        on_delete=models.CASCADE,
+        related_name="registrations",
+        verbose_name="Equipe"
+    )
 
     status = models.CharField(
         "Status da inscrição",
@@ -348,10 +354,12 @@ class Registration(models.Model):
                 errors["status"] = f"Limite máximo de times ({self.championship.max_teams}) já atingido. Não é possível aprovar mais inscrições."
 
 
-        # Quando o campo team existir:
-        # if self.team_id:
-        #     if Registration.objects.filter(championship=self.championship, team=self.team).exclude(pk=self.pk).exists():
-        #         errors["team"] = "Este time já possui uma inscrição para este campeonato."
+        if self.championship_id and self.team_id:
+            qs = Registration.objects.filter(championship=self.championship, team=self.team)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                errors["team"] = "Este time já possui uma inscrição para este campeonato."
 
         if errors:
             raise ValidationError(errors)
@@ -360,7 +368,10 @@ class Registration(models.Model):
         verbose_name = "Inscrição"
         verbose_name_plural = "Inscrições"
         ordering = ["-registered_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["championship", "team"], name="unique_championship_team")
+        ]
 
 
     def __str__(self):
-        return f"Inscrição #{self.id} - {self.status}"
+        return f"{self.team} - {self.championship} ({self.status})"

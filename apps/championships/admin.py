@@ -75,6 +75,7 @@ class RegistrationAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "championship",
+        "team",
         "status",
         "registered_at",
     )
@@ -82,9 +83,11 @@ class RegistrationAdmin(admin.ModelAdmin):
     list_filter = (
         "status",
         "championship",
+        "team",
         "registered_at",
     )
 
     search_fields = (
         "championship__name",
+        "team__name",
     )
