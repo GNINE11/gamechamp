@@ -45,6 +45,26 @@ INSTALLED_APPS = [
     'apps.matches',
 ]
 
+JAZZMIN_SETTINGS = {
+    # Título na aba do navegador
+    "site_title": "GameChamp Admin",
+
+    # Título no cabeçalho do login
+    "site_header": "GameChamp",
+
+    # Título no topo do painel
+    "site_brand": "GameChamp",
+    
+    # Texto de boas vindas na tela de login
+    "welcome_sign": "Bem-vindo ao painel GameChamp",
+
+    # Modelo do campo de busca global no topo
+    "search_model": ["accounts.User"],
+
+    # Campo que representa o usuário logado no topo
+    "user_avatar": "avatar",
+}
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

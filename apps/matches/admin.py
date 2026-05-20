@@ -3,8 +3,14 @@ from .models import (
     Group,
     Match,
     GroupStanding,
-    GameResult
+    GameResult,
+    Team
 )
+
+@admin.register(Team)
+class TeamAdmin(admin.ModelAdmin):
+    list_display = ("name",)
+
 # Register your models here.
 class GameResultInline(admin.TabularInline):
     """
@@ -42,6 +48,24 @@ class MatchAdmin(admin.ModelAdmin):
     list_filter = ("status", "phase", "match_format", "championship")
     inlines = [GameResultInline]
 
+    # fieldsets faz sentido aqui pois Match tem muitos campos de naturezas diferentes
+    fieldsets = (
+        ("Identificação", {
+            "fields": ("championship", "phase", "match_format", "status")
+        }),
+        ("Times", {
+            "fields": ("team_a", "team_b", "winner")
+        }),
+        ("Localização no Chaveamento", {
+            "fields": ("group", "playoff_round", "round_number"),
+            "description": "Defina o grupo para fases de grupo, ou a rodada para playoffs."
+        }),
+        ("Agendamento", {
+            "fields": ("scheduled_at",)
+        }),
+    )
+
+
     def get_search_results(self, request, queryset, search_term):
         """
         Garante que a busca por nome de time funciona
@@ -57,9 +81,23 @@ class GroupStandingAdmin(admin.ModelAdmin):
     search_fields = ("team__name", "group__name")
     list_filter = ("group__championship", "group")
 
+    # fieldsets faz sentido aqui para separar identificação dos dados estatísticos
+    fieldsets = (
+        ("Identificação", {
+            "fields": ("group", "team", "position")
+        }),
+        ("Resultados", {
+            "fields": ("wins", "losses", "draws", "points")
+        }),
+        ("Rounds", {
+            "fields": ("rounds_won", "rounds_lost", "round_diff"),
+            "description": "round_diff é calculado automaticamente como rounds_won - rounds_lost."
+        }),
+    )
+
 
 @admin.register(GameResult)
 class GameResultAdmin(admin.ModelAdmin):
-    list_display = ("match", "game_number", "score_a", "score_b", "winner", "map_name")
-    search_fields = ("winner__name", "match__championship__name")
-    list_filter = ("match__championship", "match__phase")
+    list_display = ("match_id", "game_number", "score_a", "score_b", "winner", "map_name")
+    search_fields = ("winner__name", "match_id__championship__name")
+    list_filter = ("match_id__championship", "match_id__phase")
