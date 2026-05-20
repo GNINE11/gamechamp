@@ -1,15 +1,8 @@
 from django.db import models
 from apps.championships.models import Championship
-#Team
+from apps.teams.models import Team
 from django.core.exceptions import ValidationError
 
-
-# Create your models here.
-class Team(models.Model):#classe temporaria apenas para teste
-    name = models.CharField("Nome", max_length = 100)
-
-    def __str__(self):
-        return self.name
 
 class GameFormat(models.TextChoices):
     BO1 = "BO1", "Best of 1"
@@ -30,7 +23,7 @@ class GameStatus(models.TextChoices):
 
 
 class Group(models.Model):
-    championship = models.ForeignKey(Championship, on_delete = models.CASCADE, verbose_name = "Campeonato") #completar aqui quando importar championship
+    championship = models.ForeignKey(Championship, on_delete = models.CASCADE, verbose_name = "Campeonato")
     name = models.CharField("Nome", max_length = 50)
     teams = models.ManyToManyField(
         Team,
@@ -47,15 +40,15 @@ class Group(models.Model):
 
 
 class Match(models.Model):
-    championship = models.ForeignKey(Championship, on_delete = models.CASCADE, verbose_name = "Campeonato") #completar aqui quando importar championship
+    championship = models.ForeignKey(Championship, on_delete = models.CASCADE, verbose_name = "Campeonato")
     match_format = models.CharField("Formato", max_length = 5, choices = GameFormat.choices)
     phase = models.CharField("Fase", max_length = 12, choices = Phase.choices)
     group = models.ForeignKey(Group, on_delete = models.SET_NULL, verbose_name = "Grupo", blank = True, null = True)
     playoff_round = models.IntegerField("Rodada do Playoff", blank = True, null = True)
     round_number = models.IntegerField("Rodada")
-    team_a = models.ForeignKey(Team, on_delete = models.SET_NULL, blank = True, null = True, verbose_name = "Time A", related_name="matches_as_team_a")#copletar quando importar TIME
-    team_b = models.ForeignKey(Team, on_delete = models.SET_NULL, blank = True, null = True, verbose_name = "Time B", related_name="matches_as_team_b")#copletar quando importar TIME
-    winner = models.ForeignKey(Team, on_delete = models.SET_NULL, blank = True, null = True, verbose_name = "Vencedor", related_name="matches_won")#copletar quando importar TIME
+    team_a = models.ForeignKey(Team, on_delete = models.SET_NULL, blank = True, null = True, verbose_name = "Time A", related_name="matches_as_team_a")
+    team_b = models.ForeignKey(Team, on_delete = models.SET_NULL, blank = True, null = True, verbose_name = "Time B", related_name="matches_as_team_b")
+    winner = models.ForeignKey(Team, on_delete = models.SET_NULL, blank = True, null = True, verbose_name = "Vencedor", related_name="matches_won")
     status = models.CharField("Status", max_length = 12, choices = GameStatus.choices)
     teams = models.ManyToManyField(
         Team,
@@ -90,7 +83,7 @@ class Match(models.Model):
 
 class GroupStanding(models.Model):#tabela intermediaria entre grupo e time
     group = models.ForeignKey(Group, on_delete = models.CASCADE, verbose_name = "Grupo")
-    team = models.ForeignKey(Team, on_delete = models.CASCADE, verbose_name = "Time")#copletar quando importar TIME
+    team = models.ForeignKey(Team, on_delete = models.CASCADE, verbose_name = "Time")
     wins = models.IntegerField("Vitórias", default = 0)
     losses = models.IntegerField("Derrotas", default = 0)
     draws = models.IntegerField("Empates", blank = True, null = True)
@@ -118,7 +111,7 @@ class GroupStanding(models.Model):#tabela intermediaria entre grupo e time
 
 class GameResult(models.Model):#tabela intermediaria entre match e time
     match_id = models.ForeignKey(Match, on_delete = models.CASCADE, verbose_name = "Partida") 
-    winner = models.ForeignKey(Team, on_delete = models.RESTRICT, verbose_name = "Vencedor")#copletar quando importar TIME
+    winner = models.ForeignKey(Team, on_delete = models.RESTRICT, verbose_name = "Vencedor")
     game_number = models.IntegerField("Número da Partida")
     score_a = models.IntegerField("Pontuação Time A", default=0)
     score_b = models.IntegerField("Pontuação Time B", default=0)

@@ -1,0 +1,71 @@
+# Generated manually for teams initial models.
+
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    initial = True
+
+    dependencies = [
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name = "Team",
+            fields = [
+                ("id", models.BigAutoField(auto_created = True, primary_key = True, serialize = False, verbose_name = "ID")),
+                ("name", models.CharField(max_length = 100, verbose_name = "Nome da equipe")),
+                ("logo", models.ImageField(blank = True, null = True, upload_to = "team_logos", verbose_name = "Logo")),
+                ("created_at", models.DateTimeField(auto_now_add = True, verbose_name = "Data de criação")),
+                ("captain", models.ForeignKey(on_delete = django.db.models.deletion.CASCADE, related_name = "captained_teams", to = settings.AUTH_USER_MODEL, verbose_name = "Capitão")),
+            ],
+            options = {
+                "verbose_name": "Equipe",
+                "verbose_name_plural": "Equipes",
+                "ordering": ["name"],
+            },
+        ),
+        migrations.CreateModel(
+            name = "TeamMembership",
+            fields = [
+                ("id", models.BigAutoField(auto_created = True, primary_key = True, serialize = False, verbose_name = "ID")),
+                ("joined_at", models.DateTimeField(auto_now_add = True, verbose_name = "Data de entrada")),
+                ("player", models.ForeignKey(on_delete = django.db.models.deletion.CASCADE, related_name = "team_memberships", to = settings.AUTH_USER_MODEL, verbose_name = "Jogador")),
+                ("team", models.ForeignKey(on_delete = django.db.models.deletion.CASCADE, related_name = "memberships", to = "teams.team", verbose_name = "Equipe")),
+            ],
+            options = {
+                "verbose_name": "Membro da Equipe",
+                "verbose_name_plural": "Membros das Equipes",
+                "ordering": ["team__name", "player__username"],
+            },
+        ),
+        migrations.CreateModel(
+            name = "Invite",
+            fields = [
+                ("id", models.BigAutoField(auto_created = True, primary_key = True, serialize = False, verbose_name = "ID")),
+                ("status", models.CharField(choices = [("PENDING", "Pendente"), ("ACCEPTED", "Aceito"), ("DECLINED", "Recusado"), ("CANCELLED", "Cancelado")], default = "PENDING", max_length = 9, verbose_name = "Status do convite")),
+                ("created_at", models.DateTimeField(auto_now_add = True, verbose_name = "Data do convite")),
+                ("responded_at", models.DateTimeField(blank = True, null = True, verbose_name = "Data da resposta")),
+                ("invited_player", models.ForeignKey(on_delete = django.db.models.deletion.CASCADE, related_name = "team_invites", to = settings.AUTH_USER_MODEL, verbose_name = "Jogador convidado")),
+                ("team", models.ForeignKey(on_delete = django.db.models.deletion.CASCADE, related_name = "invites", to = "teams.team", verbose_name = "Equipe")),
+            ],
+            options = {
+                "verbose_name": "Convite",
+                "verbose_name_plural": "Convites",
+                "ordering": ["-created_at"],
+            },
+        ),
+        migrations.AddField(
+            model_name = "team",
+            name = "members",
+            field = models.ManyToManyField(related_name = "teams", through = "teams.TeamMembership", to = settings.AUTH_USER_MODEL, verbose_name = "Membros"),
+        ),
+        migrations.AddConstraint(
+            model_name = "teammembership",
+            constraint = models.UniqueConstraint(fields = ("team", "player"), name = "unique_team_player"),
+        ),
+    ]
