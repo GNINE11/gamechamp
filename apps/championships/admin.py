@@ -20,6 +20,7 @@ class ChampionshipAdmin(admin.ModelAdmin):
         "status",
         "stage_format",
         "max_teams",
+        "champion",
         "start_date",
         "created_by",
     )
@@ -49,7 +50,8 @@ class ChampionshipAdmin(admin.ModelAdmin):
             'description': 'Preencha apenas se houver fase eliminatória (não preencher em "Pontos corridos").'
         }),
         ('Outros', {
-            'fields': ('seeding_method',)
+            'fields': ('seeding_method', 'champion',)
+         
         }),
     )
 
@@ -90,7 +92,7 @@ class ChampionshipStaffAdmin(admin.ModelAdmin):
 
     search_fields = (
         "championship__name",
-        "user__username ",
+        "user__username",
         "role",
     )
 
@@ -109,7 +111,7 @@ class TiebreakerRuleAdmin(admin.ModelAdmin):
     )
 
     search_fields = (
-        "championship",
+        "championship__name",
     )
 
 

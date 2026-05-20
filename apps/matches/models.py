@@ -5,9 +5,9 @@ from django.core.exceptions import ValidationError
 
 
 class GameFormat(models.TextChoices):
-    BO1 = "BO1", "Best of 1"
-    BO3 = "BO3", "Best of 3"
-    BO5 = "BO5", "Best of 5"
+    BO1 = "BO1", "Melhor de 1"
+    BO3 = "BO3", "Melhor de 3"
+    BO5 = "BO5", "Melhor de 5"
 
 
 class Phase(models.TextChoices):
