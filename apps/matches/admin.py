@@ -4,12 +4,7 @@ from .models import (
     Match,
     GroupStanding,
     GameResult,
-    Team
 )
-
-@admin.register(Team)
-class TeamAdmin(admin.ModelAdmin):
-    list_display = ("name",)
 
 # Register your models here.
 class GameResultInline(admin.TabularInline):
