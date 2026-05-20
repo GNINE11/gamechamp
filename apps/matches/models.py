@@ -32,6 +32,12 @@ class GameStatus(models.TextChoices):
 class Group(models.Model):
     championship = models.ForeignKey(Championship, on_delete = models.CASCADE, verbose_name = "Campeonato") #completar aqui quando importar championship
     name = models.CharField("Nome", max_length = 50)
+    teams = models.ManyToManyField(
+        Team,
+        through="GroupStanding",
+        verbose_name="Times",
+        related_name="groups"
+    )
 
     class Meta:
         verbose_name = "Grupo"
@@ -51,7 +57,14 @@ class Match(models.Model):
     team_b = models.ForeignKey(Team, on_delete = models.SET_NULL, blank = True, null = True, verbose_name = "Time B", related_name="matches_as_team_b")#copletar quando importar TIME
     winner = models.ForeignKey(Team, on_delete = models.SET_NULL, blank = True, null = True, verbose_name = "Vencedor", related_name="matches_won")#copletar quando importar TIME
     status = models.CharField("Status", max_length = 12, choices = GameStatus.choices)
+    teams = models.ManyToManyField(
+        Team,
+        through="GameResult",
+        verbose_name="Times",
+        related_name="game_results"
+    )
     scheduled_at = models.DateField("Agendado Para", blank = True, null = True)
+    
 
     def clean(self):
         # 1. Time A e Time B não podem ser o mesmo

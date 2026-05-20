@@ -1,8 +1,10 @@
 from django.contrib import admin
 from .models import(
     Championship,
+    ChampionshipStaff,
     TiebreakerRule,
     Registration,
+    RoleStaff,
 )
 
 class TiebreakerRuleInline(admin.TabularInline):
@@ -19,6 +21,7 @@ class ChampionshipAdmin(admin.ModelAdmin):
         "stage_format",
         "max_teams",
         "start_date",
+        "created_by",
     )
 
     list_filter = (
@@ -51,6 +54,46 @@ class ChampionshipAdmin(admin.ModelAdmin):
     )
 
     inlines = [TiebreakerRuleInline]
+
+    def save_model(self, request, obj, form, change):
+
+        is_new = obj.pk is None
+
+        if is_new:
+            obj.created_by = request.user
+
+        super().save_model(request, obj, form, change)
+
+        # Cria owner automaticamente
+        if is_new:
+            ChampionshipStaff.objects.create(
+                championship=obj,
+                user=request.user,
+                role=RoleStaff.OWNER
+            )
+
+
+@admin.register(ChampionshipStaff)
+class ChampionshipStaffAdmin(admin.ModelAdmin):
+    list_display = (
+        "championship",
+        "user",
+        "role",
+        "added_at",
+    )
+
+    list_filter = (
+        "championship",
+        "user",
+        "role",
+    )
+
+    search_fields = (
+        "championship__name",
+        "user__username ",
+        "role",
+    )
+
 
 @admin.register(TiebreakerRule)
 class TiebreakerRuleAdmin(admin.ModelAdmin):
