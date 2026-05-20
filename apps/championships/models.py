@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from apps.accounts.models import User
 from apps.teams.models import Team
 
 # TABELAS: Championship, TiebreakerRule, Registration
@@ -33,6 +34,13 @@ class MatchFormat(models.TextChoices):
 class SeedingMethodChampionship(models.TextChoices):
     RANDOM = "RANDOM", "Aleatório"
     MANUAL = "MANUAL", "Manual"
+
+
+
+# ENUMS Championship_Staff
+class RoleStaff(models.TextChoices):
+    OWNER = "OWNER", "Dono"
+    MODERATOR = "MODERATOR", "Moderador"
 
 
 
@@ -146,10 +154,21 @@ class Championship(models.Model):
 
     # Creio que precisa de um champion = chave estrangeira de teams
 
+    staff = models.ManyToManyField(
+        User,
+        through="ChampionshipStaff",
+        related_name="championships_as_staff"
+    )
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.RESTRICT,
+        related_name="created_by"
+    )
+
     created_at = models.DateTimeField("Data de criação", auto_now_add=True)
 
-    #created_by = chave estrangeira de users
-
+    
 
     def clean(self):
         super().clean()
@@ -251,6 +270,59 @@ class Championship(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.game})"
+
+
+
+class ChampionshipStaff(models.Model):
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="users"
+    )
+
+    championship = models.ForeignKey(
+        Championship,
+        on_delete=models.CASCADE,
+        related_name="championship"
+    )
+
+    role = models.CharField("Função", max_length=9, choices=RoleStaff.choices, default=RoleStaff.MODERATOR)
+
+    added_at = models.DateTimeField("Adicionado às", auto_now_add=True)
+
+
+    def clean(self):
+        super().clean()
+        errors = {}
+
+        # Impedir múltiplos owners
+        if self.role == RoleStaff.OWNER:
+            qs_owner = ChampionshipStaff.objects.filter(
+                championship=self.championship,
+                role=RoleStaff.OWNER
+            )
+
+            if self.pk:
+                qs_owner = qs_owner.exclude(pk=self.pk)
+
+            if qs_owner.exists():
+                errors["role"] = ("Este campeonato já possui um owner.")
+
+        if errors:
+            raise ValidationError(errors)
+
+
+
+    class Meta:
+        verbose_name = "Equipe do Campeonato"
+        verbose_name_plural = "Equipe dos Campeonatos"
+        ordering = ["championship", "role"]
+
+
+    def __str__(self):
+        return (f"{self.user.username} - " f"{self.get_role_display()} - " f"{self.championship.name}")
+
 
 
 
