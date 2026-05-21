@@ -184,10 +184,92 @@ class Championship(models.Model):
 
         # Validações gerais
         if self.max_teams and self.max_teams < 2:
-            errors["max_teams"] = ("O campeonato deve ter pelo menos 2 times.")
+            errors["max_teams"] = "O campeonato deve ter pelo menos 2 times."
+        
+        if self.status != StatusChampionship.DRAFT and not self.start_date:
+            errors["start_date"] = "Data de início é obrigatória quando o campeonato não está em rascunho."
 
-        if (self.status != StatusChampionship.DRAFT and not self.start_date):
-            errors["start_date"] = ("Data de início é obrigatória quando o campeonato não está em rascunho.")
+        # Fase de grupos exige configurações de grupos
+        if self.stage_format == StageFormat.GROUP_THEN_PLAYOFFS:
+            if not self.group_count:
+                errors["group_count"] = ("Informe a quantidade de grupos.")
+            if not self.teams_per_group:
+                errors["teams_per_group"] = ("Informe a quantidade de times por grupo.")
+            if not self.teams_advancing_per_group:
+                errors["teams_advancing_per_group"] = ("Informe quantos times avançam por grupo.")
+            if not self.group_match_format:
+                errors["group_match_format"] = ("Informe o formato das partidas da fase de grupos.")
+            
+            # Exige configurações de playoff
+            if not self.playoff_format:
+                errors["playoff_format"] = ("Informe o formato do playoff.")
+            if not self.playoff_match_format:
+                errors["playoff_match_format"] = "Informe o formato das partidas do playoff."
+            if not self.final_match_format:
+                errors["final_match_format"] = "Informe o formato da partida final."
+
+             
+            if (self.teams_advancing_per_group and self.teams_per_group and self.teams_advancing_per_group > self.teams_per_group):
+                errors["teams_advancing_per_group"] = ("Não pode avançar mais times do que existem no grupo.")
+
+            if (self.group_count and self.teams_per_group and (self.group_count * self.teams_per_group) > self.max_teams):
+                errors["teams_per_group"] = ("A quantidade total de times dos grupos não pode ultrapassar o máximo de times.")
+        
+        
+        elif self.stage_format in (StageFormat.SINGLE_ELIMINATION, StageFormat.DOUBLE_ELIMINATION):
+            # Formatos eliminatórios devem ter campos de grupos nulos
+            if self.group_count is not None:
+                errors["group_count"] = f"O formato {self.get_stage_format_display()} não utiliza grupos."
+            if self.teams_per_group is not None:
+                errors["teams_per_group"] = "Campos de grupo não devem ser preenchidos para este formato."
+            if self.teams_advancing_per_group is not None:
+                errors["teams_advancing_per_group"] = "Campos de grupo não devem ser preenchidos para este formato."
+            if self.group_match_format is not None:
+                errors["group_match_format"] = "Campos de grupo não devem ser preenchidos para este formato."
+
+            # Campos obrigatórios de playoff
+            if not self.playoff_format:
+                errors["playoff_format"] = "Informe o formato do playoff."
+            if not self.playoff_match_format:
+                errors["playoff_match_format"] = "Informe o formato das partidas do playoff."
+            if not self.final_match_format:
+                errors["final_match_format"] = "Informe o formato da partida final."
+
+            # Inconsistência: formato do campeonato não pode divergir do formato do playoff
+            if self.stage_format == StageFormat.SINGLE_ELIMINATION and self.playoff_format == PlayoffFormat.DOUBLE_ELIMINATION:
+                errors["playoff_format"] = "Formato de eliminação simples não pode ter playoff em eliminação dupla."
+            elif self.stage_format == StageFormat.DOUBLE_ELIMINATION and self.playoff_format == PlayoffFormat.SINGLE_ELIMINATION:
+                errors["playoff_format"] = "Formato de eliminação dupla não pode ter playoff em eliminação simples."
+
+
+        # Pontos corridos: um único grupo com todos os times
+        elif self.stage_format == StageFormat.ROUND_ROBIN:
+            if self.group_count != 1:
+                errors["group_count"] = "Para pontos corridos, o número de grupos deve ser 1."
+
+            if not self.teams_per_group:
+                errors["teams_per_group"] = "Informe a quantidade de times por grupo (deve ser igual ao máximo de times)."
+            elif self.teams_per_group != self.max_teams:
+                errors["teams_per_group"] = f"Em pontos corridos, todos os times ficam no mesmo grupo. Portanto, times por grupo deve ser {self.max_teams}."
+
+            if self.teams_advancing_per_group is None:
+                errors["teams_advancing_per_group"] = "Informe quantos times avançam (para pontos corridos, deve ser 0)."
+            elif self.teams_advancing_per_group != 0:
+                errors["teams_advancing_per_group"] = "Pontos corridos não possuem playoff. Defina avanço como 0."
+            
+
+            if not self.group_match_format:
+                errors["group_match_format"] = "Informe o formato das partidas."
+            
+            # Pontos corridos devem ter campos de playoffs nulos
+            if self.playoff_format is not None:
+                errors["playoff_format"] = "Pontos corridos não possuem fase eliminatória."
+            if self.playoff_match_format is not None:
+                errors["playoff_match_format"] = "Pontos corridos não possuem fase eliminatória."
+            if self.final_match_format is not None:
+                errors["final_match_format"] = "Pontos corridos não possuem fase eliminatória."
+            if self.third_place_match:
+                errors["third_place_match"] = "Pontos corridos não possuem disputa de 3º lugar."
 
         if errors:
             raise ValidationError(errors)
@@ -298,16 +380,21 @@ class TiebreakerRule(models.Model):
         super().clean()
         errors = {}
 
-        # Garantir que não exista outra regra com a mesma prioridade no mesmo campeonato
         if self.championship_id:
+            # Formatos de mata-mata não utilizam critérios de desempate
+            if self.championship.stage_format in (StageFormat.SINGLE_ELIMINATION, StageFormat.DOUBLE_ELIMINATION,):
+                errors["championship"] = (
+                    "Critérios de desempate não são aplicáveis em campeonatos de eliminação direta."
+                )
+
+            # Garantir que não exista outra regra com a mesma prioridade no mesmo campeonato
             qs = TiebreakerRule.objects.filter(championship=self.championship, priority=self.priority)
             if self.pk:
                 qs = qs.exclude(pk=self.pk)
             if qs.exists():
                 errors["priority"] = f"Já existe uma regra de desempate com prioridade {self.priority} para este campeonato."
 
-        # Evitar critérios duplicados no mesmo campeonato
-        if self.championship_id:
+            # Evitar critérios duplicados no mesmo campeonato
             qs_criterion = TiebreakerRule.objects.filter(championship=self.championship, criterion=self.criterion)
             if self.pk:
                 qs_criterion = qs_criterion.exclude(pk=self.pk)
@@ -315,8 +402,6 @@ class TiebreakerRule(models.Model):
                 errors["criterion"] = f"O critério '{self.get_criterion_display()}' já foi definido para este campeonato."
 
 
-        # Campeonato talvez tenha que estar em rascunho ou com inscrições abertas para poder adicionar critérios
-        
         if errors:
             raise ValidationError(errors)
 
