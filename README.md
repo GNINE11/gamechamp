@@ -329,6 +329,70 @@ python manage.py runserver
 
 ---
 
+# Como Executar com Docker
+
+O projeto também pode ser executado com Docker, sem instalar Python e dependências diretamente na máquina.
+
+## 1. Construir e iniciar a aplicação
+
+```bash
+docker compose up --build
+```
+
+O container executa as migrações automaticamente e inicia o servidor em:
+
+```text
+http://localhost:8000/
+```
+
+Painel administrativo:
+
+```text
+http://localhost:8000/admin/
+```
+
+## 2. Rodar testes no container
+
+```bash
+docker compose run --rm web python manage.py test
+```
+
+## 3. Popular o banco com dados de exemplo
+
+```bash
+docker compose run --rm web python manage.py populate_gamechamp
+```
+
+## 4. Remover os dados de exemplo
+
+```bash
+docker compose run --rm web python manage.py clear_gamechamp_population
+```
+
+## 5. Criar superusuário
+
+```bash
+docker compose run --rm web python manage.py createsuperuser
+```
+
+## 6. Encerrar os containers
+
+```bash
+docker compose down
+```
+
+## Variáveis de ambiente opcionais
+
+O Docker Compose já define os hosts permitidos para desenvolvimento local. Se necessário, também é possível configurar:
+
+| Variável                 | Descrição                                      |
+| ------------------------ | ---------------------------------------------- |
+| `DJANGO_SECRET_KEY`      | Chave secreta usada pelo Django                |
+| `DJANGO_DEBUG`           | Ativa ou desativa o modo debug (`True`/`False`) |
+| `DJANGO_ALLOWED_HOSTS`   | Hosts permitidos, separados por vírgula        |
+
+---
+
 # Autores
 
 Gabriel Jardim de Souza
