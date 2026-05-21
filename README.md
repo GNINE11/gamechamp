@@ -395,6 +395,8 @@ O Docker Compose já define os hosts permitidos para desenvolvimento local. Se n
 
 # Autores
 
-Gabriel Jardim de Souza
-Kauê de Oliveira Silva
+Gabriel Jardim de Souza;
+
+Kauê de Oliveira Silva;
+
 Thiago Ferreira Azevedo
