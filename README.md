@@ -293,7 +293,7 @@ Os testes cobrem os models dos apps `accounts`, `teams`, `championships` e `matc
 python manage.py populate_gamechamp
 ```
 
-O comando cria usuários, equipes, convites, campeonato, staff, regras de desempate, inscrições, grupos, classificações, partidas e resultados de exemplo.
+O comando cria um campeonato completo de exemplo com 16 equipes inscritas, 4 grupos, fase de grupos finalizada, playoff de eliminação dupla, grande final, resultados registrados e campeão definido.
 
 Usuários gerados pelo seed usam a senha:
 

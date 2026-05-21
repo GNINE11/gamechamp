@@ -1,9 +1,12 @@
 from datetime import date
+from io import StringIO
 
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
 from django.test import TestCase
 
 from apps.accounts.models import User
+from apps.matches.models import GameResult, Group, GroupStanding, Match, Phase
 from apps.teams.models import Team
 
 from .models import (
@@ -207,3 +210,50 @@ class RegistrationModelTest(ChampionshipTestCase):
 
         with self.assertRaises(ValidationError):
             extra_registration.full_clean()
+
+
+class PopulateGameChampCommandTest(TestCase):
+    def run_command(self):
+        out = StringIO()
+        call_command("populate_gamechamp", stdout=out)
+        return out.getvalue()
+
+    def test_populate_gamechamp_creates_complete_16_team_finished_championship(self):
+        output = self.run_command()
+
+        championship = Championship.objects.get(name="Seed Major Completo")
+
+        self.assertIn("Campeonato completo criado com sucesso.", output)
+        self.assertEqual(championship.status, StatusChampionship.FINISHED)
+        self.assertEqual(championship.stage_format, StageFormat.GROUP_THEN_PLAYOFFS)
+        self.assertEqual(championship.playoff_format, PlayoffFormat.DOUBLE_ELIMINATION)
+        self.assertIsNotNone(championship.champion)
+        self.assertEqual(Team.objects.filter(name__startswith="Seed ").count(), 16)
+        self.assertEqual(User.objects.filter(username__startswith="seed_").count(), 18)
+        self.assertEqual(
+            Registration.objects.filter(
+                championship=championship,
+                status=StatusRegistration.APPROVED,
+            ).count(),
+            16,
+        )
+        self.assertEqual(Group.objects.filter(championship=championship).count(), 4)
+        self.assertEqual(GroupStanding.objects.filter(group__championship=championship).count(), 16)
+        self.assertEqual(Match.objects.filter(championship=championship, phase=Phase.GROUP).count(), 24)
+        self.assertEqual(Match.objects.filter(championship=championship, phase=Phase.PLAYOFF).count(), 13)
+        self.assertEqual(Match.objects.filter(championship=championship, phase=Phase.GRAND_FINAL).count(), 1)
+        self.assertEqual(Match.objects.filter(championship=championship).count(), 38)
+        self.assertEqual(GameResult.objects.filter(match_id__championship=championship).count(), 53)
+
+    def test_populate_gamechamp_can_be_run_again_without_duplicating_seed_data(self):
+        self.run_command()
+        self.run_command()
+
+        championship = Championship.objects.get(name="Seed Major Completo")
+
+        self.assertEqual(Championship.objects.filter(name__startswith="Seed ").count(), 1)
+        self.assertEqual(Team.objects.filter(name__startswith="Seed ").count(), 16)
+        self.assertEqual(User.objects.filter(username__startswith="seed_").count(), 18)
+        self.assertEqual(Registration.objects.filter(championship=championship).count(), 16)
+        self.assertEqual(Match.objects.filter(championship=championship).count(), 38)
+        self.assertEqual(GameResult.objects.filter(match_id__championship=championship).count(), 53)

@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand
+from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.models import User
@@ -19,161 +20,144 @@ from apps.championships.models import (
     TiebreakerRule,
 )
 from apps.matches.models import GameFormat, GameResult, GameStatus, Group, GroupStanding, Match, Phase
-from apps.teams.models import Invite, InviteStatus, Team
+from apps.teams.models import Team
 
 
 class Command(BaseCommand):
-    help = "Popula o banco com dados de exemplo para testar o GameChamp."
+    help = "Popula o banco com um campeonato completo de exemplo para testar o GameChamp."
 
     def handle(self, *args, **options):
         today = timezone.localdate()
         password = "gamechamp123"
 
-        users = self.create_users(password)
-        teams = self.create_teams(users)
-        self.create_invites(users, teams)
-        championship = self.create_championship(users["alice"], today)
-        self.create_staff(championship, users)
-        self.create_tiebreakers(championship)
-        self.create_registrations(championship, teams)
-        groups = self.create_groups(championship, teams)
-        self.create_matches(championship, groups, teams, today)
+        with transaction.atomic():
+            self.clear_existing_seed_data()
+            users = self.create_users(password)
+            teams = self.create_teams(users)
+            championship = self.create_championship(users["owner"], today)
+            self.create_staff(championship, users)
+            self.create_tiebreakers(championship)
+            self.create_registrations(championship, teams)
+            groups, advancing_teams, next_date, next_round = self.create_group_stage(
+                championship,
+                teams,
+                today + timedelta(days=1),
+            )
+            champion = self.create_double_elimination_playoff(
+                championship,
+                advancing_teams,
+                next_date,
+                next_round,
+            )
+            championship.status = StatusChampionship.FINISHED
+            championship.champion = champion
+            championship.full_clean()
+            championship.save(update_fields=["status", "champion"])
 
-        self.stdout.write(self.style.SUCCESS("Dados de exemplo criados/atualizados com sucesso."))
+        self.stdout.write(self.style.SUCCESS("Campeonato completo criado com sucesso."))
         self.stdout.write(f"Usuarios seedados usam a senha: {password}")
+        self.stdout.write(f"Campeonato: {championship.name}")
+        self.stdout.write(f"Equipes inscritas: {len(teams)}")
+        self.stdout.write(f"Grupos criados: {len(groups)}")
+        self.stdout.write(f"Campeao: {champion.name}")
+
+    def clear_existing_seed_data(self):
+        Championship.objects.filter(name__startswith="Seed ").delete()
+        Team.objects.filter(name__startswith="Seed ").delete()
+        User.objects.filter(username__startswith="seed_").delete()
 
     def create_users(self, password):
-        seed_users = {
-            "alice": {
-                "username": "seed_alice",
-                "email": "alice.seed@example.com",
-                "bio": "Capita estrategista.",
-                "ranking_score": 1800,
-            },
-            "bruno": {
-                "username": "seed_bruno",
-                "email": "bruno.seed@example.com",
-                "bio": "Entry fragger.",
-                "ranking_score": 1620,
-            },
-            "clara": {
-                "username": "seed_clara",
-                "email": "clara.seed@example.com",
-                "bio": "IGL focada em torneios.",
-                "ranking_score": 1710,
-            },
-            "diego": {
-                "username": "seed_diego",
-                "email": "diego.seed@example.com",
-                "bio": "Suporte flex.",
-                "ranking_score": 1490,
-            },
-            "erica": {
-                "username": "seed_erica",
-                "email": "erica.seed@example.com",
-                "bio": "Sniper.",
-                "ranking_score": 1930,
-            },
-            "felipe": {
-                "username": "seed_felipe",
-                "email": "felipe.seed@example.com",
-                "bio": "Coach e analista.",
-                "ranking_score": 1550,
-            },
+        users = {
+            "owner": User.objects.create_user(
+                username="seed_owner",
+                email="owner.seed@example.com",
+                password=password,
+                bio="Organizador do campeonato seed.",
+                ranking_score=2200,
+            ),
+            "moderator": User.objects.create_user(
+                username="seed_moderator",
+                email="moderator.seed@example.com",
+                password=password,
+                bio="Moderador do campeonato seed.",
+                ranking_score=1900,
+            ),
         }
 
-        users = {}
-        for key, data in seed_users.items():
-            username = data.pop("username")
-            user, _ = User.objects.update_or_create(username=username, defaults=data)
-            user.set_password(password)
-            user.save(update_fields=["password"])
-            users[key] = user
+        for index in range(1, 17):
+            users[f"captain_{index:02d}"] = User.objects.create_user(
+                username=f"seed_captain_{index:02d}",
+                email=f"captain{index:02d}.seed@example.com",
+                password=password,
+                bio=f"Capitao da equipe seed {index:02d}.",
+                ranking_score=1500 + index * 25,
+            )
 
         return users
 
     def create_teams(self, users):
-        team_data = {
-            "dragons": {
-                "name": "Seed Dragons",
-                "captain": users["alice"],
-                "members": [users["alice"], users["bruno"]],
-            },
-            "ninjas": {
-                "name": "Seed Ninjas",
-                "captain": users["clara"],
-                "members": [users["clara"], users["diego"]],
-            },
-            "titans": {
-                "name": "Seed Titans",
-                "captain": users["erica"],
-                "members": [users["erica"], users["felipe"]],
-            },
-            "falcons": {
-                "name": "Seed Falcons",
-                "captain": users["felipe"],
-                "members": [users["felipe"], users["alice"]],
-            },
-        }
+        team_names = [
+            "Seed Dragons",
+            "Seed Ninjas",
+            "Seed Titans",
+            "Seed Falcons",
+            "Seed Phoenix",
+            "Seed Vikings",
+            "Seed Wolves",
+            "Seed Sharks",
+            "Seed Rangers",
+            "Seed Knights",
+            "Seed Hunters",
+            "Seed Eclipse",
+            "Seed Quantum",
+            "Seed Aurora",
+            "Seed Venom",
+            "Seed Storm",
+        ]
 
-        teams = {}
-        for key, data in team_data.items():
-            members = data.pop("members")
-            team, _ = Team.objects.update_or_create(
-                name=data["name"],
-                defaults={"captain": data["captain"]},
+        teams = []
+        for index, name in enumerate(team_names, start=1):
+            team = Team.objects.create(
+                name=name,
+                captain=users[f"captain_{index:02d}"],
             )
-            for member in members:
-                team.add_member(member)
-            teams[key] = team
+            teams.append(team)
 
         return teams
 
-    def create_invites(self, users, teams):
-        Invite.objects.update_or_create(
-            team=teams["dragons"],
-            invited_player=users["erica"],
-            defaults={"status": InviteStatus.PENDING},
-        )
-        Invite.objects.update_or_create(
-            team=teams["ninjas"],
-            invited_player=users["bruno"],
-            defaults={"status": InviteStatus.ACCEPTED},
-        )
-
     def create_championship(self, owner, today):
-        championship, _ = Championship.objects.update_or_create(
-            name="Seed CS2 Cup",
-            defaults={
-                "game": "Counter-Strike 2",
-                "status": StatusChampionship.OPEN,
-                "max_teams": 4,
-                "start_date": today + timedelta(days=7),
-                "stage_format": StageFormat.GROUP_THEN_PLAYOFFS,
-                "group_count": 2,
-                "teams_per_group": 2,
-                "teams_advancing_per_group": 1,
-                "group_match_format": MatchFormat.BO1,
-                "playoff_format": PlayoffFormat.SINGLE_ELIMINATION,
-                "playoff_match_format": MatchFormat.BO3,
-                "final_match_format": MatchFormat.BO5,
-                "third_place_match": True,
-                "seeding_method": SeedingMethodChampionship.RANDOM,
-                "created_by": owner,
-            },
+        championship = Championship(
+            name="Seed Major Completo",
+            game="Counter-Strike 2",
+            status=StatusChampionship.OPEN,
+            max_teams=16,
+            start_date=today + timedelta(days=1),
+            stage_format=StageFormat.GROUP_THEN_PLAYOFFS,
+            group_count=4,
+            teams_per_group=4,
+            teams_advancing_per_group=2,
+            group_match_format=MatchFormat.BO1,
+            playoff_format=PlayoffFormat.DOUBLE_ELIMINATION,
+            playoff_match_format=MatchFormat.BO3,
+            final_match_format=MatchFormat.BO5,
+            third_place_match=False,
+            seeding_method=SeedingMethodChampionship.MANUAL,
+            created_by=owner,
         )
+        championship.full_clean()
+        championship.save()
         return championship
 
     def create_staff(self, championship, users):
-        ChampionshipStaff.objects.update_or_create(
+        ChampionshipStaff.objects.create(
             championship=championship,
-            user=users["alice"],
-            defaults={"role": RoleStaff.OWNER},
+            user=users["owner"],
+            role=RoleStaff.OWNER,
         )
-        ChampionshipStaff.objects.update_or_create(
+        ChampionshipStaff.objects.create(
             championship=championship,
-            user=users["felipe"],
-            defaults={"role": RoleStaff.MODERATOR},
+            user=users["moderator"],
+            role=RoleStaff.MODERATOR,
         )
 
     def create_tiebreakers(self, championship):
@@ -181,86 +165,241 @@ class Command(BaseCommand):
             (1, TiebreakerCriterion.POINTS),
             (2, TiebreakerCriterion.WINS),
             (3, TiebreakerCriterion.ROUND_DIFF),
+            (4, TiebreakerCriterion.ROUNDS_WON),
+            (5, TiebreakerCriterion.WIN_RATE),
         ]
         for priority, criterion in criteria:
-            TiebreakerRule.objects.update_or_create(
+            TiebreakerRule.objects.create(
                 championship=championship,
                 priority=priority,
-                defaults={"criterion": criterion},
+                criterion=criterion,
             )
 
     def create_registrations(self, championship, teams):
-        for team in teams.values():
-            Registration.objects.update_or_create(
+        for team in teams:
+            registration = Registration(
                 championship=championship,
                 team=team,
-                defaults={"status": StatusRegistration.APPROVED},
+                status=StatusRegistration.APPROVED,
             )
+            registration.full_clean()
+            registration.save()
 
-    def create_groups(self, championship, teams):
-        group_a, _ = Group.objects.update_or_create(championship=championship, name="A")
-        group_b, _ = Group.objects.update_or_create(championship=championship, name="B")
+    def create_group_stage(self, championship, teams, start_date):
+        groups = []
+        advancing_teams = []
+        scheduled_at = start_date
+        round_number = 1
 
-        standings = [
-            (group_a, teams["dragons"], 1, 0, 3, 13, 8, 5, 1),
-            (group_a, teams["titans"], 0, 1, 0, 8, 13, -5, 2),
-            (group_b, teams["ninjas"], 1, 0, 3, 13, 10, 3, 1),
-            (group_b, teams["falcons"], 0, 1, 0, 10, 13, -3, 2),
-        ]
-        for group, team, wins, losses, points, won, lost, diff, position in standings:
-            GroupStanding.objects.update_or_create(
+        for group_index, group_name in enumerate(["A", "B", "C", "D"]):
+            group = Group.objects.create(championship=championship, name=group_name)
+            groups.append(group)
+            group_teams = teams[group_index * 4:(group_index + 1) * 4]
+            records = {
+                team: {"wins": 0, "losses": 0, "rounds_won": 0, "rounds_lost": 0}
+                for team in group_teams
+            }
+
+            for first_index, team_a in enumerate(group_teams):
+                for team_b in group_teams[first_index + 1:]:
+                    winner = team_a
+                    loser = team_b
+                    records[winner]["wins"] += 1
+                    records[winner]["rounds_won"] += 13
+                    records[winner]["rounds_lost"] += 8
+                    records[loser]["losses"] += 1
+                    records[loser]["rounds_won"] += 8
+                    records[loser]["rounds_lost"] += 13
+
+                    self.create_finished_match(
+                        championship=championship,
+                        team_a=team_a,
+                        team_b=team_b,
+                        winner=winner,
+                        match_format=GameFormat.BO1,
+                        phase=Phase.GROUP,
+                        round_number=round_number,
+                        scheduled_at=scheduled_at,
+                        group=group,
+                    )
+                    scheduled_at += timedelta(days=1)
+                    round_number += 1
+
+            ordered_group_teams = sorted(
+                group_teams,
+                key=lambda team: (
+                    records[team]["wins"],
+                    records[team]["rounds_won"] - records[team]["rounds_lost"],
+                    records[team]["rounds_won"],
+                ),
+                reverse=True,
+            )
+            advancing_teams.extend(ordered_group_teams[:2])
+            self.create_group_standings(group, ordered_group_teams, records)
+
+        return groups, advancing_teams, scheduled_at, round_number
+
+    def create_group_standings(self, group, ordered_teams, records):
+        for position, team in enumerate(ordered_teams, start=1):
+            record = records[team]
+            standing = GroupStanding(
                 group=group,
                 team=team,
-                defaults={
-                    "wins": wins,
-                    "losses": losses,
-                    "points": points,
-                    "rounds_won": won,
-                    "rounds_lost": lost,
-                    "round_diff": diff,
-                    "position": position,
-                },
+                wins=record["wins"],
+                losses=record["losses"],
+                points=record["wins"] * 3,
+                rounds_won=record["rounds_won"],
+                rounds_lost=record["rounds_lost"],
+                round_diff=record["rounds_won"] - record["rounds_lost"],
+                position=position,
             )
+            standing.full_clean()
+            standing.save()
 
-        return {"a": group_a, "b": group_b}
+    def create_double_elimination_playoff(self, championship, seeds, scheduled_at, round_number):
+        def playoff_match(team_a, team_b, winner, playoff_round):
+            nonlocal scheduled_at, round_number
+            match = self.create_finished_match(
+                championship=championship,
+                team_a=team_a,
+                team_b=team_b,
+                winner=winner,
+                match_format=GameFormat.BO3,
+                phase=Phase.PLAYOFF,
+                round_number=round_number,
+                scheduled_at=scheduled_at,
+                playoff_round=playoff_round,
+            )
+            scheduled_at += timedelta(days=1)
+            round_number += 1
+            return match
 
-    def create_matches(self, championship, groups, teams, today):
-        group_match, _ = Match.objects.update_or_create(
+        upper_quarters = [
+            playoff_match(seeds[0], seeds[7], seeds[0], 1),
+            playoff_match(seeds[2], seeds[5], seeds[2], 1),
+            playoff_match(seeds[4], seeds[3], seeds[4], 1),
+            playoff_match(seeds[6], seeds[1], seeds[6], 1),
+        ]
+        lower_round_one = [
+            playoff_match(
+                upper_quarters[0].team_b,
+                upper_quarters[1].team_b,
+                upper_quarters[0].team_b,
+                2,
+            ),
+            playoff_match(
+                upper_quarters[2].team_b,
+                upper_quarters[3].team_b,
+                upper_quarters[3].team_b,
+                2,
+            ),
+        ]
+        upper_semis = [
+            playoff_match(
+                upper_quarters[0].winner,
+                upper_quarters[1].winner,
+                upper_quarters[0].winner,
+                3,
+            ),
+            playoff_match(
+                upper_quarters[2].winner,
+                upper_quarters[3].winner,
+                upper_quarters[2].winner,
+                3,
+            ),
+        ]
+        lower_round_two = [
+            playoff_match(
+                lower_round_one[0].winner,
+                upper_semis[1].team_b,
+                upper_semis[1].team_b,
+                4,
+            ),
+            playoff_match(
+                lower_round_one[1].winner,
+                upper_semis[0].team_b,
+                upper_semis[0].team_b,
+                4,
+            ),
+        ]
+        lower_semifinal = playoff_match(
+            lower_round_two[0].winner,
+            lower_round_two[1].winner,
+            lower_round_two[1].winner,
+            5,
+        )
+        upper_final = playoff_match(
+            upper_semis[0].winner,
+            upper_semis[1].winner,
+            upper_semis[0].winner,
+            5,
+        )
+        lower_final = playoff_match(
+            lower_semifinal.winner,
+            upper_final.team_b,
+            upper_final.team_b,
+            6,
+        )
+
+        grand_final = self.create_finished_match(
             championship=championship,
-            phase=Phase.GROUP,
-            group=groups["a"],
-            round_number=1,
-            team_a=teams["dragons"],
-            team_b=teams["titans"],
-            defaults={
-                "match_format": GameFormat.BO1,
-                "winner": teams["dragons"],
-                "status": GameStatus.FINISHED,
-                "scheduled_at": today + timedelta(days=8),
-            },
-        )
-        GameResult.objects.update_or_create(
-            match_id=group_match,
-            game_number=1,
-            defaults={
-                "winner": teams["dragons"],
-                "score_a": 13,
-                "score_b": 8,
-                "map_name": "Mirage",
-            },
+            team_a=upper_final.winner,
+            team_b=lower_final.winner,
+            winner=upper_final.winner,
+            match_format=GameFormat.BO5,
+            phase=Phase.GRAND_FINAL,
+            round_number=round_number,
+            scheduled_at=scheduled_at,
         )
 
-        Match.objects.update_or_create(
+        return grand_final.winner
+
+    def create_finished_match(
+        self,
+        championship,
+        team_a,
+        team_b,
+        winner,
+        match_format,
+        phase,
+        round_number,
+        scheduled_at,
+        group=None,
+        playoff_round=None,
+    ):
+        match = Match(
             championship=championship,
-            phase=Phase.PLAYOFF,
-            playoff_round=1,
-            round_number=2,
-            team_a=teams["dragons"],
-            team_b=teams["ninjas"],
-            defaults={
-                "match_format": GameFormat.BO3,
-                "winner": None,
-                "status": GameStatus.SCHEDULED,
-                "scheduled_at": today + timedelta(days=10),
-            },
+            match_format=match_format,
+            phase=phase,
+            group=group,
+            playoff_round=playoff_round,
+            round_number=round_number,
+            team_a=team_a,
+            team_b=team_b,
+            winner=winner,
+            status=GameStatus.FINISHED,
+            scheduled_at=scheduled_at,
         )
+        match.full_clean()
+        match.save()
+
+        games_to_win = {
+            GameFormat.BO1: 1,
+            GameFormat.BO3: 2,
+            GameFormat.BO5: 3,
+        }[match_format]
+
+        for game_number in range(1, games_to_win + 1):
+            winner_is_team_a = winner == team_a
+            result = GameResult(
+                match_id=match,
+                winner=winner,
+                game_number=game_number,
+                score_a=13 if winner_is_team_a else 8,
+                score_b=8 if winner_is_team_a else 13,
+                map_name=f"Seed Map {game_number}",
+            )
+            result.full_clean()
+            result.save()
+
+        return match
