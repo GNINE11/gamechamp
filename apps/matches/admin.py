@@ -72,7 +72,7 @@ class MatchAdmin(admin.ModelAdmin):
 
 @admin.register(GroupStanding)
 class GroupStandingAdmin(admin.ModelAdmin):
-    list_display = ("team", "group", "points", "wins", "losses", "draws", "round_diff", "position")
+    list_display = ("group", "position", "team", "points", "wins", "losses", "draws", "round_diff")
     search_fields = ("team__name", "group__name")
     list_filter = ("group__championship", "group")
 

@@ -34,6 +34,7 @@ class Group(models.Model):
 
     class Meta:
         verbose_name = "Grupo"
+        ordering = ["championship", "name"]
 
     def __str__(self):
         return f"Grupo: {self.name}\nCampeonato: {self.championship}"
@@ -104,6 +105,7 @@ class GroupStanding(models.Model):#tabela intermediaria entre grupo e time
         constraints = [
             models.UniqueConstraint(fields = ["group", "team"], name = "unique_group_team")
         ]
+        ordering = ["group", "position"]
     
     def __str__(self):
         return f"{self.team} — Grupo {self.group} ({self.points} pts)"
@@ -130,6 +132,7 @@ class GameResult(models.Model):#tabela intermediaria entre match e time
         constraints = [
             models.UniqueConstraint(fields=["match_id", "game_number"], name="unique_match_number")
         ]
+        ordering = ["match_id", "game_number"]
 
     def __str__(self):
         return f"{self.match_id} — Game {self.game_number} | {self.score_a}x{self.score_b}"
