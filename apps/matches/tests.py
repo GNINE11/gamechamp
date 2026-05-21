@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
@@ -7,8 +7,11 @@ from apps.accounts.models import User
 from apps.championships.models import (
     Championship,
     MatchFormat,
+    PlayoffFormat,
+    Registration,
     StageFormat,
     StatusChampionship,
+    StatusRegistration,
 )
 from apps.teams.models import Team
 
@@ -206,3 +209,335 @@ class GameResultModelTest(MatchTestCase):
 
         with self.assertRaises(ValidationError):
             duplicate.full_clean()
+
+
+class CompleteChampionshipFlowTest(MatchTestCase):
+    def create_complete_championship(self):
+        return Championship.objects.create(
+            name="GameChamp Major Completo",
+            game="Valorant",
+            status=StatusChampionship.OPEN,
+            max_teams=16,
+            start_date=date(2026, 7, 1),
+            stage_format=StageFormat.GROUP_THEN_PLAYOFFS,
+            group_count=4,
+            teams_per_group=4,
+            teams_advancing_per_group=2,
+            group_match_format=MatchFormat.BO1,
+            playoff_format=PlayoffFormat.DOUBLE_ELIMINATION,
+            playoff_match_format=MatchFormat.BO3,
+            final_match_format=MatchFormat.BO5,
+            created_by=self.create_user("complete_owner"),
+        )
+
+    def create_registered_teams(self, championship, amount=16):
+        teams = []
+
+        for index in range(1, amount + 1):
+            team = self.create_team(f"Equipe {index:02d}")
+            registration = Registration(
+                championship=championship,
+                team=team,
+                status=StatusRegistration.APPROVED,
+            )
+            registration.full_clean()
+            registration.save()
+            teams.append(team)
+
+        return teams
+
+    def create_finished_match(
+        self,
+        championship,
+        team_a,
+        team_b,
+        winner,
+        match_format,
+        phase,
+        round_number,
+        scheduled_at,
+        group=None,
+        playoff_round=None,
+    ):
+        match = Match(
+            championship=championship,
+            match_format=match_format,
+            phase=phase,
+            group=group,
+            playoff_round=playoff_round,
+            round_number=round_number,
+            team_a=team_a,
+            team_b=team_b,
+            winner=winner,
+            status=GameStatus.FINISHED,
+            scheduled_at=scheduled_at,
+        )
+        match.full_clean()
+        match.save()
+
+        games_to_win = {
+            GameFormat.BO1: 1,
+            GameFormat.BO3: 2,
+            GameFormat.BO5: 3,
+        }[match_format]
+
+        for game_number in range(1, games_to_win + 1):
+            winner_is_team_a = winner == team_a
+            result = GameResult(
+                match_id=match,
+                winner=winner,
+                game_number=game_number,
+                score_a=13 if winner_is_team_a else 8,
+                score_b=8 if winner_is_team_a else 13,
+                map_name=f"Mapa {game_number}",
+            )
+            result.full_clean()
+            result.save()
+
+        return match
+
+    def create_group_stage(self, championship, teams):
+        group_names = ["A", "B", "C", "D"]
+        groups = []
+        advancing_teams = []
+        scheduled_at = championship.start_date
+        global_round = 1
+
+        for group_index, name in enumerate(group_names):
+            group = Group.objects.create(championship=championship, name=name)
+            groups.append(group)
+            group_teams = teams[group_index * 4:(group_index + 1) * 4]
+            records = {
+                team: {"wins": 0, "losses": 0, "won": 0, "lost": 0}
+                for team in group_teams
+            }
+
+            for first_index, team_a in enumerate(group_teams):
+                for team_b in group_teams[first_index + 1:]:
+                    winner = team_a
+                    loser = team_b
+                    records[winner]["wins"] += 1
+                    records[winner]["won"] += 13
+                    records[winner]["lost"] += 8
+                    records[loser]["losses"] += 1
+                    records[loser]["won"] += 8
+                    records[loser]["lost"] += 13
+
+                    self.create_finished_match(
+                        championship=championship,
+                        team_a=team_a,
+                        team_b=team_b,
+                        winner=winner,
+                        match_format=GameFormat.BO1,
+                        phase=Phase.GROUP,
+                        group=group,
+                        round_number=global_round,
+                        scheduled_at=scheduled_at,
+                    )
+                    scheduled_at += timedelta(days=1)
+                    global_round += 1
+
+            ordered_group_teams = sorted(
+                group_teams,
+                key=lambda team: (
+                    records[team]["wins"],
+                    records[team]["won"] - records[team]["lost"],
+                    records[team]["won"],
+                ),
+                reverse=True,
+            )
+            advancing_teams.extend(ordered_group_teams[:2])
+
+            for position, team in enumerate(ordered_group_teams, start=1):
+                record = records[team]
+                standing = GroupStanding(
+                    group=group,
+                    team=team,
+                    wins=record["wins"],
+                    losses=record["losses"],
+                    points=record["wins"] * 3,
+                    rounds_won=record["won"],
+                    rounds_lost=record["lost"],
+                    round_diff=record["won"] - record["lost"],
+                    position=position,
+                )
+                standing.full_clean()
+                standing.save()
+
+        return groups, advancing_teams, scheduled_at, global_round
+
+    def create_double_elimination_playoff(
+        self,
+        championship,
+        seeds,
+        scheduled_at,
+        global_round,
+    ):
+        def playoff_match(team_a, team_b, winner, playoff_round):
+            nonlocal scheduled_at, global_round
+            match = self.create_finished_match(
+                championship=championship,
+                team_a=team_a,
+                team_b=team_b,
+                winner=winner,
+                match_format=GameFormat.BO3,
+                phase=Phase.PLAYOFF,
+                round_number=global_round,
+                scheduled_at=scheduled_at,
+                playoff_round=playoff_round,
+            )
+            scheduled_at += timedelta(days=1)
+            global_round += 1
+            return match
+
+        upper_quarters = [
+            playoff_match(seeds[0], seeds[7], seeds[0], 1),
+            playoff_match(seeds[2], seeds[5], seeds[2], 1),
+            playoff_match(seeds[4], seeds[3], seeds[4], 1),
+            playoff_match(seeds[6], seeds[1], seeds[6], 1),
+        ]
+        lower_round_one = [
+            playoff_match(
+                upper_quarters[0].team_b,
+                upper_quarters[1].team_b,
+                upper_quarters[0].team_b,
+                2,
+            ),
+            playoff_match(
+                upper_quarters[2].team_b,
+                upper_quarters[3].team_b,
+                upper_quarters[3].team_b,
+                2,
+            ),
+        ]
+        upper_semis = [
+            playoff_match(
+                upper_quarters[0].winner,
+                upper_quarters[1].winner,
+                upper_quarters[0].winner,
+                3,
+            ),
+            playoff_match(
+                upper_quarters[2].winner,
+                upper_quarters[3].winner,
+                upper_quarters[2].winner,
+                3,
+            ),
+        ]
+        lower_round_two = [
+            playoff_match(
+                lower_round_one[0].winner,
+                upper_semis[1].team_b,
+                upper_semis[1].team_b,
+                4,
+            ),
+            playoff_match(
+                lower_round_one[1].winner,
+                upper_semis[0].team_b,
+                upper_semis[0].team_b,
+                4,
+            ),
+        ]
+        lower_semifinal = playoff_match(
+            lower_round_two[0].winner,
+            lower_round_two[1].winner,
+            lower_round_two[1].winner,
+            5,
+        )
+        upper_final = playoff_match(
+            upper_semis[0].winner,
+            upper_semis[1].winner,
+            upper_semis[0].winner,
+            5,
+        )
+        lower_final = playoff_match(
+            lower_semifinal.winner,
+            upper_final.team_b,
+            upper_final.team_b,
+            6,
+        )
+
+        grand_final = self.create_finished_match(
+            championship=championship,
+            team_a=upper_final.winner,
+            team_b=lower_final.winner,
+            winner=upper_final.winner,
+            match_format=GameFormat.BO5,
+            phase=Phase.GRAND_FINAL,
+            round_number=global_round,
+            scheduled_at=scheduled_at,
+        )
+
+        return grand_final.winner
+
+    def assert_double_elimination_losses(self, championship, seeds, champion):
+        playoff_matches = Match.objects.filter(
+            championship=championship,
+            phase__in=[Phase.PLAYOFF, Phase.GRAND_FINAL],
+        )
+        losses_by_team = {team.id: 0 for team in seeds}
+
+        for match in playoff_matches:
+            for team in [match.team_a, match.team_b]:
+                if team.id in losses_by_team and match.winner_id != team.id:
+                    losses_by_team[team.id] += 1
+
+        self.assertEqual(losses_by_team[champion.id], 0)
+        for team in seeds:
+            if team != champion:
+                self.assertEqual(losses_by_team[team.id], 2)
+
+    def test_complete_16_team_group_stage_and_double_elimination_championship(self):
+        championship = self.create_complete_championship()
+        teams = self.create_registered_teams(championship)
+
+        groups, advancing_teams, next_date, next_round = self.create_group_stage(championship, teams)
+        champion = self.create_double_elimination_playoff(
+            championship,
+            advancing_teams,
+            next_date,
+            next_round,
+        )
+        championship.status = StatusChampionship.FINISHED
+        championship.champion = champion
+        championship.full_clean()
+        championship.save(update_fields=["status", "champion"])
+
+        self.assertEqual(Team.objects.count(), 16)
+        self.assertEqual(championship.stage_format, StageFormat.GROUP_THEN_PLAYOFFS)
+        self.assertEqual(championship.playoff_format, PlayoffFormat.DOUBLE_ELIMINATION)
+        self.assertEqual(
+            Registration.objects.filter(
+                championship=championship,
+                status=StatusRegistration.APPROVED,
+            ).count(),
+            16,
+        )
+        self.assertEqual(len(groups), 4)
+        self.assertEqual(len(advancing_teams), 8)
+        self.assertEqual(
+            GroupStanding.objects.filter(group__championship=championship).count(),
+            16,
+        )
+        self.assertEqual(
+            Match.objects.filter(championship=championship, phase=Phase.GROUP).count(),
+            24,
+        )
+        self.assertEqual(
+            Match.objects.filter(championship=championship, phase=Phase.PLAYOFF).count(),
+            13,
+        )
+        self.assertEqual(
+            Match.objects.filter(championship=championship, phase=Phase.GRAND_FINAL).count(),
+            1,
+        )
+        self.assertEqual(
+            Match.objects.filter(championship=championship, status=GameStatus.FINISHED).count(),
+            38,
+        )
+        self.assertEqual(
+            GameResult.objects.filter(match_id__championship=championship).count(),
+            53,
+        )
+        self.assert_double_elimination_losses(championship, advancing_teams, champion)
+        self.assertEqual(championship.champion, teams[0])
