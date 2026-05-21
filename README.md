@@ -29,7 +29,7 @@ O projeto permite criar campeonatos personalizados, gerenciar equipes, controlar
 
 ### Sistema de Convites
 
-Os convites são controlados por uma entidade própria (`TeamInvite`), permitindo:
+Os convites são controlados por uma entidade própria (`Invite`), permitindo:
 
 * Status do convite (`pending`, `accepted`, `declined`)
 * Registro de criação do convite
@@ -143,7 +143,7 @@ Exemplos:
 | Relação                         | Entidade Intermediária |
 | ------------------------------- | ---------------------- |
 | Usuários ↔ Equipes              | `TeamMembership`       |
-| Equipes ↔ Convites              | `TeamInvite`           |
+| Equipes ↔ Convites              | `Invite`               |
 | Equipes ↔ Campeonatos           | `Registration`         |
 | Usuários ↔ Staff de Campeonatos | `ChampionshipStaff`    |
 
@@ -162,7 +162,7 @@ Exemplos:
 | `User`              | Usuários da plataforma               |
 | `Team`              | Equipes criadas pelos jogadores      |
 | `TeamMembership`    | Relação entre usuários e equipes     |
-| `TeamInvite`        | Convites enviados para jogadores     |
+| `Invite`            | Convites enviados para jogadores     |
 | `Championship`      | Campeonatos                          |
 | `Registration`      | Inscrições de equipes                |
 | `ChampionshipStaff` | Staff administrativa dos campeonatos |
@@ -179,7 +179,7 @@ Exemplos:
 | Relacionamento        | Tipo                        |
 | --------------------- | --------------------------- |
 | User ↔ Team           | N:N via `TeamMembership`    |
-| Team ↔ User           | N:N via `TeamInvite`        |
+| Team ↔ User           | N:N via `Invite`            |
 | Team ↔ Championship   | N:N via `Registration`      |
 | User ↔ Championship   | N:N via `ChampionshipStaff` |
 | Championship → Match  | 1:N                         |
@@ -230,6 +230,8 @@ Exemplos:
 
 # Como Executar o Projeto
 
+Nos comandos abaixo, use `python3` no lugar de `python` se o seu sistema não tiver o binário `python`.
+
 ## 1. Clonar o repositório
 
 ```bash
@@ -275,7 +277,43 @@ python manage.py migrate
 
 ---
 
-## 6. Criar superusuário
+## 6. Rodar testes
+
+```bash
+python manage.py test
+```
+
+Os testes cobrem os models dos apps `accounts`, `teams`, `championships` e `matches`.
+
+---
+
+## 7. Popular o banco com dados de exemplo
+
+```bash
+python manage.py populate_gamechamp
+```
+
+O comando cria usuários, equipes, convites, campeonato, staff, regras de desempate, inscrições, grupos, classificações, partidas e resultados de exemplo.
+
+Usuários gerados pelo seed usam a senha:
+
+```text
+gamechamp123
+```
+
+---
+
+## 8. Remover os dados de exemplo
+
+```bash
+python manage.py clear_gamechamp_population
+```
+
+Esse comando remove apenas os dados criados pelo seed, identificados pelos prefixos `Seed ` e `seed_`.
+
+---
+
+## 9. Criar superusuário
 
 ```bash
 python manage.py createsuperuser
@@ -283,7 +321,7 @@ python manage.py createsuperuser
 
 ---
 
-## 7. Iniciar servidor
+## 10. Iniciar servidor
 
 ```bash
 python manage.py runserver

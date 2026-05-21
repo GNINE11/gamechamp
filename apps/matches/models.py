@@ -132,4 +132,4 @@ class GameResult(models.Model):#tabela intermediaria entre match e time
         ]
 
     def __str__(self):
-        return f"{self.match} — Game {self.game_number} | {self.score_a}x{self.score_b}"
+        return f"{self.match_id} — Game {self.game_number} | {self.score_a}x{self.score_b}"
