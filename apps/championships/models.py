@@ -256,6 +256,19 @@ class ChampionshipStaff(models.Model):
         verbose_name_plural = "Membros da Staff"
         ordering = ["championship", "role"]
 
+        constraints = [
+        models.UniqueConstraint(
+            fields=["championship", "user"],
+            name="unique_user_per_championship_staff"
+        ),
+
+        models.UniqueConstraint(
+            fields=["championship"],
+            condition=models.Q(role=RoleStaff.OWNER),
+            name="unique_owner_per_championship"
+        )
+    ]
+
 
     def __str__(self):
         return (
