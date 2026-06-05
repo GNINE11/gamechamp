@@ -1,0 +1,47 @@
+<div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
+<aside id="sidebar" class="sidebar d-flex flex-column position-fixed top-0 start-0 vh-100 shadow overflow-auto">
+  <script>
+    if (localStorage.getItem("sidebar_collapsed") === "true") {
+      document.currentScript.closest("aside").classList.add("collapsed");
+    }
+  </script>
+
+  <div class="sidebar-header">
+
+    <div class="sidebar-header-text">
+      <span class="sidebar-title">Gamechamp</span>
+      <p class="sidebar-subtitle">Plataforma</p>
+    </div>
+
+    <button class="sidebar-toggle" id="toggleSidebar" data-bs-toggle="tooltip">
+      <span class="material-symbols-outlined">left_panel_close</span>
+    </button>
+
+  </div>
+
+  <nav class="flex-grow-1 px-3">
+
+    <a href="#" class="sidebar-link {% if request.resolver_match.app_name == 'core' %}active{% endif %}">
+      <span class="material-symbols-outlined">dashboard</span>
+      <span>Painel de Controle</span>
+    </a>
+
+    <a href="#" class="sidebar-link {% if request.resolver_match.url_name|slice:':14' == 'championships-' %}active{% endif %}">
+      <span class="material-symbols-outlined">emoji_events</span>
+      <span>Campeonatos</span>
+    </a>
+
+    <a href="#" class="sidebar-link {% if request.resolver_match.url_name|slice:':6' == 'teams-' %}active{% endif %}">
+      <span class="material-symbols-outlined">groups</span>
+      <span>Equipes</span>
+    </a>
+
+    <a href="#" class="sidebar-link {% if request.resolver_match.url_name|slice:':8' == 'matches-' %}active{% endif %}">
+      <span class="material-symbols-outlined">stadia_controller</span>
+      <span>Partidas</span>
+    </a>
+
+  </nav>
+
+</aside>

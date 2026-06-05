@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'apps.teams',
     'apps.championships',
     'apps.matches',
+    'apps.core',
 ]
 
 JAZZMIN_SETTINGS = {
