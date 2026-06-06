@@ -1,0 +1,648 @@
+/* ── profile.css ─────────────────────────────────────────────────────────────
+   Tela de perfil — hero, partidas recentes, troféus e campeonatos.
+───────────────────────────────────────────────────────────────────────────── */
+
+.profile-hero {
+    position: relative;
+    width: 100%;
+    min-height: 50vh;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+/* Imagem de capa – cobre todo o hero sem distorcer */
+.profile-cover {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+}
+
+/* Overlay escuro por cima da capa */
+.profile-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top,
+            rgba(0, 0, 0, 0.85) 0%,
+            rgba(0, 0, 0, 0.3) 60%,
+            rgba(0, 0, 0, 0.1) 100%);
+    z-index: 1;
+}
+
+/* Container principal do conteúdo (avatar + info) */
+.profile-content {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: none;
+    padding: 2rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: space-between; 
+    box-sizing: border-box;
+}
+
+/* Avatar */
+.profile-avatar {
+    flex-shrink: 0;
+    width: 140px;
+    height: 140px;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 3px solid var(--color-primary);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Bloco de informação (nome + bio) */
+.profile-info {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.profile-name {
+    font-size: clamp(1.5rem, 5vw, 2.2rem);
+    font-weight: 700;
+    color: #fff;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.profile-bio {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0;
+    line-height: 1.4;
+    max-width: 500px;
+    /* evita linhas muito longas */
+}
+
+/* Botão Editar – fora do profile-content, mas no fluxo do hero */
+.profile-edit-btn {
+    position: relative;
+    z-index: 2;
+    margin: 0 1.5rem 1.5rem auto;
+    align-self: flex-end;
+    margin-left: auto;
+}
+
+.profile-content-section {
+    padding: var(--content-padding-y) var(--content-padding-x);
+}
+
+/* ─── Section Header (shared) ────────────────────────────────────────────── */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: .625rem;
+    margin-bottom: 1.5rem;
+}
+
+.section-header .material-symbols-outlined {
+    font-size: 1.3rem;
+}
+
+.section-header .icon-secondary {
+    color: var(--color-secondary);
+}
+
+.section-header .icon-primary {
+    color: var(--color-primary);
+}
+
+.section-header .icon-gold {
+    color: #EAB308;
+}
+
+.section-title {
+    font-family: var(--font-headline);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--color-on-surface);
+    margin: 0;
+}
+
+/* ─── Match List ─────────────────────────────────────────────────────────── */
+.match-list {
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+}
+
+.match-item {
+    display: flex;
+    align-items: center;
+    gap: .875rem;
+    padding: .8rem .9rem;
+    background: rgba(255, 255, 255, .03);
+    border: 1px solid rgba(255, 255, 255, .06);
+    border-radius: .625rem;
+    transition: background .15s ease, border-color .15s ease;
+}
+
+.match-item:hover {
+    background: rgba(255, 255, 255, .055);
+    border-color: rgba(255, 255, 255, .1);
+}
+
+.match-result {
+    width: 2.2rem;
+    height: 2.2rem;
+    flex-shrink: 0;
+    border-radius: .45rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-headline);
+    font-size: .875rem;
+    font-weight: 800;
+}
+
+.match-result.win {
+    background: rgba(34, 197, 94, .1);
+    color: #22C55E;
+    border: 1px solid rgba(34, 197, 94, .22);
+}
+
+.match-result.loss {
+    background: rgba(239, 68, 68, .1);
+    color: #EF4444;
+    border: 1px solid rgba(239, 68, 68, .22);
+}
+
+.match-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.match-opponent-row {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    margin-bottom: .2rem;
+    flex-wrap: wrap;
+}
+
+.match-opponent {
+    font-size: .875rem;
+    font-weight: 600;
+    color: var(--color-on-surface);
+}
+
+.match-tag {
+    font-family: var(--font-label);
+    font-size: .6rem;
+    font-weight: 600;
+    padding: .12rem .45rem;
+    border-radius: .3rem;
+    letter-spacing: .04em;
+    white-space: nowrap;
+}
+
+.match-tag.ranked {
+    background: rgba(59, 130, 246, .1);
+    color: var(--color-tertiary);
+    border: 1px solid rgba(59, 130, 246, .2);
+}
+
+.match-tag.scrim {
+    background: rgba(255, 255, 255, .05);
+    color: var(--color-on-surface-variant);
+    border: 1px solid rgba(255, 255, 255, .1);
+}
+
+.match-tag.tournament {
+    background: rgba(139, 92, 246, .1);
+    color: var(--color-primary);
+    border: 1px solid rgba(139, 92, 246, .2);
+}
+
+.match-date {
+    font-size: .73rem;
+    color: var(--color-on-surface-variant);
+}
+
+.match-score-area {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.match-score {
+    font-family: var(--font-headline);
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--color-on-surface-variant);
+    line-height: 1;
+    margin-bottom: .15rem;
+}
+
+.match-score.win {
+    color: var(--color-on-surface);
+}
+
+.match-stat {
+    font-size: .72rem;
+    color: var(--color-on-surface-variant);
+}
+
+.match-stat.kda-win {
+    color: var(--color-secondary);
+    font-weight: 600;
+}
+
+.match-stat.mvp {
+    color: var(--color-primary);
+    font-weight: 700;
+    font-size: .775rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+/* ─── Trophy Room ────────────────────────────────────────────────────────── */
+.trophy-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: .875rem;
+}
+
+.trophy-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .5rem;
+    padding: 1.25rem .75rem 1rem;
+    background: rgba(255, 255, 255, .025);
+    border-radius: .625rem;
+    text-align: center;
+    border: 1px solid transparent;
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.trophy-card:hover {
+    transform: translateY(-3px);
+}
+
+.trophy-card.gold {
+    border-color: rgba(234, 179, 8, .28);
+}
+
+.trophy-card.silver {
+    border-color: rgba(148, 163, 184, .22);
+}
+
+.trophy-card.bronze {
+    border-color: rgba(249, 115, 22, .28);
+}
+
+.trophy-card.special {
+    border-color: rgba(139, 92, 246, .28);
+}
+
+.trophy-icon-wrap .material-symbols-outlined {
+    font-size: 2.25rem;
+    display: block;
+}
+
+.trophy-icon-wrap.gold .material-symbols-outlined {
+    color: #EAB308;
+}
+
+.trophy-icon-wrap.silver .material-symbols-outlined {
+    color: #94A3B8;
+}
+
+.trophy-icon-wrap.bronze .material-symbols-outlined {
+    color: #F97316;
+}
+
+.trophy-icon-wrap.special .material-symbols-outlined {
+    color: var(--color-primary);
+}
+
+.trophy-name {
+    font-family: var(--font-label);
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--color-on-surface);
+    line-height: 1.25;
+}
+
+.trophy-meta {
+    font-size: .72rem;
+    color: var(--color-on-surface-variant);
+    margin: 0;
+}
+
+/* ─── Championships ──────────────────────────────────────────────────────── */
+.champ-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+}
+
+.champ-card {
+    background: rgba(255, 255, 255, .025);
+    border: 1px solid rgba(255, 255, 255, .06);
+    border-radius: .75rem;
+    overflow: hidden;
+    transition: transform .2s ease;
+}
+
+.champ-card:hover {
+    transform: translateY(-3px);
+}
+
+.champ-image {
+    width: 100%;
+    height: 9rem;
+    object-fit: cover;
+    display: block;
+}
+
+.champ-body {
+    padding: 1rem;
+}
+
+.champ-header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .625rem;
+    margin-bottom: .2rem;
+}
+
+.champ-name {
+    font-family: var(--font-headline);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-on-surface);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.champ-badge {
+    font-family: var(--font-body);
+    font-size: .6rem;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    padding: .22rem .65rem;
+    border-radius: 2rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: .1rem;
+}
+
+.champ-badge.active {
+    background: rgba(34, 197, 94, .1);
+    color: #22C55E;
+    border: 1px solid rgba(34, 197, 94, .22);
+}
+
+.champ-badge.quarterfinals {
+    background: rgba(139, 92, 246, .1);
+    color: var(--color-primary);
+    border: 1px solid rgba(139, 92, 246, .22);
+}
+
+.champ-meta {
+    font-size: .8rem;
+    color: var(--color-on-surface-variant);
+    margin: 0 0 .875rem;
+}
+
+.champ-progress-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: .375rem;
+}
+
+.champ-progress-label,
+.champ-progress-pct {
+    font-size: .875rem;
+    font-weight: 600;
+    color: var(--color-on-surface);
+}
+
+.champ-progress-track {
+    height: .3rem;
+    background: rgba(255, 255, 255, .07);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.champ-progress-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+}
+
+.champ-btn {
+    width: 100%;
+    justify-content: center;
+    color: var(--color-on-surface) !important;
+    border-color: rgba(255, 255, 255, .12) !important;
+}
+
+.champ-btn:hover {
+    color: var(--color-on-surface) !important;
+}
+
+/* ─── Responsividade ─────────────────────────────────────────────────────── */
+@media (max-width: 1200.98px) {
+    .trophy-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 800.98px) {
+    .profile-hero {
+        height: 240px;
+    }
+
+    .profile-name {
+        font-size: 1.4rem;
+    }
+
+    .trophy-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576.98px) {
+    .profile-content {
+        bottom: 1.25rem;
+    }
+
+    .profile-avatar {
+        width: 4.5rem;
+        height: 4.5rem;
+    }
+
+    .profile-name {
+        font-size: 1.2rem;
+    }
+}
+
+/* ── edit_profile.css ────────────────────────────────────────────────────── */
+
+/* ─── Avatar com upload ──────────────────────────────────────────────────── */
+.auth-avatar-upload-label {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.auth-avatar-upload-label:hover .auth-avatar-placeholder {
+    border-color: var(--color-primary);
+    opacity: .85;
+}
+
+.auth-avatar-upload-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(139, 92, 246, .45);
+    opacity: 0;
+    transition: opacity .2s ease;
+}
+
+.auth-avatar-upload-label:hover .auth-avatar-upload-overlay {
+    opacity: 1;
+}
+
+.auth-avatar-upload-overlay .material-symbols-outlined {
+    font-size: 1.5rem;
+    color: #fff;
+}
+
+.auth-avatar-placeholder img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+/* ─── Textarea (mesmo visual do auth-input) ──────────────────────────────── */
+.auth-input-wrapper.textarea-wrapper {
+    height: auto;
+    align-items: flex-start;
+}
+
+.auth-textarea {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--color-on-surface);
+    padding: .75rem;
+    font-size: .95rem;
+    font-family: var(--font-body);
+    line-height: 1.5;
+    resize: none;
+}
+
+.auth-textarea::placeholder {
+    color: var(--color-on-surface-variant);
+}
+
+/* ─── Divisor de seção ───────────────────────────────────────────────────── */
+.auth-section-divider {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+}
+
+.auth-section-divider-line {
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, .08);
+}
+
+.auth-section-divider-label {
+    font-size: .68rem;
+    font-weight: 600;
+    color: var(--color-on-surface-variant);
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   RESPONSIVO – reorganização para centralizar bio e botão
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    .profile-hero {
+        min-height: 55vh;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .profile-content {
+        flex-direction: column;
+        align-items: flex-start;  
+        text-align: left;  
+        gap: 1rem;
+        padding: 1.5rem 1rem;
+    }
+
+    .profile-avatar {
+        width: 110px;
+        height: 110px;
+        border-radius: 0;
+    }
+
+    .profile-info {
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .profile-bio {
+        max-width: 100%;
+    }
+
+    /* Botão Editar – centralizado e com espaçamento automático */
+    .profile-edit-btn {
+        margin: 1rem 0 1.5rem 0; 
+        align-self: flex-start;
+    }
+}
+
+/* Ajuste extra para ecrãs muito pequenos (ex: phones antigos) */
+@media (max-width: 480px) {
+    .profile-hero {
+        min-height: 60vh;
+    }
+
+    .profile-avatar {
+        width: 90px;
+        height: 90px;
+        border-radius: 0;
+    }
+
+    .profile-content {
+        padding: 1rem 0.75rem;
+    }
+}
