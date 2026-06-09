@@ -1,12 +1,6 @@
 <header class="header">
-  <button
-    class="header-hamburger"
-    id="headerHamburger"
-    aria-label="Abrir menu de navegação"
-    data-bs-toggle="tooltip"
-    data-bs-placement="bottom"
-    data-bs-title="Menu de navegação"
-  >
+  <button class="header-hamburger" id="headerHamburger" aria-label="Abrir menu de navegação" data-bs-toggle="tooltip"
+    data-bs-placement="bottom" data-bs-title="Menu de navegação">
     <span class="material-symbols-outlined">menu</span>
   </button>
 
@@ -15,35 +9,24 @@
   <div class="header-container-right">
 
     <div id="headerUserMenu" class="header-user-menu">
-      <button
-        id="headerUserButton"
-        class="header-user-container"
-        data-bs-toggle="tooltip"
-        data-bs-placement="bottom"
-        data-bs-title="Conta e configurações"
-      >
+      <button id="headerUserButton" class="header-user-container" data-bs-toggle="tooltip" data-bs-placement="bottom"
+        data-bs-title="Conta e configurações">
         <div class="header-user-text-container">
           <span class="header-username-text">Nickname</span>
           <span class="header-user-secondary-text">JOGADOR</span>
         </div>
 
         <div class="header-user-icon">
-          <img
-            src="{{ user.avatar.url|default:'https://api.dicebear.com/7.x/thumbs/svg?seed=Gabriel' }}"
-            alt="Avatar de {{ user.username }}"
-            class="header-user-avatar-img"
-          >
+          <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=Gabriel" alt="Avatar de Gabriel"
+            class="header-user-avatar-img">
         </div>
       </button>
 
       <div class="header-user-dropdown">
         <div class="header-dropdown-user-card">
           <div class="header-user-icon header-dropdown-avatar">
-            <img
-              src="{{ user.avatar.url|default:'https://api.dicebear.com/7.x/thumbs/svg?seed=Gabriel' }}"
-              alt="Avatar de {{ user.username }}"
-              class="header-user-avatar-img"
-            >
+            <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=Gabriel" alt="Avatar de Gabriel"
+              class="header-user-avatar-img">
           </div>
           <div class="header-dropdown-user-info">
             <span class="header-dropdown-name">Nickname</span>

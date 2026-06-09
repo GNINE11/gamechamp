@@ -465,6 +465,7 @@
     color: var(--color-on-surface) !important;
 }
 
+
 /* ─── Responsividade ─────────────────────────────────────────────────────── */
 @media (max-width: 1200.98px) {
     .trophy-grid {
@@ -646,3 +647,4 @@
         padding: 1rem 0.75rem;
     }
 }
+

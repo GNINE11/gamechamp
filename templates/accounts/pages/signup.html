@@ -1,175 +1,104 @@
 {% extends "base/auth_base.html" %}
 {% load static %}
 
-{%block title%}
-Registro | Gamechamp
-{% endblock title%}
+{% block title %}Registro | Gamechamp{% endblock %}
 
-{% block auth_content%}
+{% block auth_content %}
 <div class="auth-avatar-section">
-
     <div class="auth-avatar-placeholder">
-
-        <span class="material-symbols-outlined">
-            person
-        </span>
-
+        <span class="material-symbols-outlined">person</span>
     </div>
-
 </div>
+
 <div class="auth-form-header">
     <h2 class="auth-form-title">Crie seu perfil</h2>
-    <p class="auth-form-subtitle">
-        Insira suas informações para começar sua jornada.
-    </p>
+    <p class="auth-form-subtitle">Insira suas informações para começar sua jornada.</p>
 </div>
 
-<form method="post" class="form-collum">
+{% if form.errors %}
+<div <div class="error-message">
+    {% for field in form %}{% for error in field.errors %}{{ error }}<br>{% endfor %}{% endfor %}
+    {% for error in form.non_field_errors %}{{ error }}<br>{% endfor %}
+</div>
+{% endif %}
 
+<form method="post" class="form-collum">
     {% csrf_token %}
 
     <div class="row g-3">
-
         <div class="col-md-6">
             <div class="auth-field">
-
-                <label for="full_name" class="auth-label">
-                    Nome Completo
-                </label>
-
+                <label for="id_full_name" class="auth-label">Nome Completo</label>
                 <div class="auth-input-wrapper">
-                    <input type="text" id="full_name" class="auth-input" placeholder="John Doe">
+                    <input type="text" name="full_name" id="id_full_name" class="auth-input" placeholder="John Doe"
+                        value="{{ form.full_name.value|default:'' }}">
                 </div>
-
             </div>
         </div>
-
         <div class="col-md-6">
             <div class="auth-field">
-
-                <label for="username" class="auth-label">
-                    Nome de Usuário
-                </label>
-
+                <label for="id_username" class="auth-label">Nome de Usuário</label>
                 <div class="auth-input-wrapper">
-                    <input type="text" id="username" class="auth-input" placeholder="ApexHunter">
+                    <input type="text" name="username" id="id_username" class="auth-input" placeholder="ApexHunter"
+                        value="{{ form.username.value|default:'' }}">
                 </div>
-
             </div>
         </div>
-
     </div>
+
     <div class="auth-field">
-        <label for="username" class="auth-label">
-            Email
-        </label>
-
+        <label for="id_email" class="auth-label">Email</label>
         <div class="auth-input-wrapper">
-            <input type="text" id="username" class="auth-input" placeholder="commander@gamechamp.gg">
+            <input type="email" name="email" id="id_email" class="auth-input" placeholder="commander@gamechamp.gg"
+                value="{{ form.email.value|default:'' }}">
         </div>
     </div>
+
     <div class="row g-3">
-
         <div class="col-md-6">
-
             <div class="auth-field">
-
-                <label for="password" class="auth-label">
-                    Senha
-                </label>
-
+                <label for="id_password" class="auth-label">Senha</label>
                 <div class="auth-input-wrapper">
-
-                    <input type="password" id="password" class="auth-input" placeholder="Digite sua senha">
-
+                    <input type="password" name="password" id="id_password" class="auth-input"
+                        placeholder="Digite sua senha">
                     <button type="button" class="auth-password-toggle">
-
-                        <span class="material-symbols-outlined">
-                            visibility
-                        </span>
-
-                    </button>
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <div class="col-md-6">
-
-            <div class="auth-field">
-
-                <label for="confirm_password" class="auth-label">
-                    Confirmar Senha
-                </label>
-
-                <div class="auth-input-wrapper">
-
-                    <input type="password" id="confirm_password" class="auth-input" placeholder="Confirme sua senha">
-                    <button type="button" class="auth-password-toggle">
-
-                        <span class="material-symbols-outlined">
-                            visibility
-                        </span>
-
+                        <span class="material-symbols-outlined">visibility</span>
                     </button>
                 </div>
-
             </div>
-
         </div>
-
+        <div class="col-md-6">
+            <div class="auth-field">
+                <label for="id_confirm_password" class="auth-label">Confirmar Senha</label>
+                <div class="auth-input-wrapper">
+                    <input type="password" name="confirm_password" id="id_confirm_password" class="auth-input"
+                        placeholder="Confirme sua senha">
+                    <button type="button" class="auth-password-toggle">
+                        <span class="material-symbols-outlined">visibility</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
-    <button type="submit" class="btn-app-primary auth-submit-btn">
 
-        Finalizar Registro
-
-    </button>
+    <button type="submit" class="btn-app-primary auth-submit-btn">Finalizar Registro</button>
 </form>
+
 <div class="auth-signup">
-
-    <span>
-        Já é um campeão?
-    </span>
-
-    <a href="{% url 'accounts:login' %}" class="auth-link">
-        Fazer Login
-    </a>
-
+    <span>Já é um campeão?</span>
+    <a href="{% url 'accounts:login' %}" class="auth-link">Fazer Login</a>
 </div>
-{% endblock auth_content%}
+{% endblock %}
 
 {% block extra_js %}
-
 <script>
-
-    // Mostrar / ocultar senha
-
-    document.querySelectorAll('.auth-password-toggle').forEach(button => {
-
-        button.addEventListener('click', () => {
-
-            const input = button.parentElement.querySelector('input');
-
-            const icon = button.querySelector('.material-symbols-outlined');
-
-            if (input.type === 'password') {
-
-                input.type = 'text';
-                icon.textContent = 'visibility_off';
-
-            } else {
-
-                input.type = 'password';
-                icon.textContent = 'visibility';
-
-            }
-
+    document.querySelectorAll('.auth-password-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = btn.parentElement.querySelector('input');
+            const icon = btn.querySelector('.material-symbols-outlined');
+            if (input.type === 'password') { input.type = 'text'; icon.textContent = 'visibility_off'; }
+            else { input.type = 'password'; icon.textContent = 'visibility'; }
         });
-
     });
-
 </script>
-
 {% endblock %}

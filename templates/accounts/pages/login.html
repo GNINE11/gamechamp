@@ -1,123 +1,69 @@
 {% extends "base/auth_base.html" %}
 {% load static %}
 
-{%block title%}
-Entrar | Gamechamp
-{% endblock title%}
+{% block title %}Entrar | Gamechamp{% endblock %}
 
-{% block auth_content%}
+{% block auth_content %}
 <div class="auth-form-header">
     <h2 class="auth-form-title">Bem-vindo de volta</h2>
-    <p class="auth-form-subtitle">
-        Acesse sua conta para continuar.
-    </p>
+    <p class="auth-form-subtitle">Acesse sua conta para continuar.</p>
 </div>
 
-<form method="post">
+{% if error %}
+<div class="error-message">
+    {{ error }}
+</div>
+{% endif %}
 
+<form method=" post">
     {% csrf_token %}
 
     <div class="auth-field">
-        <label for="username" class="auth-label">
-            Email ou Usuário
-        </label>
-
+        <label for="id_username" class="auth-label">Email ou Usuário</label>
         <div class="auth-input-wrapper">
-            <span class="material-symbols-outlined auth-input-icon">
-                person
-            </span>
-
-            <input type="text" id="username" class="auth-input" placeholder="commander@gamechamp.gg">
+            <span class="material-symbols-outlined auth-input-icon">person</span>
+            <input type="text" name="username" id="id_username" class="auth-input" placeholder="commander@gamechamp.gg"
+                value="{{ request.POST.username|default:'' }}">
         </div>
     </div>
+
     <div class="auth-field">
-        <label class="auth-label" for="password">
-            Senha
-        </label>
-
+        <label for="id_password" class="auth-label">Senha</label>
         <div class="auth-input-wrapper">
-
-            <span class="material-symbols-outlined auth-input-icon">
-                lock
-            </span>
-
-            <input type="password" id="password" class="auth-input" placeholder="Digite sua senha">
-
+            <span class="material-symbols-outlined auth-input-icon">lock</span>
+            <input type="password" name="password" id="id_password" class="auth-input" placeholder="Digite sua senha">
             <button type="button" class="auth-password-toggle">
-
-                <span class="material-symbols-outlined">
-                    visibility
-                </span>
-
+                <span class="material-symbols-outlined">visibility</span>
             </button>
-
         </div>
         <div class="auth-field-link">
-            <a href="#" class="auth-link">
-                Esqueci minha senha
-            </a>
+            <a href="#" class="auth-link">Esqueci minha senha</a>
         </div>
     </div>
+
     <div class="auth-remember">
-
         <input type="checkbox" id="remember_me" class="auth-checkbox">
-
-        <label for="remember_me" class="auth-checkbox-label">
-
-            Manter-me conectado por 30 dias
-
-        </label>
-
+        <label for="remember_me" class="auth-checkbox-label">Manter-me conectado</label>
     </div>
-    <button type="submit" class="btn-app-primary auth-submit-btn">
 
-        Entrar
-
-    </button>
+    <button type="submit" class="btn-app-primary auth-submit-btn">Entrar</button>
 </form>
 
 <div class="auth-signup">
-
-    <span>
-        Ainda não possui conta?
-    </span>
-
-    <a href="{% url 'accounts:signup' %}" class="auth-link">
-        Criar conta
-    </a>
-
+    <span>Ainda não possui conta?</span>
+    <a href="{% url 'accounts:signup' %}" class="auth-link">Criar conta</a>
 </div>
-
-{% endblock auth_content%}
+{% endblock %}
 
 {% block extra_js %}
-
 <script>
-
-    document.querySelectorAll('.auth-password-toggle').forEach(button => {
-
-        button.addEventListener('click', () => {
-
-            const input = button.parentElement.querySelector('input');
-
-            const icon = button.querySelector('.material-symbols-outlined');
-
-            if (input.type === 'password') {
-
-                input.type = 'text';
-                icon.textContent = 'visibility_off';
-
-            } else {
-
-                input.type = 'password';
-                icon.textContent = 'visibility';
-
-            }
-
+    document.querySelectorAll('.auth-password-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = btn.parentElement.querySelector('input');
+            const icon = btn.querySelector('.material-symbols-outlined');
+            if (input.type === 'password') { input.type = 'text'; icon.textContent = 'visibility_off'; }
+            else { input.type = 'password'; icon.textContent = 'visibility'; }
         });
-
     });
-
 </script>
-
 {% endblock %}
