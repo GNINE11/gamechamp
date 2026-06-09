@@ -40,15 +40,15 @@
           </div>
         </div>
 
-        <button class="header-user-dropdown-item">
-          <span class="material-symbols-outlined">person</span>
-          Perfil
-        </button>
+        <a href="{% url 'accounts:profile' %}" class="header-user-dropdown-item">
+            <span class="material-symbols-outlined">person</span>
+            Perfil
+        </a>
 
-        <button class="header-user-dropdown-item">
-          <span class="material-symbols-outlined">logout</span>
-          Sair
-        </button>
+        <a href="{% url 'accounts:logout' %}" class="header-user-dropdown-item">
+            <span class="material-symbols-outlined">logout</span>
+            Sair
+        </a>
       </div>
     </div>
   </div>

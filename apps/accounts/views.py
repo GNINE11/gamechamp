@@ -16,15 +16,14 @@ User = get_user_model()
 
 def signup_view(request):
     if request.user.is_authenticated:
-        return redirect("accounts:profile")
+        return redirect("championship:championship-list")
 
     form = SignupForm(request.POST or None)
 
     if request.method == "POST" and form.is_valid():
         user = form.save()
-        login(request, user)
-        messages.success(request, f"Bem-vindo, {user.username}!")
-        return redirect("accounts:profile")
+        messages.success(request, f"Cadastro realizado com sucesso {user.username}! Faça login para continuar.")
+        return redirect("accounts:login")
 
     return render(request, "accounts/pages/signup.html", {"form": form})
 
@@ -35,7 +34,7 @@ def signup_view(request):
 
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect("accounts:profile")
+        return redirect("championship:championship-list")
 
     error = None
 
@@ -55,7 +54,7 @@ def login_view(request):
 
         if user:
             login(request, user)
-            next_url = request.GET.get("next", "accounts:profile")
+            next_url = request.GET.get("next", "championship:championship-list")
             return redirect(next_url)
         else:
             error = "Usuário ou senha incorretos."

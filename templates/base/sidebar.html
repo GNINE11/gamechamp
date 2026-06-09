@@ -22,11 +22,6 @@
 
   <nav class="flex-grow-1 px-3">
 
-    <a href="{% url 'core:landing_page' %}" class="sidebar-link {% if request.resolver_match.app_name == 'core' %}active{% endif %}">
-      <span class="material-symbols-outlined">dashboard</span>
-      <span>Painel de Controle</span>
-    </a>
-
     <a href="{% url 'championship:championship-list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':13' == 'championship-' %}active{% endif %}">
       <span class="material-symbols-outlined">emoji_events</span>
       <span>Campeonatos</span>
@@ -40,6 +35,11 @@
     <a href="#" class="sidebar-link {% if request.resolver_match.url_name|slice:':8' == 'matches-' %}active{% endif %}">
       <span class="material-symbols-outlined">stadia_controller</span>
       <span>Partidas</span>
+    </a>
+
+    <a href="{% url 'accounts:profile' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':7' == 'profile' %}active{% endif %}">
+      <span class="material-symbols-outlined">account_circle</span>
+      <span>Perfil</span>
     </a>
 
   </nav>

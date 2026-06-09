@@ -2,12 +2,14 @@ from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse
 from django.core.paginator import Paginator
 from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
 from .models import (
     Championship,
     ChampionshipStaff,
 )
 
 # Create your views here.
+@login_required
 def list_championship(request):
     qs = Championship.objects.all()
     paginator = Paginator(qs, per_page=10)
@@ -17,6 +19,7 @@ def list_championship(request):
             'page_obj': page_obj,
         })
 
+@login_required
 def detail_championship(request):
     qs = Championship.objects.all()
     paginator = Paginator(qs, per_page=10)
@@ -26,6 +29,7 @@ def detail_championship(request):
             'page_obj': page_obj,
         })
 
+@login_required
 def manager_championship(request):
     qs = Championship.objects.all()
     paginator = Paginator(qs, per_page=10)
@@ -35,6 +39,7 @@ def manager_championship(request):
             'page_obj': page_obj,
         })
 
+@login_required
 def team_approval(request):
     qs = Championship.objects.all()
     paginator = Paginator(qs, per_page=10)

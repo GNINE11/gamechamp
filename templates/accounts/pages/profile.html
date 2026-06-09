@@ -134,6 +134,7 @@
                     <span class="material-symbols-outlined icon-primary">emoji_events</span>
                     <h2 class="section-title">Meus Campeonatos</h2>
                 </div>
+
                 {% for championship in championships %}
                 <div class="champ-grid">
 
@@ -188,15 +189,16 @@
 
                     </div>
 
-                    {% empty %}
 
-                    <p class="text-center py-4">
-                        Você ainda não participa de nenhum campeonato.
-                    </p>
-
-                    {% endfor %}
 
                 </div>
+                {% empty %}
+
+                <p class="text-center py-4">
+                    Você ainda não participa de nenhum campeonato.
+                </p>
+
+                {% endfor %}
 
             </div>
 
