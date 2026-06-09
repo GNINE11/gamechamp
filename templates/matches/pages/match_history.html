@@ -1,0 +1,317 @@
+{% extends "base/logged_base.html" %}
+{% load static %}
+
+{% block title %}
+Histórico de Partidas | Gamechamp
+{% endblock title %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+<link rel="stylesheet" href="{% static 'css/matches.css' %}">
+{% endblock extra_css %}
+
+{% block page_heading %}{% endblock %}
+
+{% block content %}
+
+<!-- Glows decorativos de fundo -->
+<div class="history-bg-glow"
+     style="top:20%; right:-10%; width:500px; height:500px; background:rgba(139,92,246,.1);">
+</div>
+<div class="history-bg-glow"
+     style="bottom:-10%; left:-10%; width:400px; height:400px; background:rgba(6,182,212,.08);">
+</div>
+
+<section class="content-container">
+
+    <!-- ── Stats bar + título ──────────────────────────────────────────────── -->
+    <div class="history-stats-bar">
+
+        <div class="history-stats-title-block">
+            <span class="history-eyebrow">
+                <span class="history-eyebrow-line"></span>
+                Dados Arquivados
+            </span>
+            <h2 class="history-main-title">Histórico de Partidas</h2>
+            <p class="history-subtitle">
+                Registros completos de todos os confrontos competitivos,
+                placar verificado e métricas de desempenho por temporada.
+            </p>
+        </div>
+
+        <div class="history-stat-cards">
+            <div class="history-stat-card">
+                <span class="history-stat-label">Total Jogadas</span>
+                <span class="history-stat-value primary">{{ total_matches|default:"—" }}</span>
+            </div>
+            <div class="history-stat-card">
+                <span class="history-stat-label">Win Rate</span>
+                <span class="history-stat-value secondary">{{ win_rate|default:"—" }}%</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ── Filtros ─────────────────────────────────────────────────────────── -->
+    <div class="auth-glass-card mb-5">
+        <form method="get" class="filter-panel-inner">
+
+            <!-- Torneio -->
+            <div class="filter-group">
+                <span class="filter-label">Torneio</span>
+                <select name="tournament" class="filter-select">
+                    <option value="">Todos os Torneios</option>
+                    {% for t in tournaments %}
+                    <option value="{{ t.pk }}"
+                        {% if request.GET.tournament == t.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ t.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Time -->
+            <div class="filter-group">
+                <span class="filter-label">Time</span>
+                <select name="team" class="filter-select">
+                    <option value="">Qualquer Time</option>
+                    {% for t in teams %}
+                    <option value="{{ t.pk }}"
+                        {% if request.GET.team == t.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ t.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Período -->
+            <div class="filter-group" style="flex:0 1 160px;">
+                <span class="filter-label">Período</span>
+                <select name="period" class="filter-select">
+                    <option value="30" {% if request.GET.period == "30" %}selected{% endif %}>
+                        Últimos 30 dias
+                    </option>
+                    <option value="90" {% if request.GET.period == "90" %}selected{% endif %}>
+                        Últimos 3 meses
+                    </option>
+                    <option value="season" {% if request.GET.period == "season" %}selected{% endif %}>
+                        Temporada atual
+                    </option>
+                    <option value="all" {% if request.GET.period == "all" or not request.GET.period %}selected{% endif %}>
+                        Todos
+                    </option>
+                </select>
+            </div>
+
+            <!-- Toggle de resultado -->
+            <div class="filter-group" style="flex:0 1 auto;">
+                <span class="filter-label">Resultado</span>
+                <div class="result-toggle" id="result-toggle">
+                    <button type="button" class="result-toggle-btn {% if not request.GET.result or request.GET.result == 'all' %}active{% endif %}"
+                            data-value="">Todos</button>
+                    <button type="button" class="result-toggle-btn {% if request.GET.result == 'win' %}active{% endif %}"
+                            data-value="win">Vitórias</button>
+                    <button type="button" class="result-toggle-btn {% if request.GET.result == 'loss' %}active{% endif %}"
+                            data-value="loss">Derrotas</button>
+                    <input type="hidden" name="result" id="result-input"
+                           value="{{ request.GET.result|default:'' }}">
+                </div>
+            </div>
+
+            <!-- Submit escondido — o form submete ao mudar qualquer select -->
+            <button type="submit" style="display:none" id="filter-submit"></button>
+
+        </form>
+    </div>
+
+    <!-- ── Lista de partidas ───────────────────────────────────────────────── -->
+    <div style="display:flex; flex-direction:column; gap:.75rem; margin-bottom:1.75rem;">
+
+        {% for match in matches %}
+
+        <div class="history-row {% if match.user_won %}win{% else %}loss{% endif %}"
+             onclick="window.location='{% url 'matches:detail' match.pk %}'">
+
+            <!-- Data + torneio -->
+            <div class="history-meta">
+                <span class="history-date">
+                    {{ match.scheduled_at|date:"d M, Y" }} &bull;
+                    {{ match.scheduled_at|date:"H:i" }}
+                </span>
+                <p class="history-tournament">{{ match.tournament.name }}</p>
+                <div class="history-stage">
+                    <span class="history-stage-dot {% if match.user_won %}win{% else %}loss{% endif %}"></span>
+                    <span class="history-stage-text {% if match.user_won %}win{% else %}loss{% endif %}">
+                        {{ match.stage|default:"Fase de Grupos" }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Arena -->
+            <div class="history-arena">
+
+                <!-- Time A -->
+                <div class="history-team home">
+                    <div class="history-team-icon {% if match.winner and match.winner != match.team_a %}loser{% endif %}">
+                        {% if match.team_a.logo %}
+                            <img src="{{ match.team_a.logo.url }}" alt="{{ match.team_a.name }}">
+                        {% else %}
+                            <span class="material-symbols-outlined"
+                                  style="font-size:1.5rem; color:var(--color-primary)">shield</span>
+                        {% endif %}
+                    </div>
+                    <p class="history-team-name {% if match.winner and match.winner != match.team_a %}loser{% endif %}">
+                        {{ match.team_a.name }}
+                    </p>
+                    <span class="history-team-result {% if match.winner == match.team_a %}win{% elif match.winner %}loss{% else %}neutral{% endif %}">
+                        {% if match.winner == match.team_a %}Vencedor
+                        {% elif match.winner %}Derrota
+                        {% else %}—{% endif %}
+                    </span>
+                </div>
+
+                <!-- Placar -->
+                <div class="history-scorebox">
+                    <span class="history-score">
+                        {{ match.score_a|default:"–" }} : {{ match.score_b|default:"–" }}
+                    </span>
+                    <span class="history-format">Melhor de {{ match.best_of|default:"3" }}</span>
+                </div>
+
+                <!-- Time B -->
+                <div class="history-team away">
+                    <div class="history-team-icon {% if match.winner and match.winner != match.team_b %}loser{% endif %}">
+                        {% if match.team_b.logo %}
+                            <img src="{{ match.team_b.logo.url }}" alt="{{ match.team_b.name }}">
+                        {% else %}
+                            <span class="material-symbols-outlined"
+                                  style="font-size:1.5rem; color:var(--color-secondary)">shield</span>
+                        {% endif %}
+                    </div>
+                    <p class="history-team-name {% if match.winner and match.winner != match.team_b %}loser{% endif %}">
+                        {{ match.team_b.name }}
+                    </p>
+                    <span class="history-team-result {% if match.winner == match.team_b %}win{% elif match.winner %}loss{% else %}neutral{% endif %}">
+                        {% if match.winner == match.team_b %}Vencedor
+                        {% elif match.winner %}Derrota
+                        {% else %}—{% endif %}
+                    </span>
+                </div>
+
+            </div>
+
+            <!-- CTA -->
+            <div class="history-cta" onclick="event.stopPropagation()">
+                <a href="{% url 'matches:detail' match.pk %}"
+                   class="btn-history {% if match.user_won %}primary{% else %}neutral{% endif %}">
+                    Detalhes
+                    <span class="material-symbols-outlined" style="font-size:.9rem">arrow_forward</span>
+                </a>
+            </div>
+
+        </div>
+
+        {% empty %}
+        <div class="auth-glass-card text-center" style="padding:3rem">
+            <span class="material-symbols-outlined"
+                  style="font-size:3rem; color:var(--color-on-surface-variant); display:block; margin-bottom:1rem">
+                sports_esports
+            </span>
+            <p style="color:var(--color-on-surface-variant); margin:0">
+                Nenhuma partida encontrada com os filtros selecionados.
+            </p>
+        </div>
+        {% endfor %}
+
+    </div>
+
+    <!-- ── Paginação ───────────────────────────────────────────────────────── -->
+    {% if matches.paginator.num_pages > 1 %}
+    <div class="pagination-row">
+
+        <span class="pagination-info">
+            Exibindo {{ matches.start_index }}–{{ matches.end_index }}
+            de {{ matches.paginator.count }} partidas
+        </span>
+
+        <div class="pagination-btns">
+
+            {% if matches.has_previous %}
+            <a href="?page={{ matches.previous_page_number }}&{{ request.GET.urlencode }}"
+               class="page-btn">
+                <span class="material-symbols-outlined" style="font-size:1.1rem">chevron_left</span>
+            </a>
+            {% else %}
+            <button class="page-btn" disabled style="opacity:.35">
+                <span class="material-symbols-outlined" style="font-size:1.1rem">chevron_left</span>
+            </button>
+            {% endif %}
+
+            {% for num in matches.paginator.page_range %}
+                {% if num == matches.number %}
+                    <button class="page-btn active">{{ num }}</button>
+                {% elif num == 1 or num == matches.paginator.num_pages or num|add:"-1" == matches.number or num|add:"1" == matches.number %}
+                    <a href="?page={{ num }}&{{ request.GET.urlencode }}" class="page-btn">{{ num }}</a>
+                {% elif num == 2 and matches.number > 4 %}
+                    <span class="page-btn dots">…</span>
+                {% elif num == matches.paginator.num_pages|add:"-1" and matches.number < matches.paginator.num_pages|add:"-3" %}
+                    <span class="page-btn dots">…</span>
+                {% endif %}
+            {% endfor %}
+
+            {% if matches.has_next %}
+            <a href="?page={{ matches.next_page_number }}&{{ request.GET.urlencode }}"
+               class="page-btn">
+                <span class="material-symbols-outlined" style="font-size:1.1rem">chevron_right</span>
+            </a>
+            {% else %}
+            <button class="page-btn" disabled style="opacity:.35">
+                <span class="material-symbols-outlined" style="font-size:1.1rem">chevron_right</span>
+            </button>
+            {% endif %}
+
+        </div>
+    </div>
+    {% endif %}
+
+</section>
+
+{% endblock content %}
+
+
+{% block extra_js %}
+<script>
+(function () {
+    /* ── Toggle resultado ──────────────────────────────────────────────── */
+    const btns   = document.querySelectorAll('.result-toggle-btn');
+    const hidden = document.getElementById('result-input');
+
+    btns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            btns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            hidden.value = btn.dataset.value;
+        });
+    });
+
+    /* ── Submete ao mudar qualquer select ─────────────────────────────── */
+    document.querySelectorAll('.filter-select').forEach(sel => {
+        sel.addEventListener('change', () =>
+            document.getElementById('filter-submit').click()
+        );
+    });
+
+    /* ── Submete ao clicar em Todos/Vitórias/Derrotas ─────────────────── */
+    btns.forEach(btn => {
+        btn.addEventListener('dblclick', () =>
+            document.getElementById('filter-submit').click()
+        );
+    });
+
+    /* click simples no toggle → submit com pequeno delay para o hidden atualizar */
+    document.getElementById('result-toggle').addEventListener('click', () => {
+        setTimeout(() => document.getElementById('filter-submit').click(), 60);
+    });
+})();
+</script>
+{% endblock extra_js %}
