@@ -16,7 +16,7 @@ User = get_user_model()
 
 def signup_view(request):
     if request.user.is_authenticated:
-        return redirect("championship:championship-list")
+        return redirect("championship:available-championship-list")
 
     form = SignupForm(request.POST or None)
 
@@ -34,7 +34,7 @@ def signup_view(request):
 
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect("championship:championship-list")
+        return redirect("championship:available-championship-list")
 
     error = None
 
@@ -54,7 +54,7 @@ def login_view(request):
 
         if user:
             login(request, user)
-            next_url = request.GET.get("next", "championship:championship-list")
+            next_url = request.GET.get("next", "championship:available-championship-list")
             return redirect(next_url)
         else:
             error = "Usuário ou senha incorretos."

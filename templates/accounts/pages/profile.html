@@ -21,7 +21,7 @@
             {% if request.user.avatar %}
             <img src="{{ request.user.avatar.url }}" alt="Avatar">
             {% else %}
-            <img src="https://ui-avatars.com/api/?name={{ request.user.username }}&background=8B5CF6&color=fff&size=140"
+            <img src="https://api.dicebear.com/7.x/thumbs/svg?seed={{ request.user.username }}"
                 alt="Avatar">
             {% endif %}
         </div>

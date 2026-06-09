@@ -196,6 +196,33 @@ class Championship(models.Model):
         verbose_name = "Campeonato"
         verbose_name_plural = "Campeonatos"
         ordering = ["-created_at"]
+    
+
+    @property
+    def occupancy_percentage(self):
+        if self.max_teams == 0:
+            return 0
+
+        return int((self.approved_count / self.max_teams) * 100)
+
+    @property
+    def card_class(self):
+        classes = {
+            StatusChampionship.OPEN: "card-open",
+            StatusChampionship.IN_PROGRESS: "card-live",
+            StatusChampionship.FINISHED: "card-finished",
+        }
+        return classes.get(self.status, "")
+    
+    
+    @property
+    def placeholder_class(self):
+        classes = {
+            StatusChampionship.OPEN: "card-ph-open",
+            StatusChampionship.IN_PROGRESS: "card-ph-live",
+            StatusChampionship.FINISHED: "card-ph-finished",
+        }
+        return classes.get(self.status, "")
 
     def __str__(self):
         return f"{self.name} ({self.game})"

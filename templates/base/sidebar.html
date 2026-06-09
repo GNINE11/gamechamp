@@ -22,24 +22,29 @@
 
   <nav class="flex-grow-1 px-3">
 
-    <a href="{% url 'championship:championship-list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':13' == 'championship-' %}active{% endif %}">
+    <a href="{% url 'championship:available-championship-list' %}"
+      class="sidebar-link {% if request.resolver_match.url_name|slice:':23' == 'available-championship-' %}active{% endif %}">
+        <span class="material-symbols-outlined">home</span>
+        <span>Início</span>
+    </a>
+
+    <a href="{% url 'championship:my-championship-list' %}"
+      class="sidebar-link {% if request.resolver_match.url_name|slice:':16' == 'my-championship-' %}active{% endif %}">
       <span class="material-symbols-outlined">emoji_events</span>
-      <span>Campeonatos</span>
+      <span>Meus Campeonatos</span>
     </a>
 
-    <a href="#" class="sidebar-link {% if request.resolver_match.url_name|slice:':6' == 'teams-' %}active{% endif %}">
+    <!-- 'teams:my-team-detail' -->
+    <a href="#"
+      class="sidebar-link {% if request.resolver_match.url_name|slice:':8' == 'my-team-' %}active{% endif %}">
       <span class="material-symbols-outlined">groups</span>
-      <span>Equipes</span>
+      <span>Meu Time</span>
     </a>
 
-    <a href="#" class="sidebar-link {% if request.resolver_match.url_name|slice:':8' == 'matches-' %}active{% endif %}">
-      <span class="material-symbols-outlined">stadia_controller</span>
-      <span>Partidas</span>
-    </a>
-
-    <a href="{% url 'accounts:profile' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':7' == 'profile' %}active{% endif %}">
-      <span class="material-symbols-outlined">account_circle</span>
-      <span>Perfil</span>
+    <a href="{% url 'championship:created-championship-list' %}"
+      class="sidebar-link {% if request.resolver_match.url_name|slice:':21' == 'created-championship-' %}active{% endif %}">
+      <span class="material-symbols-outlined">edit_note</span>
+      <span>Campeonatos Criados</span>
     </a>
 
   </nav>
