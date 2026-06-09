@@ -1,0 +1,1153 @@
+{% extends "base/logged_base.html" %}
+{% load static %}
+
+{% block title %}Torneio — Gamechamp{% endblock %}
+
+{% block page_label %}Global Pro League 2024{% endblock %}
+{% block page_title %}Torneio{% endblock %}
+
+{% block page_actions %}
+<div class="view-toggle" id="viewToggle" role="group" aria-label="Alternar visão">
+    <button class="toggle-btn active" data-view="grupos" onclick="switchView('grupos')">
+        <span class="material-symbols-outlined">table_chart</span>
+        Fase de Grupos
+    </button>
+    <button class="toggle-btn" data-view="chaveamento" onclick="switchView('chaveamento')">
+        <span class="material-symbols-outlined">account_tree</span>
+        Chaveamento
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ─── Toggle ──────────────────────────────────────────────────── */
+    .view-toggle {
+        display: inline-flex;
+        background-color: var(--color-surface-container-lowest);
+        border: 1px solid var(--color-outline-variant);
+        border-radius: 0.6rem;
+        padding: 3px;
+        gap: 3px;
+    }
+
+    .toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.45rem 1.1rem;
+        border: none;
+        border-radius: 0.45rem;
+        background: transparent;
+        color: var(--color-on-surface-variant);
+        font-family: var(--font-body);
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.18s ease, color 0.18s ease;
+        white-space: nowrap;
+    }
+
+    .toggle-btn .material-symbols-outlined {
+        font-size: 1rem;
+    }
+
+    .toggle-btn.active {
+        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-container));
+        color: #fff;
+        box-shadow: 0 2px 10px rgba(139, 92, 246, 0.3);
+    }
+
+    /* ─── Views ──────────────────────────────────────────────────── */
+    .view-panel {
+        display: none;
+    }
+
+    .view-panel.visible {
+        display: block;
+    }
+
+    /* ─── Glass card ──────────────────────────────────────────────── */
+    .glass-card {
+        background: rgba(23, 31, 51, 0.7);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    .group-header {
+        padding: 1.1rem 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .group-header h2 {
+        font-family: var(--font-headline);
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--color-on-surface);
+        margin: 0;
+    }
+
+    .live-badge {
+        font-family: var(--font-label);
+        font-size: 0.65rem;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--color-on-surface-variant);
+        padding: 0.2rem 0.65rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    /* ─── Standings table ─────────────────────────────────────────── */
+    .standings-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .standings-table thead tr {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .standings-table thead th {
+        font-family: var(--font-label);
+        font-size: 0.65rem;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        color: var(--color-on-surface-variant);
+        padding: 0.7rem 1.1rem;
+        text-transform: uppercase;
+    }
+
+    .standings-table tbody tr {
+        transition: background 0.15s;
+    }
+
+    .standings-table tbody tr:nth-child(even) {
+        background: rgba(255, 255, 255, 0.015);
+    }
+
+    .standings-table tbody tr:hover {
+        background: rgba(139, 92, 246, 0.05);
+    }
+
+    .standings-table tbody tr.eliminated {
+        opacity: 0.55;
+    }
+
+    .standings-table td {
+        font-size: 0.82rem;
+        padding: 0.7rem 1.1rem;
+        color: var(--color-on-surface);
+    }
+
+    .standings-table td.rank {
+        font-family: var(--font-label);
+        font-weight: 700;
+        color: var(--color-secondary);
+        width: 3rem;
+    }
+
+    .standings-table tr.eliminated td.rank {
+        color: var(--color-on-surface-variant);
+    }
+
+    .standings-table td.pts {
+        font-weight: 700;
+        text-align: right;
+        color: var(--color-on-surface);
+    }
+
+    .standings-table td.maps-diff {
+        font-family: var(--font-label);
+        font-size: 0.75rem;
+        text-align: center;
+    }
+
+    .maps-pos {
+        color: var(--color-secondary);
+    }
+
+    .maps-neg {
+        color: var(--color-error);
+    }
+
+    .team-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+    }
+
+    .team-logo {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: var(--color-surface-container-high);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    .team-name {
+        font-weight: 600;
+        font-size: 0.82rem;
+        color: var(--color-on-surface);
+    }
+
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.1rem 0.5rem;
+        border-radius: 4px;
+        font-family: var(--font-label);
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        border: 1px solid transparent;
+        white-space: nowrap;
+    }
+
+    .badge-classified {
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
+        border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    .badge-disputed {
+        background: rgba(6, 182, 212, 0.15);
+        color: var(--color-secondary);
+        border-color: rgba(6, 182, 212, 0.3);
+    }
+
+    .badge-eliminated {
+        background: var(--color-error-container);
+        color: var(--color-on-error-container);
+        border-color: rgba(255, 180, 171, 0.3);
+    }
+
+    /* ─── Grupo grid ──────────────────────────────────────────────── */
+    .groups-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+
+    @media (min-width: 960px) {
+        .groups-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    /* ─── CHAVEAMENTO ─────────────────────────────────────────────── */
+    .bracket-container {
+        overflow-x: auto;
+        padding-bottom: 1rem;
+    }
+
+    .bracket {
+        display: flex;
+        gap: 0;
+        min-width: 780px;
+        align-items: stretch;
+    }
+
+    .bracket-round {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .round-header {
+        font-family: var(--font-label);
+        font-size: 0.65rem;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--color-on-surface-variant);
+        text-align: center;
+        padding: 0.6rem 0 1.4rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        margin-bottom: 0;
+    }
+
+    .round-matches {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        flex: 1;
+        padding: 1.5rem 0.5rem;
+        gap: 1rem;
+    }
+
+    /* Connector lines between rounds */
+    .bracket-connector {
+        width: 36px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        padding-top: 2.8rem;
+        /* offset for round-header height */
+    }
+
+    .connector-lines {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.5rem 0;
+    }
+
+    .connector-pair {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        position: relative;
+        width: 100%;
+    }
+
+    .conn-line {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .conn-h {
+        width: 50%;
+        height: 2px;
+        background: var(--color-outline-variant);
+        position: absolute;
+    }
+
+    .conn-h.left {
+        left: 0;
+    }
+
+    .conn-h.right {
+        right: 0;
+    }
+
+    .conn-v {
+        width: 2px;
+        height: 50%;
+        background: var(--color-outline-variant);
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .conn-v.top {
+        top: 0;
+    }
+
+    .conn-v.bottom {
+        bottom: 0;
+    }
+
+    /* Match card */
+    .match-card {
+        background: var(--color-surface-container);
+        border: 1px solid var(--color-outline-variant);
+        border-radius: 0.6rem;
+        overflow: hidden;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        flex-shrink: 0;
+    }
+
+    .match-card:hover {
+        border-color: rgba(139, 92, 246, 0.4);
+        box-shadow: 0 0 18px rgba(139, 92, 246, 0.12);
+    }
+
+    .match-team {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.55rem 0.85rem;
+        gap: 0.5rem;
+        transition: background 0.15s;
+    }
+
+    .match-team:first-child {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .match-team.winner {
+        background: rgba(139, 92, 246, 0.08);
+    }
+
+    .match-team.loser {
+        opacity: 0.5;
+    }
+
+    .match-team-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        overflow: hidden;
+    }
+
+    .match-logo {
+        width: 22px;
+        height: 22px;
+        border-radius: 4px;
+        object-fit: cover;
+        flex-shrink: 0;
+        background: var(--color-surface-container-high);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .match-team-name {
+        font-family: var(--font-body);
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--color-on-surface);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .match-score {
+        font-family: var(--font-label);
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--color-on-surface-variant);
+        flex-shrink: 0;
+        min-width: 1rem;
+        text-align: right;
+    }
+
+    .match-team.winner .match-score {
+        color: var(--color-secondary);
+    }
+
+    .match-team.tbd .match-team-name {
+        color: var(--color-on-surface-variant);
+        font-style: italic;
+        font-weight: 400;
+    }
+
+    /* Final round center */
+    .final-round .round-matches {
+        justify-content: center;
+    }
+
+    .final-match-wrap {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .trophy-icon {
+        font-size: 2rem;
+        color: var(--color-primary);
+        text-align: center;
+        display: block;
+        opacity: 0.85;
+        margin-bottom: 0.25rem;
+    }
+
+    /* Bracket round accent borders */
+    .round-qf .round-header {
+        border-top: 2px solid var(--color-primary);
+    }
+
+    .round-sf .round-header {
+        border-top: 2px solid var(--color-secondary);
+    }
+
+    .round-fin .round-header {
+        border-top: 2px solid #f59e0b;
+    }
+
+    /* ─── Bracket legend ─────────────────────────────────────────── */
+    .bracket-legend {
+        display: flex;
+        gap: 1.25rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.25rem;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-family: var(--font-body);
+        font-size: 0.75rem;
+        color: var(--color-on-surface-variant);
+    }
+
+    .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+        flex-shrink: 0;
+    }
+
+    /* ─── Responsive bracket ─────────────────────────────────────── */
+    @media (max-width: 600px) {
+        .toggle-btn span.material-symbols-outlined {
+            display: none;
+        }
+
+        .toggle-btn {
+            padding: 0.45rem 0.75rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ─── View toggle panels ───────────────────────────────────────── -->
+
+<!-- FASE DE GRUPOS -->
+<div id="view-grupos" class="view-panel visible">
+
+    <div class="groups-grid">
+
+        <!-- Grupo A -->
+        <div class="glass-card">
+            <div class="group-header" style="background: linear-gradient(to right, rgba(139,92,246,0.1), transparent);">
+                <h2>Grupo A</h2>
+                <span class="live-badge">Live Updates</span>
+            </div>
+            <div class="table-responsive">
+                <table class="standings-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Equipe</th>
+                            <th class="text-center">V</th>
+                            <th class="text-center">D</th>
+                            <th class="text-center">Mapas</th>
+                            <th class="text-end">Pts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="rank">01</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuASV9u5Ca72rsEnc2V5eEtBbJe9ZY_Qbiuq1vEWgyrp4LdBVY0ic6-Yj2aYlAImLPIu3WOlZ5ZznsF8W6eakUutX_812ZErjCz3xGezFfW7T0VqtzQXZhCO7b7bsZKCI0mE7jdLxNMLYOi72wGKgwpYb-LPPzDnTFhrm4wLAi_w9tUhz8hEWU52O62aK20SIByny7pBFS2mVsXu2yumV0oAxdVKylSGLWyYsPICKsEXpyM_kxjMjnmorfigvSObwMxfWmjGFxroMNdV"
+                                        alt="">
+                                    <span class="team-name">Sentinels Prime</span>
+                                    <span class="badge badge-classified">CLASSIFICADO</span>
+                                </div>
+                            </td>
+                            <td class="text-center">3</td>
+                            <td class="text-center">0</td>
+                            <td class="maps-diff maps-pos">+12</td>
+                            <td class="pts">9</td>
+                        </tr>
+                        <tr>
+                            <td class="rank" style="color:var(--color-on-surface-variant)">02</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuB5Yrn0ajza6dR-rn4HBPbDdWeK8wogZId0cTBnhpSkj-EAOlnUMxeWYWNRQMuqAmaZPTo3sVJYehY4ygnVkL8xyUoqqOCC_SYt-v3LuyXgE5NgRs6pRB6VtjyMSnjq8nKd0r2AwoF_P4FfA25GX_ZljV2B6JWvn7kYIDkDkeIFkAvBdNGfHXQW3xrgLHL72GumWBqEquo9yC8LWNoEWLwnm1JYiNy3JeNjkfXjrKxKWivBW2_GU32xip2eQ5nInFynfA6nu6KYkXQF"
+                                        alt="">
+                                    <span class="team-name">Team Zenith</span>
+                                    <span class="badge badge-disputed">EM DISPUTA</span>
+                                </div>
+                            </td>
+                            <td class="text-center">2</td>
+                            <td class="text-center">1</td>
+                            <td class="maps-diff">+4</td>
+                            <td class="pts">6</td>
+                        </tr>
+                        <tr>
+                            <td class="rank" style="color:var(--color-on-surface-variant)">03</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuBsqm9Mv-tasn9sud-KitLze5RIgaF_MDvmhsynKFEfjT-XZcIwX7D-xIi1C_UBKdqjBzpht6uPkzefdRc1yItj0Pe5NtiLGph9VIJhkjxo4IV5PU7bShUz6-XRRXL_6fAUSy-ImFKB6CQCDwWcNlRMba8pX4Pwm0LGGYPtZ_H6XyOB6PDDfKihkdN5YTbcamKs5QI92VtZ8BunqDI5gbkA5Or8wPGPTaDRi_6KinNw_Ni5v11Ko4iawtc2YRVcKcvx0ccgkukwJcTM"
+                                        alt="">
+                                    <span class="team-name">Void Walkers</span>
+                                </div>
+                            </td>
+                            <td class="text-center">1</td>
+                            <td class="text-center">2</td>
+                            <td class="maps-diff maps-neg">-2</td>
+                            <td class="pts">3</td>
+                        </tr>
+                        <tr class="eliminated">
+                            <td class="rank" style="color:var(--color-on-surface-variant)">04</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAltey9Ab1ONDvZyWp5UbJji94MQnCK9am8-MCL9JdAuNlPqJyh87gRv1jWw5eI6S5Bb3zhvE8wyMKyValnXeMZm0Ljmtp3ez2YP2FtXctEtjcNDFrhhi7GQQGro6cFZdYRU2SMq5FhNhzo48L0x2lCtcssVzeA0wUzEjnaYFkcfd1XbR4k_A05OtHTrI78Ax1JvDGGlryaxpaEdocLeiZ-fXweW0ZbT1acfGS6mFpo0NFxPJjgumiplWYDco4v7BmxRyHmtHArYTYu"
+                                        alt="">
+                                    <span class="team-name">Nova Esports</span>
+                                    <span class="badge badge-eliminated">ELIMINADO</span>
+                                </div>
+                            </td>
+                            <td class="text-center">0</td>
+                            <td class="text-center">3</td>
+                            <td class="maps-diff maps-neg">-14</td>
+                            <td class="pts">0</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Grupo B -->
+        <div class="glass-card">
+            <div class="group-header" style="background: linear-gradient(to right, rgba(6,182,212,0.1), transparent);">
+                <h2>Grupo B</h2>
+                <span class="live-badge">Live Updates</span>
+            </div>
+            <div class="table-responsive">
+                <table class="standings-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Equipe</th>
+                            <th class="text-center">V</th>
+                            <th class="text-center">D</th>
+                            <th class="text-center">Mapas</th>
+                            <th class="text-end">Pts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="rank">01</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAjOHxFpeV9PAutdxHsgPSsXqUjnZ_mkBmUnbmu110sQdw-Cn8Z1TIo_m3sXQJ7FTaxxHnnrpcuQYCk7GJCVnUhMEWAtCkxC8Nb3e2YLUXDfKT96Ow099E7K398nv_XOUoV4RRNdD5DgyepFu8mmJjej7WyZRfCZz3aoEAKl2UCXMKQDaavDiSA9-a0GC7vNgklo-0rE7wy1IxMpUr4B3_9VluJdl7LTa-10p4w-yM-LoV1qGKZgPNuf14WUYgmSu3hMx5zj3KpkRWP"
+                                        alt="">
+                                    <span class="team-name">Lunar Legion</span>
+                                    <span class="badge badge-classified">CLASSIFICADO</span>
+                                </div>
+                            </td>
+                            <td class="text-center">3</td>
+                            <td class="text-center">0</td>
+                            <td class="maps-diff maps-pos">+8</td>
+                            <td class="pts">9</td>
+                        </tr>
+                        <tr>
+                            <td class="rank" style="color:var(--color-on-surface-variant)">02</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCK3sxDq2kJhJPYV79HLnB_KBbxkWP7tNDejtgCkPeZGvpre7FLWUwAiMzpUE4tcHWkMQVw6uNj7aH5pi-NgaX35WAgWpZpy7Mk6z6rezEuoWrfKfrSOIGDIVxfMb1uBnn4qqP-c_V6BYAZGVLNmJxGAm-T2cTLUxkqUqsc_fKvhb9xrhT-5KrmoQ277Psa4DazJsLRraqoF6c1JsENZTDyYGZPfGDDy_C_FYxRbGVOrSNvwjL6W7UkJz2m2ez7vsBtT-oVdzzFLGME"
+                                        alt="">
+                                    <span class="team-name">Cyber Ronin</span>
+                                    <span class="badge badge-disputed">EM DISPUTA</span>
+                                </div>
+                            </td>
+                            <td class="text-center">2</td>
+                            <td class="text-center">1</td>
+                            <td class="maps-diff">+2</td>
+                            <td class="pts">6</td>
+                        </tr>
+                        <tr>
+                            <td class="rank" style="color:var(--color-on-surface-variant)">03</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNeQYP_ji1PMbRciurvm9TA7Cwy7wRm7RbchKO57lwQpRHTyH4brjT021H7RFiBgya7_SOwAAUAYXiQuLUfyhXVfRsapDL05yjnC_V9XC4ifT4CSSJR752QwEvzWAfQ_1_AmOTWTjFizqaZpA44uAHARRS_HtfOncwaVNAvy2fYe1SqFlpIXR-fahtcixNZeoyMEiXaZqOzubmBZSbtCATBYv61dxx9oPAurv0UZoTV9d3Ef6ulKPS0CXFEPBc9NCPHjpdasBB1Szr"
+                                        alt="">
+                                    <span class="team-name">Phoenix Reborn</span>
+                                </div>
+                            </td>
+                            <td class="text-center">1</td>
+                            <td class="text-center">2</td>
+                            <td class="maps-diff maps-neg">-1</td>
+                            <td class="pts">3</td>
+                        </tr>
+                        <tr class="eliminated">
+                            <td class="rank" style="color:var(--color-on-surface-variant)">04</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuA5ybQiF2PjSPiyvzKusrm4yRrfH6RVVo8-or0CtU5gSAe5YbEECrypFzj7Xdgo6zZKoNH613U8LU6znurLkU6TRXGGlFpgpqH0UsbNyhHdNFCCJXlDgIoXek_NCjmp8tX4Xvd9WfrTrNhj9oBKyrJHQ_N4XzHQox8j4TH6v81iOr3ESR-WK6sU3ty_SJ4giWiWcC3nkhK_RPQgCX7rnSRyTg-D-Ov3dcEajLoeTNUqdSeYVJtupl49DFatnGcA0Kem76xrycu8Vdfe"
+                                        alt="">
+                                    <span class="team-name">Ghost Protocol</span>
+                                    <span class="badge badge-eliminated">ELIMINADO</span>
+                                </div>
+                            </td>
+                            <td class="text-center">0</td>
+                            <td class="text-center">3</td>
+                            <td class="maps-diff maps-neg">-9</td>
+                            <td class="pts">0</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Grupo C -->
+        <div class="glass-card">
+            <div class="group-header" style="background: linear-gradient(to right, rgba(59,130,246,0.1), transparent);">
+                <h2>Grupo C</h2>
+                <span class="live-badge">Live Updates</span>
+            </div>
+            <div class="table-responsive">
+                <table class="standings-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Equipe</th>
+                            <th class="text-center">V</th>
+                            <th class="text-center">D</th>
+                            <th class="text-center">Mapas</th>
+                            <th class="text-end">Pts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="rank">01</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9CYFY8jRTLPthtBFmAqZvyE3Xk-3da3uatiUDxC3w_PYhQL4_Y_XgxbMLS3qHILdoxe9GgijcQLtBE2z5q_M5r9GTmXUckCe1o4FiZPuR5SuRS5cq3hs0lujDFsXaeEM0lGrUMS2bcoGE7uGNyqYb12ALgcrpqJylT8MtCyZTRlkOHZjz1fJtfm1Nehco-_J4YiCBggQ5YvC7m2ztMxAZ38J9QenNTLv5WdAFOyL2_WPp3D8xWIwKn23_Pb-dRm43drOBk25JX5vM"
+                                        alt="">
+                                    <span class="team-name">Glitch Gaming</span>
+                                    <span class="badge badge-classified">CLASSIFICADO</span>
+                                </div>
+                            </td>
+                            <td class="text-center">3</td>
+                            <td class="text-center">0</td>
+                            <td class="maps-diff maps-pos">+10</td>
+                            <td class="pts">9</td>
+                        </tr>
+                        <tr>
+                            <td class="rank" style="color:var(--color-on-surface-variant)">02</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyi65W-ZDiLcpegKDMWAw1qZOXi5JOzGzdQKxbDxccWm8fAXX3cqJy1dsFXnppkPlKEwGBOyfxMV3MiFIfWaQtgZ6SHuIgGrBTTCBuBJdO0bEPjdZhJ2KuvnkqAVV0VMpofNCJnD4S8Al05YktzQVhxL22oAtOVZAi9c6qwKO4lMXmcHTTXQNJrxwbeXgpPly27vMxr05tgbKbz7nE9ouzdFOq-gZm7keNinnvpsU-rBn6CwbSZopgmWZMcFwfDIpLzOIkRLbr4c7E"
+                                        alt="">
+                                    <span class="team-name">Iron Guard</span>
+                                    <span class="badge badge-disputed">EM DISPUTA</span>
+                                </div>
+                            </td>
+                            <td class="text-center">2</td>
+                            <td class="text-center">1</td>
+                            <td class="maps-diff">+5</td>
+                            <td class="pts">6</td>
+                        </tr>
+                        <tr>
+                            <td class="rank" style="color:var(--color-on-surface-variant)">03</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIawo39Cf06qq8GgwJ6ec0Z18DTzaf9Tv_f3YV1DPwU1BlWyULg4ZN1y6THAIUDvDqaeouwBTIUFwu9w-mTqID6pBFU80SnJXjlHOxVWLxgZvgjmPtbugSx1lK5V02jQjWp0EmmvwkAqMiKlhWgUSPQZ01X08kCRcEblkDDgBHD-9aompSF5L9xZHEMOkFak00UGJGSpwnXxonqYBy648kRlrTjPRiDdoXqxL9JdnujlarqvwSKe5bmvhjfBo3N9z94nAO84ifpryt"
+                                        alt="">
+                                    <span class="team-name">Solar Flare</span>
+                                </div>
+                            </td>
+                            <td class="text-center">1</td>
+                            <td class="text-center">2</td>
+                            <td class="maps-diff maps-neg">-3</td>
+                            <td class="pts">3</td>
+                        </tr>
+                        <tr class="eliminated">
+                            <td class="rank" style="color:var(--color-on-surface-variant)">04</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuBEAEam4dvvKKNiQ57sdQ_3nYmOp8kFJo-GYq4ECC353dS5FPFcCYOwNTmBcxI5zAuTp2ILnkVhE-HJOXWaVsY5ba_uc0egSOSW-O9wpyITkTEyNHYRqSjBotuoCjSwL1M1p7C-CDSQmzalmZMWiGiUHGWlGP4yYnDDT8qJrPSz80oX5MXstteTWGzuYudtbdWegcnvfh7gvHyLLl02NL7nCLxoYqwSrxnRh3zUXNGhooPreBAxRche9Qlpdj-NYHp5rwConMo0ubvj"
+                                        alt="">
+                                    <span class="team-name">Shadow Step</span>
+                                    <span class="badge badge-eliminated">ELIMINADO</span>
+                                </div>
+                            </td>
+                            <td class="text-center">0</td>
+                            <td class="text-center">3</td>
+                            <td class="maps-diff maps-neg">-12</td>
+                            <td class="pts">0</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Grupo D -->
+        <div class="glass-card">
+            <div class="group-header"
+                style="background: linear-gradient(to right, rgba(255,180,171,0.08), transparent);">
+                <h2>Grupo D</h2>
+                <span class="live-badge">Live Updates</span>
+            </div>
+            <div class="table-responsive">
+                <table class="standings-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Equipe</th>
+                            <th class="text-center">V</th>
+                            <th class="text-center">D</th>
+                            <th class="text-center">Mapas</th>
+                            <th class="text-end">Pts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="rank">01</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAeZTklsNpVikN5sJwGM_aGurBumgCuD8d36c5VcdB9CVQHHPN92e7bAR69t12D9FTugQY6FSKVT44pYrgFH_IdxGbq9-SBQQNuEopKKChnkErCo7mBgXptXwcb2xHsjhspGJPFqMtxNhvV8K_fBGkFgD5rbGAjNqYHFnz3ru4qUFs_rJMTp6WadaQjXPFhQsIbbRJ6SDfJY9YfX1PAc6epRFwUGmPvT67h_oYczOfgM2k3-6Rb0I0WNNmspMi2EnuS0olH0SIIiv6-"
+                                        alt="">
+                                    <span class="team-name">Titan Squad</span>
+                                    <span class="badge badge-classified">CLASSIFICADO</span>
+                                </div>
+                            </td>
+                            <td class="text-center">3</td>
+                            <td class="text-center">0</td>
+                            <td class="maps-diff maps-pos">+15</td>
+                            <td class="pts">9</td>
+                        </tr>
+                        <tr>
+                            <td class="rank" style="color:var(--color-on-surface-variant)">02</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuC7KQj-qRG0QYtIRKxbFJ4jCMQLO4gPtmMqxES9daPUvlyuUzaIcuVMTwQYhnjj6lBWQH7HRy_SYRI4mtJcjioLePQiurES-kvIlVZvFz4n5p2d5bnyvM4loku4j5TJNNJzGpY1GUMwgpfNcnRNeqlFwD-f-GAMbx_-FZWbHt2780GEYB0eDXlenpMkF2x9J826LVKdBqrgtdQH0cDdirOTZMICDpz8eGF6m_5Y4iNi5J0sfN_DEawtY1r6Fo3PR_Suciow4UVRf_VL"
+                                        alt="">
+                                    <span class="team-name">Velocity X</span>
+                                    <span class="badge badge-disputed">EM DISPUTA</span>
+                                </div>
+                            </td>
+                            <td class="text-center">2</td>
+                            <td class="text-center">1</td>
+                            <td class="maps-diff">+1</td>
+                            <td class="pts">6</td>
+                        </tr>
+                        <tr>
+                            <td class="rank" style="color:var(--color-on-surface-variant)">03</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDK_BXMH-iA75tp6p8ETu9cEAOwNB7xK6ahvDRLDyIlHJKkBVdH3GCWo-uE7MaSvQ_LhJceF2raQHIjrxXo6faT3qXa4nunuNo9ViuZpahAiAl_TYGiXgc_UJHn4IjnIzHItRDD7uAP7AN_hY0_1DlJOg88lAQb30cqn4hGAY4H51YwlMNs6FFp8kuCS5FF4lXaGuCMSwHFudbYvdnvQx4R-U8d7SY_6zKC-YuMYcUW-dGf4bt9xR6F2kwO-p3ReCg4lN55SWMN1fYk"
+                                        alt="">
+                                    <span class="team-name">Crimson Tide</span>
+                                </div>
+                            </td>
+                            <td class="text-center">1</td>
+                            <td class="text-center">2</td>
+                            <td class="maps-diff maps-neg">-4</td>
+                            <td class="pts">3</td>
+                        </tr>
+                        <tr class="eliminated">
+                            <td class="rank" style="color:var(--color-on-surface-variant)">04</td>
+                            <td>
+                                <div class="team-cell">
+                                    <img class="team-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCjl421L7heEGyaxKfUz6qT_2uDXqwSUgxHa_Ew4-fS7YuRoxYoot69uw27UuQoYRFxWgk4VYL4_GZ8KNi08-O6eOKXMwFXRMLpCZZoQGWcRt7rrQB1gi0s6UtShOMXqZuqUtvAAxkZ0PwF6zxr-0vqHfawfSy_FEk4b1Pms8fQN_3tc3y87NnzohG-9OqDaNm05Fkjvwr_X4_PgE_IsI7fcXEM5UJ1XwjF949KfShwnQ51oXjo-FyJ7s2vBSRJ5PsIlJPpRn1M1u"
+                                        alt="">
+                                    <span class="team-name">Zero Logic</span>
+                                    <span class="badge badge-eliminated">ELIMINADO</span>
+                                </div>
+                            </td>
+                            <td class="text-center">0</td>
+                            <td class="text-center">3</td>
+                            <td class="maps-diff maps-neg">-12</td>
+                            <td class="pts">0</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div><!-- /groups-grid -->
+</div><!-- /view-grupos -->
+
+
+<!-- CHAVEAMENTO -->
+<div id="view-chaveamento" class="view-panel">
+
+    <div class="bracket-legend mb-3">
+        <div class="legend-item">
+            <div class="legend-dot" style="background:rgba(139,92,246,0.7);"></div>
+            Vencedor da partida
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background:rgba(255,255,255,0.15);"></div>
+            A definir
+        </div>
+    </div>
+
+    <div class="glass-card p-3">
+        <div class="bracket-container">
+            <div class="bracket">
+
+                <!-- ── Quartas de Final ────────────────────────────────── -->
+                <div class="bracket-round round-qf">
+                    <div class="round-header">Quartas de Final</div>
+                    <div class="round-matches">
+
+                        <!-- QF1 -->
+                        <div class="match-card">
+                            <div class="match-team winner">
+                                <div class="match-team-info">
+                                    <img class="match-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuASV9u5Ca72rsEnc2V5eEtBbJe9ZY_Qbiuq1vEWgyrp4LdBVY0ic6-Yj2aYlAImLPIu3WOlZ5ZznsF8W6eakUutX_812ZErjCz3xGezFfW7T0VqtzQXZhCO7b7bsZKCI0mE7jdLxNMLYOi72wGKgwpYb-LPPzDnTFhrm4wLAi_w9tUhz8hEWU52O62aK20SIByny7pBFS2mVsXu2yumV0oAxdVKylSGLWyYsPICKsEXpyM_kxjMjnmorfigvSObwMxfWmjGFxroMNdV"
+                                        alt="">
+                                    <span class="match-team-name">Sentinels Prime</span>
+                                </div>
+                                <span class="match-score">2</span>
+                            </div>
+                            <div class="match-team loser">
+                                <div class="match-team-info">
+                                    <img class="match-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuC7KQj-qRG0QYtIRKxbFJ4jCMQLO4gPtmMqxES9daPUvlyuUzaIcuVMTwQYhnjj6lBWQH7HRy_SYRI4mtJcjioLePQiurES-kvIlVZvFz4n5p2d5bnyvM4loku4j5TJNNJzGpY1GUMwgpfNcnRNeqlFwD-f-GAMbx_-FZWbHt2780GEYB0eDXlenpMkF2x9J826LVKdBqrgtdQH0cDdirOTZMICDpz8eGF6m_5Y4iNi5J0sfN_DEawtY1r6Fo3PR_Suciow4UVRf_VL"
+                                        alt="">
+                                    <span class="match-team-name">Velocity X</span>
+                                </div>
+                                <span class="match-score">0</span>
+                            </div>
+                        </div>
+
+                        <!-- QF2 -->
+                        <div class="match-card">
+                            <div class="match-team winner">
+                                <div class="match-team-info">
+                                    <img class="match-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAjOHxFpeV9PAutdxHsgPSsXqUjnZ_mkBmUnbmu110sQdw-Cn8Z1TIo_m3sXQJ7FTaxxHnnrpcuQYCk7GJCVnUhMEWAtCkxC8Nb3e2YLUXDfKT96Ow099E7K398nv_XOUoV4RRNdD5DgyepFu8mmJjej7WyZRfCZz3aoEAKl2UCXMKQDaavDiSA9-a0GC7vNgklo-0rE7wy1IxMpUr4B3_9VluJdl7LTa-10p4w-yM-LoV1qGKZgPNuf14WUYgmSu3hMx5zj3KpkRWP"
+                                        alt="">
+                                    <span class="match-team-name">Lunar Legion</span>
+                                </div>
+                                <span class="match-score">2</span>
+                            </div>
+                            <div class="match-team loser">
+                                <div class="match-team-info">
+                                    <img class="match-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyi65W-ZDiLcpegKDMWAw1qZOXi5JOzGzdQKxbDxccWm8fAXX3cqJy1dsFXnppkPlKEwGBOyfxMV3MiFIfWaQtgZ6SHuIgGrBTTCBuBJdO0bEPjdZhJ2KuvnkqAVV0VMpofNCJnD4S8Al05YktzQVhxL22oAtOVZAi9c6qwKO4lMXmcHTTXQNJrxwbeXgpPly27vMxr05tgbKbz7nE9ouzdFOq-gZm7keNinnvpsU-rBn6CwbSZopgmWZMcFwfDIpLzOIkRLbr4c7E"
+                                        alt="">
+                                    <span class="match-team-name">Iron Guard</span>
+                                </div>
+                                <span class="match-score">1</span>
+                            </div>
+                        </div>
+
+                        <!-- QF3 -->
+                        <div class="match-card">
+                            <div class="match-team winner">
+                                <div class="match-team-info">
+                                    <img class="match-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9CYFY8jRTLPthtBFmAqZvyE3Xk-3da3uatiUDxC3w_PYhQL4_Y_XgxbMLS3qHILdoxe9GgijcQLtBE2z5q_M5r9GTmXUckCe1o4FiZPuR5SuRS5cq3hs0lujDFsXaeEM0lGrUMS2bcoGE7uGNyqYb12ALgcrpqJylT8MtCyZTRlkOHZjz1fJtfm1Nehco-_J4YiCBggQ5YvC7m2ztMxAZ38J9QenNTLv5WdAFOyL2_WPp3D8xWIwKn23_Pb-dRm43drOBk25JX5vM"
+                                        alt="">
+                                    <span class="match-team-name">Glitch Gaming</span>
+                                </div>
+                                <span class="match-score">2</span>
+                            </div>
+                            <div class="match-team loser">
+                                <div class="match-team-info">
+                                    <img class="match-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuB5Yrn0ajza6dR-rn4HBPbDdWeK8wogZId0cTBnhpSkj-EAOlnUMxeWYWNRQMuqAmaZPTo3sVJYehY4ygnVkL8xyUoqqOCC_SYt-v3LuyXgE5NgRs6pRB6VtjyMSnjq8nKd0r2AwoF_P4FfA25GX_ZljV2B6JWvn7kYIDkDkeIFkAvBdNGfHXQW3xrgLHL72GumWBqEquo9yC8LWNoEWLwnm1JYiNy3JeNjkfXjrKxKWivBW2_GU32xip2eQ5nInFynfA6nu6KYkXQF"
+                                        alt="">
+                                    <span class="match-team-name">Team Zenith</span>
+                                </div>
+                                <span class="match-score">1</span>
+                            </div>
+                        </div>
+
+                        <!-- QF4 -->
+                        <div class="match-card">
+                            <div class="match-team winner">
+                                <div class="match-team-info">
+                                    <img class="match-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAeZTklsNpVikN5sJwGM_aGurBumgCuD8d36c5VcdB9CVQHHPN92e7bAR69t12D9FTugQY6FSKVT44pYrgFH_IdxGbq9-SBQQNuEopKKChnkErCo7mBgXptXwcb2xHsjhspGJPFqMtxNhvV8K_fBGkFgD5rbGAjNqYHFnz3ru4qUFs_rJMTp6WadaQjXPFhQsIbbRJ6SDfJY9YfX1PAc6epRFwUGmPvT67h_oYczOfgM2k3-6Rb0I0WNNmspMi2EnuS0olH0SIIiv6-"
+                                        alt="">
+                                    <span class="match-team-name">Titan Squad</span>
+                                </div>
+                                <span class="match-score">2</span>
+                            </div>
+                            <div class="match-team loser">
+                                <div class="match-team-info">
+                                    <img class="match-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCK3sxDq2kJhJPYV79HLnB_KBbxkWP7tNDejtgCkPeZGvpre7FLWUwAiMzpUE4tcHWkMQVw6uNj7aH5pi-NgaX35WAgWpZpy7Mk6z6rezEuoWrfKfrSOIGDIVxfMb1uBnn4qqP-c_V6BYAZGVLNmJxGAm-T2cTLUxkqUqsc_fKvhb9xrhT-5KrmoQ277Psa4DazJsLRraqoF6c1JsENZTDyYGZPfGDDy_C_FYxRbGVOrSNvwjL6W7UkJz2m2ez7vsBtT-oVdzzFLGME"
+                                        alt="">
+                                    <span class="match-team-name">Cyber Ronin</span>
+                                </div>
+                                <span class="match-score">0</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div><!-- /QF -->
+
+                <!-- ── Connector QF→SF ────────────────────────────────── -->
+                <div class="bracket-connector">
+                    <div class="connector-lines">
+                        <!-- pair 1 (QF1+QF2 → SF1) -->
+                        <div class="connector-pair" style="flex:2;">
+                            <svg width="36" height="100%" style="overflow:visible; display:block; height:100%;"
+                                preserveAspectRatio="none">
+                                <line x1="0" y1="25%" x2="18" y2="25%" stroke="var(--color-outline-variant)"
+                                    stroke-width="1.5" />
+                                <line x1="0" y1="75%" x2="18" y2="75%" stroke="var(--color-outline-variant)"
+                                    stroke-width="1.5" />
+                                <line x1="18" y1="25%" x2="18" y2="75%" stroke="var(--color-outline-variant)"
+                                    stroke-width="1.5" />
+                                <line x1="18" y1="50%" x2="36" y2="50%" stroke="var(--color-outline-variant)"
+                                    stroke-width="1.5" />
+                            </svg>
+                        </div>
+                        <!-- pair 2 (QF3+QF4 → SF2) -->
+                        <div class="connector-pair" style="flex:2;">
+                            <svg width="36" height="100%" style="overflow:visible; display:block; height:100%;"
+                                preserveAspectRatio="none">
+                                <line x1="0" y1="25%" x2="18" y2="25%" stroke="var(--color-outline-variant)"
+                                    stroke-width="1.5" />
+                                <line x1="0" y1="75%" x2="18" y2="75%" stroke="var(--color-outline-variant)"
+                                    stroke-width="1.5" />
+                                <line x1="18" y1="25%" x2="18" y2="75%" stroke="var(--color-outline-variant)"
+                                    stroke-width="1.5" />
+                                <line x1="18" y1="50%" x2="36" y2="50%" stroke="var(--color-outline-variant)"
+                                    stroke-width="1.5" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Semifinais ─────────────────────────────────────── -->
+                <div class="bracket-round round-sf">
+                    <div class="round-header">Semifinais</div>
+                    <div class="round-matches">
+
+                        <!-- SF1 -->
+                        <div class="match-card">
+                            <div class="match-team winner">
+                                <div class="match-team-info">
+                                    <img class="match-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuASV9u5Ca72rsEnc2V5eEtBbJe9ZY_Qbiuq1vEWgyrp4LdBVY0ic6-Yj2aYlAImLPIu3WOlZ5ZznsF8W6eakUutX_812ZErjCz3xGezFfW7T0VqtzQXZhCO7b7bsZKCI0mE7jdLxNMLYOi72wGKgwpYb-LPPzDnTFhrm4wLAi_w9tUhz8hEWU52O62aK20SIByny7pBFS2mVsXu2yumV0oAxdVKylSGLWyYsPICKsEXpyM_kxjMjnmorfigvSObwMxfWmjGFxroMNdV"
+                                        alt="">
+                                    <span class="match-team-name">Sentinels Prime</span>
+                                </div>
+                                <span class="match-score">2</span>
+                            </div>
+                            <div class="match-team loser">
+                                <div class="match-team-info">
+                                    <img class="match-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAjOHxFpeV9PAutdxHsgPSsXqUjnZ_mkBmUnbmu110sQdw-Cn8Z1TIo_m3sXQJ7FTaxxHnnrpcuQYCk7GJCVnUhMEWAtCkxC8Nb3e2YLUXDfKT96Ow099E7K398nv_XOUoV4RRNdD5DgyepFu8mmJjej7WyZRfCZz3aoEAKl2UCXMKQDaavDiSA9-a0GC7vNgklo-0rE7wy1IxMpUr4B3_9VluJdl7LTa-10p4w-yM-LoV1qGKZgPNuf14WUYgmSu3hMx5zj3KpkRWP"
+                                        alt="">
+                                    <span class="match-team-name">Lunar Legion</span>
+                                </div>
+                                <span class="match-score">1</span>
+                            </div>
+                        </div>
+
+                        <!-- SF2 -->
+                        <div class="match-card">
+                            <div class="match-team winner">
+                                <div class="match-team-info">
+                                    <img class="match-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAeZTklsNpVikN5sJwGM_aGurBumgCuD8d36c5VcdB9CVQHHPN92e7bAR69t12D9FTugQY6FSKVT44pYrgFH_IdxGbq9-SBQQNuEopKKChnkErCo7mBgXptXwcb2xHsjhspGJPFqMtxNhvV8K_fBGkFgD5rbGAjNqYHFnz3ru4qUFs_rJMTp6WadaQjXPFhQsIbbRJ6SDfJY9YfX1PAc6epRFwUGmPvT67h_oYczOfgM2k3-6Rb0I0WNNmspMi2EnuS0olH0SIIiv6-"
+                                        alt="">
+                                    <span class="match-team-name">Titan Squad</span>
+                                </div>
+                                <span class="match-score">2</span>
+                            </div>
+                            <div class="match-team loser">
+                                <div class="match-team-info">
+                                    <img class="match-logo"
+                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9CYFY8jRTLPthtBFmAqZvyE3Xk-3da3uatiUDxC3w_PYhQL4_Y_XgxbMLS3qHILdoxe9GgijcQLtBE2z5q_M5r9GTmXUckCe1o4FiZPuR5SuRS5cq3hs0lujDFsXaeEM0lGrUMS2bcoGE7uGNyqYb12ALgcrpqJylT8MtCyZTRlkOHZjz1fJtfm1Nehco-_J4YiCBggQ5YvC7m2ztMxAZ38J9QenNTLv5WdAFOyL2_WPp3D8xWIwKn23_Pb-dRm43drOBk25JX5vM"
+                                        alt="">
+                                    <span class="match-team-name">Glitch Gaming</span>
+                                </div>
+                                <span class="match-score">0</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div><!-- /SF -->
+
+                <!-- ── Connector SF→FIN ───────────────────────────────── -->
+                <div class="bracket-connector">
+                    <div class="connector-lines">
+                        <div class="connector-pair">
+                            <svg width="36" height="100%" style="overflow:visible; display:block; height:100%;"
+                                preserveAspectRatio="none">
+                                <line x1="0" y1="25%" x2="18" y2="25%" stroke="var(--color-outline-variant)"
+                                    stroke-width="1.5" />
+                                <line x1="0" y1="75%" x2="18" y2="75%" stroke="var(--color-outline-variant)"
+                                    stroke-width="1.5" />
+                                <line x1="18" y1="25%" x2="18" y2="75%" stroke="var(--color-outline-variant)"
+                                    stroke-width="1.5" />
+                                <line x1="18" y1="50%" x2="36" y2="50%" stroke="var(--color-outline-variant)"
+                                    stroke-width="1.5" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Final ──────────────────────────────────────────── -->
+                <div class="bracket-round round-fin final-round">
+                    <div class="round-header">Final</div>
+                    <div class="round-matches">
+                        <div class="final-match-wrap">
+                            <span class="material-symbols-outlined trophy-icon"
+                                style="font-variation-settings:'FILL' 1;">emoji_events</span>
+                            <div class="match-card" style="min-width: 200px;">
+                                <div class="match-team winner">
+                                    <div class="match-team-info">
+                                        <img class="match-logo"
+                                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuASV9u5Ca72rsEnc2V5eEtBbJe9ZY_Qbiuq1vEWgyrp4LdBVY0ic6-Yj2aYlAImLPIu3WOlZ5ZznsF8W6eakUutX_812ZErjCz3xGezFfW7T0VqtzQXZhCO7b7bsZKCI0mE7jdLxNMLYOi72wGKgwpYb-LPPzDnTFhrm4wLAi_w9tUhz8hEWU52O62aK20SIByny7pBFS2mVsXu2yumV0oAxdVKylSGLWyYsPICKsEXpyM_kxjMjnmorfigvSObwMxfWmjGFxroMNdV"
+                                            alt="">
+                                        <span class="match-team-name">Sentinels Prime</span>
+                                    </div>
+                                    <span class="match-score" style="color:#f59e0b;">3</span>
+                                </div>
+                                <div class="match-team loser">
+                                    <div class="match-team-info">
+                                        <img class="match-logo"
+                                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAeZTklsNpVikN5sJwGM_aGurBumgCuD8d36c5VcdB9CVQHHPN92e7bAR69t12D9FTugQY6FSKVT44pYrgFH_IdxGbq9-SBQQNuEopKKChnkErCo7mBgXptXwcb2xHsjhspGJPFqMtxNhvV8K_fBGkFgD5rbGAjNqYHFnz3ru4qUFs_rJMTp6WadaQjXPFhQsIbbRJ6SDfJY9YfX1PAc6epRFwUGmPvT67h_oYczOfgM2k3-6Rb0I0WNNmspMi2EnuS0olH0SIIiv6-"
+                                            alt="">
+                                        <span class="match-team-name">Titan Squad</span>
+                                    </div>
+                                    <span class="match-score">2</span>
+                                </div>
+                            </div>
+                            <div style="text-align:center; margin-top:0.5rem;">
+                                <span
+                                    style="font-family:var(--font-label);font-size:0.62rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-on-surface-variant);">Campeão</span>
+                                <div
+                                    style="font-family:var(--font-headline);font-weight:800;font-size:0.95rem;color:#f59e0b;margin-top:0.15rem;">
+                                    Sentinels Prime</div>
+                            </div>
+                        </div>
+                    </div>
+                </div><!-- /Final -->
+
+            </div><!-- /bracket -->
+        </div><!-- /bracket-container -->
+    </div><!-- /glass-card -->
+
+</div><!-- /view-chaveamento -->
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function switchView(view) {
+        // panels
+        document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('visible'));
+        document.getElementById('view-' + view).classList.add('visible');
+
+        // buttons
+        document.querySelectorAll('.toggle-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.view === view);
+        });
+    }
+</script>
+{% endblock %}
