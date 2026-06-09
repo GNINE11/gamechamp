@@ -22,12 +22,12 @@
 
   <nav class="flex-grow-1 px-3">
 
-    <a href="#" class="sidebar-link {% if request.resolver_match.app_name == 'core' %}active{% endif %}">
+    <a href="{% url 'core:landing_page' %}" class="sidebar-link {% if request.resolver_match.app_name == 'core' %}active{% endif %}">
       <span class="material-symbols-outlined">dashboard</span>
       <span>Painel de Controle</span>
     </a>
 
-    <a href="#" class="sidebar-link {% if request.resolver_match.url_name|slice:':14' == 'championships-' %}active{% endif %}">
+    <a href="{% url 'championship:championship-list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':13' == 'championship-' %}active{% endif %}">
       <span class="material-symbols-outlined">emoji_events</span>
       <span>Campeonatos</span>
     </a>

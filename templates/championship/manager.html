@@ -1,0 +1,1217 @@
+{% extends "base/logged_base.html" %}
+{% load static %}
+
+{% block title %}Manager — Summer Invitational 2024{% endblock %}
+
+{% block page_label %}Gerenciamento{% endblock %}
+{% block page_title %}Summer Invitational 2024{% endblock %}
+
+{% block page_actions %}
+<a href="#" class="btn-app-outline">
+    <span class="material-symbols-outlined">settings</span>
+    Configurações
+</a>
+<a href="#" class="btn-app-primary">
+    <span class="material-symbols-outlined">add</span>
+    Nova Partida
+</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ─── Stat cards ──────────────────────────────────────────────── */
+    .stat-card {
+        background: rgba(23, 31, 51, 0.7);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 0.75rem;
+        padding: 1.35rem 1.4rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 2px;
+        border-radius: 0.75rem 0.75rem 0 0;
+        opacity: 0.7;
+    }
+
+    .stat-card.accent-primary::before {
+        background: var(--color-primary);
+    }
+
+    .stat-card.accent-secondary::before {
+        background: var(--color-secondary);
+    }
+
+    .stat-card.accent-tertiary::before {
+        background: var(--color-tertiary);
+    }
+
+    .stat-card.accent-success::before {
+        background: #22c55e;
+    }
+
+    .stat-card.accent-warn::before {
+        background: var(--color-error);
+    }
+
+    .stat-card:hover {
+        border-color: rgba(139, 92, 246, 0.25);
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    .stat-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 0.55rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .stat-icon .material-symbols-outlined {
+        font-size: 1.2rem;
+        font-variation-settings: 'FILL' 1;
+    }
+
+    .stat-icon.icon-primary {
+        background: rgba(139, 92, 246, 0.12);
+        color: var(--color-primary);
+    }
+
+    .stat-icon.icon-secondary {
+        background: rgba(6, 182, 212, 0.12);
+        color: var(--color-secondary);
+    }
+
+    .stat-icon.icon-tertiary {
+        background: rgba(59, 130, 246, 0.12);
+        color: var(--color-tertiary);
+    }
+
+    .stat-icon.icon-success {
+        background: rgba(34, 197, 94, 0.12);
+        color: #4ade80;
+    }
+
+    .stat-icon.icon-warn {
+        background: rgba(255, 180, 171, 0.1);
+        color: var(--color-error);
+    }
+
+    .stat-icon.icon-gold {
+        background: rgba(245, 158, 11, 0.12);
+        color: #f59e0b;
+    }
+
+    .stat-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+    }
+
+    .stat-label {
+        font-family: var(--font-label);
+        font-size: 0.65rem;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--color-on-surface-variant);
+        margin: 0 0 0.2rem 0;
+    }
+
+    .stat-value {
+        font-family: var(--font-headline);
+        font-size: 1.9rem;
+        font-weight: 800;
+        color: var(--color-on-surface);
+        line-height: 1;
+        letter-spacing: -0.02em;
+    }
+
+    .stat-sub {
+        font-size: 0.75rem;
+        color: var(--color-on-surface-variant);
+        margin-top: 0.1rem;
+    }
+
+    .stat-badge {
+        font-family: var(--font-label);
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        padding: 0.18rem 0.55rem;
+        border-radius: 999px;
+        flex-shrink: 0;
+    }
+
+    .badge-urgent {
+        background: var(--color-error);
+        color: var(--color-on-error);
+    }
+
+    .badge-live {
+        background: rgba(6, 182, 212, 0.15);
+        color: var(--color-secondary);
+        border: 1px solid rgba(6, 182, 212, 0.3);
+    }
+
+    .badge-done {
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .stat-bar-track {
+        width: 100%;
+        height: 3px;
+        background: var(--color-surface-container-highest);
+        border-radius: 999px;
+        overflow: hidden;
+        margin-top: 0.25rem;
+    }
+
+    .stat-bar-fill {
+        height: 100%;
+        border-radius: 999px;
+        box-shadow: 0 0 8px currentColor;
+    }
+
+    /* ─── Glass panel ────────────────────────────────────────────── */
+    .glass-panel {
+        background: rgba(23, 31, 51, 0.7);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+        height: 100%;
+    }
+
+    .panel-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .panel-title {
+        font-family: var(--font-headline);
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--color-on-surface);
+        margin: 0;
+    }
+
+    .panel-subtitle {
+        font-size: 0.75rem;
+        color: var(--color-on-surface-variant);
+        margin: 0.15rem 0 0 0;
+    }
+
+    .panel-link {
+        font-family: var(--font-body);
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--color-primary);
+        text-decoration: none;
+        transition: opacity 0.15s;
+    }
+
+    .panel-link:hover {
+        opacity: 0.75;
+        color: var(--color-primary);
+    }
+
+    /* ─── Pending inscriptions table ─────────────────────────────── */
+    .inscriptions-scroll {
+        overflow-y: auto;
+        max-height: 400px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-outline-variant) transparent;
+    }
+
+    .inscriptions-scroll::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .inscriptions-scroll::-webkit-scrollbar-thumb {
+        background: var(--color-outline-variant);
+        border-radius: 4px;
+    }
+
+    .insc-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 4px;
+        padding: 0.5rem;
+    }
+
+    .insc-table thead th {
+        font-family: var(--font-label);
+        font-size: 0.6rem;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--color-on-surface-variant);
+        padding: 0.4rem 1rem;
+    }
+
+    .insc-table tbody tr {
+        background: rgba(19, 27, 46, 0.5);
+        transition: background 0.15s;
+    }
+
+    .insc-table tbody tr:hover {
+        background: var(--color-surface-container-high);
+    }
+
+    .insc-table tbody tr:hover .row-actions {
+        opacity: 1;
+    }
+
+    .insc-table td {
+        font-size: 0.82rem;
+        padding: 0.85rem 1rem;
+        color: var(--color-on-surface);
+        vertical-align: middle;
+    }
+
+    .insc-table td:first-child {
+        border-radius: 0.55rem 0 0 0.55rem;
+    }
+
+    .insc-table td:last-child {
+        border-radius: 0 0.55rem 0.55rem 0;
+    }
+
+    .team-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 0.45rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-headline);
+        font-weight: 800;
+        font-size: 1rem;
+        color: #fff;
+        flex-shrink: 0;
+    }
+
+    .team-avatar-name {
+        font-family: var(--font-body);
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--color-on-surface);
+    }
+
+    .team-avatar-time {
+        font-size: 0.7rem;
+        color: var(--color-on-surface-variant);
+        margin-top: 0.05rem;
+    }
+
+    .status-pill {
+        font-family: var(--font-label);
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        display: inline-flex;
+    }
+
+    .pill-verified {
+        background: rgba(59, 130, 246, 0.12);
+        color: var(--color-tertiary);
+        border: 1px solid rgba(59, 130, 246, 0.25);
+    }
+
+    .pill-payment {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--color-on-surface-variant);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .pill-review {
+        background: rgba(245, 158, 11, 0.12);
+        color: #f59e0b;
+        border: 1px solid rgba(245, 158, 11, 0.25);
+    }
+
+    .row-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.4rem;
+        opacity: 0;
+        transition: opacity 0.15s;
+    }
+
+    .action-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 0.4rem;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+    }
+
+    .action-btn .material-symbols-outlined {
+        font-size: 0.9rem;
+    }
+
+    .action-reject {
+        background: rgba(255, 180, 171, 0.08);
+        color: var(--color-error);
+    }
+
+    .action-reject:hover {
+        background: var(--color-error);
+        color: var(--color-on-error);
+    }
+
+    .action-approve {
+        background: rgba(6, 182, 212, 0.08);
+        color: var(--color-secondary);
+    }
+
+    .action-approve:hover {
+        background: var(--color-secondary);
+        color: var(--color-on-secondary);
+    }
+
+    /* ─── Match cards ────────────────────────────────────────────── */
+    .match-card {
+        background: var(--color-surface-container-low);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 0.65rem;
+        padding: 1.1rem;
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.2s;
+    }
+
+    .match-card:hover {
+        border-color: rgba(139, 92, 246, 0.25);
+    }
+
+    .match-card.is-live::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to right, rgba(6, 182, 212, 0.04), transparent);
+        pointer-events: none;
+    }
+
+    .match-id {
+        font-family: var(--font-label);
+        font-size: 0.65rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        color: var(--color-secondary);
+        background: rgba(6, 182, 212, 0.1);
+        padding: 0.15rem 0.55rem;
+        border-radius: 4px;
+        display: inline-block;
+    }
+
+    .match-id.upcoming {
+        color: var(--color-on-surface-variant);
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .match-teams {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 0.85rem 0;
+        gap: 0.5rem;
+    }
+
+    .match-team-side {
+        text-align: center;
+        flex: 1;
+    }
+
+    .match-team-tag {
+        font-family: var(--font-label);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: var(--color-on-surface);
+    }
+
+    .match-score {
+        font-family: var(--font-headline);
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: var(--color-on-surface);
+        line-height: 1;
+        display: block;
+        margin-top: 0.2rem;
+    }
+
+    .match-score.leader {
+        color: var(--color-secondary);
+    }
+
+    .match-vs {
+        font-family: var(--font-label);
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: var(--color-on-surface-variant);
+        letter-spacing: 0.1em;
+        flex-shrink: 0;
+    }
+
+    .match-dots {
+        display: flex;
+        gap: 3px;
+        justify-content: center;
+        margin-bottom: 0.35rem;
+    }
+
+    .match-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--color-surface-variant);
+    }
+
+    .match-dot.won {
+        background: var(--color-secondary);
+    }
+
+    .match-actions {
+        display: flex;
+        gap: 0.4rem;
+        margin-top: 0.75rem;
+    }
+
+    .match-btn {
+        flex: 1;
+        padding: 0.4rem 0;
+        border: none;
+        border-radius: 0.45rem;
+        font-family: var(--font-body);
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+        background: var(--color-surface-container-high);
+        color: var(--color-on-surface-variant);
+    }
+
+    .match-btn:hover {
+        background: var(--color-surface-bright);
+        color: var(--color-on-surface);
+    }
+
+    .match-btn.cta {
+        background: rgba(6, 182, 212, 0.12);
+        color: var(--color-secondary);
+        border: 1px solid rgba(6, 182, 212, 0.25);
+    }
+
+    .match-btn.cta:hover {
+        background: rgba(6, 182, 212, 0.2);
+    }
+
+    .live-pulse {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .live-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--color-secondary);
+        animation: pulse-dot 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+
+        0%,
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        50% {
+            opacity: 0.4;
+            transform: scale(0.75);
+        }
+    }
+
+    /* ─── Staff card ─────────────────────────────────────────────── */
+    .staff-item {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        padding: 0.75rem;
+        border-radius: 0.55rem;
+        background: rgba(19, 27, 46, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: background 0.15s;
+    }
+
+    .staff-item:hover {
+        background: var(--color-surface-container-high);
+    }
+
+    .staff-item.offline {
+        opacity: 0.55;
+    }
+
+    .staff-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    .staff-avatar.border-primary {
+        border: 2px solid rgba(139, 92, 246, 0.5);
+    }
+
+    .staff-avatar.border-secondary {
+        border: 2px solid rgba(6, 182, 212, 0.5);
+    }
+
+    .staff-avatar.border-tertiary {
+        border: 2px solid rgba(59, 130, 246, 0.5);
+    }
+
+    .staff-name {
+        font-family: var(--font-body);
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--color-on-surface);
+    }
+
+    .staff-role {
+        font-family: var(--font-label);
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-top: 0.05rem;
+    }
+
+    .role-primary {
+        color: var(--color-primary);
+    }
+
+    .role-secondary {
+        color: var(--color-secondary);
+    }
+
+    .role-tertiary {
+        color: var(--color-tertiary);
+    }
+
+    .online-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-left: auto;
+    }
+
+    .online-dot.on {
+        background: var(--color-secondary);
+        box-shadow: 0 0 6px var(--color-secondary);
+    }
+
+    .online-dot.off {
+        background: var(--color-surface-bright);
+    }
+
+    .staff-chat-btn {
+        width: 100%;
+        padding: 0.65rem;
+        background: var(--color-surface-container-high);
+        border: none;
+        border-radius: 0.55rem;
+        color: var(--color-on-surface-variant);
+        font-family: var(--font-body);
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: background 0.15s, color 0.15s;
+        margin-top: 1rem;
+    }
+
+    .staff-chat-btn:hover {
+        background: var(--color-surface-bright);
+        color: var(--color-on-surface);
+    }
+
+    .chat-badge {
+        background: var(--color-primary);
+        color: #fff;
+        font-size: 0.6rem;
+        font-weight: 700;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* ─── Layout grid ────────────────────────────────────────────── */
+    .manager-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+
+    @media (min-width: 1100px) {
+        .manager-grid {
+            grid-template-columns: 1fr 320px;
+        }
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    @media (min-width: 700px) {
+        .stats-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+
+    .matches-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.85rem;
+    }
+
+    @media (min-width: 600px) {
+        .matches-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    .sidebar-col {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ─── Stats row ──────────────────────────────────────────────────── -->
+<div class="stats-grid">
+
+    <!-- Equipes inscritas -->
+    <div class="stat-card accent-primary">
+        <div class="stat-header">
+            <div class="stat-icon icon-primary">
+                <span class="material-symbols-outlined">groups</span>
+            </div>
+            <span class="stat-badge badge-live">ATIVO</span>
+        </div>
+        <div>
+            <p class="stat-label">Equipes Inscritas</p>
+            <div class="stat-value">58</div>
+            <p class="stat-sub">6 vagas restantes</p>
+        </div>
+        <div class="stat-bar-track">
+            <div class="stat-bar-fill" style="width:91%; background:var(--color-primary); color:var(--color-primary);">
+            </div>
+        </div>
+    </div>
+
+    <!-- Inscrições pendentes -->
+    <div class="stat-card accent-warn">
+        <div class="stat-header">
+            <div class="stat-icon icon-warn">
+                <span class="material-symbols-outlined">pending_actions</span>
+            </div>
+            <span class="stat-badge badge-urgent">URGENTE</span>
+        </div>
+        <div>
+            <p class="stat-label">Inscrições Pendentes</p>
+            <div class="stat-value">24</div>
+            <p class="stat-sub">Requer revisão</p>
+        </div>
+    </div>
+
+    <!-- Status do campeonato -->
+    <div class="stat-card accent-secondary">
+        <div class="stat-header">
+            <div class="stat-icon icon-secondary">
+                <span class="material-symbols-outlined">emoji_events</span>
+            </div>
+            <span class="stat-badge badge-live">AO VIVO</span>
+        </div>
+        <div>
+            <p class="stat-label">Status do Campeonato</p>
+            <div class="stat-value" style="font-size:1.3rem; padding-top:0.2rem;">Fase de Grupos</div>
+            <p class="stat-sub">Rodada 2 de 3</p>
+        </div>
+    </div>
+
+    <!-- Campeão -->
+    <div class="stat-card accent-success">
+        <div class="stat-header">
+            <div class="stat-icon icon-gold">
+                <span class="material-symbols-outlined">military_tech</span>
+            </div>
+            <span class="stat-badge badge-done">DEFINIDO</span>
+        </div>
+        <div>
+            <p class="stat-label">Campeão</p>
+            <div class="stat-value" style="font-size:1.15rem; color:#f59e0b; padding-top:0.2rem;">—</div>
+            <p class="stat-sub">A ser definido</p>
+        </div>
+    </div>
+
+</div>
+
+<!-- ─── Main content grid ──────────────────────────────────────────── -->
+<div class="manager-grid">
+
+    <!-- Left column -->
+    <div style="display:flex; flex-direction:column; gap:1.25rem; min-width:0;">
+
+        <!-- Pending Inscriptions -->
+        <div class="glass-panel">
+            <div class="panel-header">
+                <div>
+                    <h3 class="panel-title">Inscrições Pendentes</h3>
+                    <p class="panel-subtitle">Revise as credenciais e o status de pagamento</p>
+                </div>
+                <a href="#" class="panel-link">Ver todas</a>
+            </div>
+            <div class="inscriptions-scroll">
+                <table class="insc-table">
+                    <thead>
+                        <tr>
+                            <th>Equipe</th>
+                            <th>Região</th>
+                            <th>Status</th>
+                            <th class="text-end" style="padding-right:1.2rem;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div style="display:flex; align-items:center; gap:0.7rem;">
+                                    <div class="team-avatar"
+                                        style="background: linear-gradient(135deg,#6366f1,#a855f7);">V</div>
+                                    <div>
+                                        <div class="team-avatar-name">Velocity Esports</div>
+                                        <div class="team-avatar-time">há 2h</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="color:var(--color-on-surface-variant); font-size:0.8rem;">EU West</td>
+                            <td><span class="status-pill pill-verified">VERIFICADO</span></td>
+                            <td>
+                                <div class="row-actions">
+                                    <button class="action-btn action-reject">
+                                        <span class="material-symbols-outlined">close</span>
+                                    </button>
+                                    <button class="action-btn action-approve">
+                                        <span class="material-symbols-outlined">check</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div style="display:flex; align-items:center; gap:0.7rem;">
+                                    <div class="team-avatar"
+                                        style="background: linear-gradient(135deg,#f97316,#ef4444);">N</div>
+                                    <div>
+                                        <div class="team-avatar-name">Nebula Raiders</div>
+                                        <div class="team-avatar-time">há 5h</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="color:var(--color-on-surface-variant); font-size:0.8rem;">NA East</td>
+                            <td><span class="status-pill pill-payment">AGUARD. PAGAMENTO</span></td>
+                            <td>
+                                <div class="row-actions">
+                                    <button class="action-btn action-reject">
+                                        <span class="material-symbols-outlined">close</span>
+                                    </button>
+                                    <button class="action-btn action-approve">
+                                        <span class="material-symbols-outlined">check</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div style="display:flex; align-items:center; gap:0.7rem;">
+                                    <div class="team-avatar"
+                                        style="background: linear-gradient(135deg,#10b981,#06b6d4);">G</div>
+                                    <div>
+                                        <div class="team-avatar-name">Ghost Protocol</div>
+                                        <div class="team-avatar-time">há 8h</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="color:var(--color-on-surface-variant); font-size:0.8rem;">Asia-Pac</td>
+                            <td><span class="status-pill pill-verified">VERIFICADO</span></td>
+                            <td>
+                                <div class="row-actions">
+                                    <button class="action-btn action-reject">
+                                        <span class="material-symbols-outlined">close</span>
+                                    </button>
+                                    <button class="action-btn action-approve">
+                                        <span class="material-symbols-outlined">check</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div style="display:flex; align-items:center; gap:0.7rem;">
+                                    <div class="team-avatar"
+                                        style="background: linear-gradient(135deg,#8b5cf6,#3b82f6);">S</div>
+                                    <div>
+                                        <div class="team-avatar-name">Storm Riders</div>
+                                        <div class="team-avatar-time">há 11h</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="color:var(--color-on-surface-variant); font-size:0.8rem;">BR / LATAM</td>
+                            <td><span class="status-pill pill-review">EM ANÁLISE</span></td>
+                            <td>
+                                <div class="row-actions">
+                                    <button class="action-btn action-reject">
+                                        <span class="material-symbols-outlined">close</span>
+                                    </button>
+                                    <button class="action-btn action-approve">
+                                        <span class="material-symbols-outlined">check</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div style="display:flex; align-items:center; gap:0.7rem;">
+                                    <div class="team-avatar"
+                                        style="background: linear-gradient(135deg,#ec4899,#f97316);">P</div>
+                                    <div>
+                                        <div class="team-avatar-name">Phantom Five</div>
+                                        <div class="team-avatar-time">há 14h</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="color:var(--color-on-surface-variant); font-size:0.8rem;">EU North</td>
+                            <td><span class="status-pill pill-payment">AGUARD. PAGAMENTO</span></td>
+                            <td>
+                                <div class="row-actions">
+                                    <button class="action-btn action-reject">
+                                        <span class="material-symbols-outlined">close</span>
+                                    </button>
+                                    <button class="action-btn action-approve">
+                                        <span class="material-symbols-outlined">check</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Partidas -->
+        <div class="glass-panel">
+            <div class="panel-header">
+                <h3 class="panel-title" style="display:flex; align-items:center; gap:0.6rem;">
+                    <span class="live-pulse">
+                        <span class="live-dot"></span>
+                    </span>
+                    Partidas
+                </h3>
+                <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <button
+                        style="padding:0.4rem; background:var(--color-surface-container-highest); border:none; border-radius:0.45rem; color:var(--color-on-surface-variant); cursor:pointer; display:flex; align-items:center;">
+                        <span class="material-symbols-outlined" style="font-size:1.1rem;">filter_list</span>
+                    </button>
+                    <button
+                        style="padding:0.4rem 0.85rem; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.25); border-radius:0.45rem; color:var(--color-primary); font-family:var(--font-body); font-size:0.75rem; font-weight:600; cursor:pointer;">
+                        Broadcast Mode
+                    </button>
+                </div>
+            </div>
+            <div style="padding:1.1rem;">
+                <div class="matches-grid">
+
+                    <!-- Match ao vivo -->
+                    <div class="match-card is-live">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+                            <span class="match-id">MATCH #104 — BO3</span>
+                            <div class="match-dots">
+                                <div class="match-dot won"></div>
+                                <div class="match-dot"></div>
+                                <div class="match-dot"></div>
+                            </div>
+                        </div>
+                        <div class="match-teams">
+                            <div class="match-team-side">
+                                <div class="match-team-tag">TITANS</div>
+                                <span class="match-score leader">1</span>
+                            </div>
+                            <div class="match-vs">VS</div>
+                            <div class="match-team-side">
+                                <div class="match-team-tag">REBELS</div>
+                                <span class="match-score">0</span>
+                            </div>
+                        </div>
+                        <div class="match-actions">
+                            <button class="match-btn">Pausar</button>
+                            <button class="match-btn">Ajustar Placar</button>
+                        </div>
+                    </div>
+
+                    <!-- Match agendada -->
+                    <div class="match-card">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+                            <span class="match-id upcoming">MATCH #105 — BO1</span>
+                            <span
+                                style="font-family:var(--font-label); font-size:0.68rem; color:var(--color-secondary);">Início
+                                em 04:22</span>
+                        </div>
+                        <div class="match-teams" style="opacity:0.45;">
+                            <div class="match-team-side">
+                                <div class="match-team-tag">DRAGONS</div>
+                                <span class="match-score">0</span>
+                            </div>
+                            <div class="match-vs">VS</div>
+                            <div class="match-team-side">
+                                <div class="match-team-tag">SKULLS</div>
+                                <span class="match-score">0</span>
+                            </div>
+                        </div>
+                        <div class="match-actions">
+                            <button class="match-btn cta" style="flex:1;">Forçar Início</button>
+                        </div>
+                    </div>
+
+                    <!-- Match agendada 2 -->
+                    <div class="match-card">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+                            <span class="match-id upcoming">MATCH #106 — BO3</span>
+                            <span
+                                style="font-family:var(--font-label); font-size:0.68rem; color:var(--color-on-surface-variant);">Início
+                                em 28:07</span>
+                        </div>
+                        <div class="match-teams" style="opacity:0.45;">
+                            <div class="match-team-side">
+                                <div class="match-team-tag">WOLVES</div>
+                                <span class="match-score">0</span>
+                            </div>
+                            <div class="match-vs">VS</div>
+                            <div class="match-team-side">
+                                <div class="match-team-tag">NEXUS</div>
+                                <span class="match-score">0</span>
+                            </div>
+                        </div>
+                        <div class="match-actions">
+                            <button class="match-btn cta" style="flex:1;">Forçar Início</button>
+                        </div>
+                    </div>
+
+                    <!-- Match encerrada -->
+                    <div class="match-card" style="opacity:0.6;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+                            <span class="match-id upcoming">MATCH #103 — BO3</span>
+                            <span
+                                style="font-family:var(--font-label); font-size:0.65rem; color:#4ade80; background:rgba(34,197,94,0.1); padding:0.15rem 0.45rem; border-radius:4px; border:1px solid rgba(34,197,94,0.2);">ENCERRADA</span>
+                        </div>
+                        <div class="match-teams">
+                            <div class="match-team-side">
+                                <div class="match-team-tag">PHANTOMS</div>
+                                <span class="match-score leader">2</span>
+                            </div>
+                            <div class="match-vs">VS</div>
+                            <div class="match-team-side">
+                                <div class="match-team-tag">STORM</div>
+                                <span class="match-score">0</span>
+                            </div>
+                        </div>
+                        <div class="match-actions">
+                            <button class="match-btn" style="flex:1;">Ver Relatório</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /left col -->
+
+    <!-- Right sidebar -->
+    <div class="sidebar-col">
+
+        <!-- Staff Management -->
+        <div class="glass-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">Staff Management</h3>
+                <button
+                    style="background:none; border:none; color:var(--color-on-surface-variant); cursor:pointer; padding:0.2rem; display:flex; align-items:center; transition:color 0.15s;"
+                    onmouseover="this.style.color='var(--color-primary)'"
+                    onmouseout="this.style.color='var(--color-on-surface-variant)'">
+                    <span class="material-symbols-outlined" style="font-size:1.3rem;">person_add</span>
+                </button>
+            </div>
+            <div style="padding:1.1rem; display:flex; flex-direction:column; gap:0.6rem;">
+
+                <div class="staff-item">
+                    <img class="staff-avatar border-primary"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDx_5m5KocTfXdySV6ajBFp5KWEQYaSSFQtFK0PRrLVxBsX5gey4oOobtW2lUD2pLtEl0wznZCKOs2b3dKX3lhO8JZcL8EB0NdO_BGXrfmW3lfy29vGnSRaUaUwDET2IY8Z5bto_QPrUKKJgyNUKLqhGRugZMMypX2eVEHZIWjqH9Q3IGMPQkzxynkpZlqNnS91ihIQ9-cmfcZXN0yJqTcZApSgD0yIreS74H1zvy-tPDUp0Qg8sLcniDtgova9inxrHShdgC4AQ-2a"
+                        alt="Julian Draxler">
+                    <div style="flex:1; min-width:0;">
+                        <div class="staff-name">Julian Draxler</div>
+                        <div class="staff-role role-primary">Chief Referee</div>
+                    </div>
+                    <div class="online-dot on"></div>
+                </div>
+
+                <div class="staff-item">
+                    <img class="staff-avatar border-secondary"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyasCdYMXTzhwkQq7_1guv_YjUsntXp2CjhpRFxWWVqokWyd3go8Lmkja2smCd64dM4QD4-qAQWF1lF7z9GB4lZvhuWrMy4uXr0lg3w3BwcNCxVwJBM0ppHL1HmKkAVXB8qIjY2ZTKqdKcNXXydGWgaQT6OCVUBdRZYwxxtwnQkgNNIQ8nsLH3aUjdJvSbzVeQ8EuY-Hbvvwvtz-V8P_Kg0kq00Bqs5Ex-W23aHtW_W3-jYqN8vhc5mAw5yE72EA7H8_H5COoCnvFj"
+                        alt="Sarah Connor">
+                    <div style="flex:1; min-width:0;">
+                        <div class="staff-name">Sarah Connor</div>
+                        <div class="staff-role role-secondary">Production Lead</div>
+                    </div>
+                    <div class="online-dot on"></div>
+                </div>
+
+                <div class="staff-item offline">
+                    <img class="staff-avatar border-tertiary"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrn01JRhSXt_Q4by-Y78wipHdh0eZeusA8NPAjOI5_RNS1V2zsktqrVJzTlDYXJzI9J6nHK5J1-Hk2hnyjaUl6FLVbZchnPzEJdohxhSKUk1u1G1BYZ_Gp8OLIS9L5eomTZgWKQID8SQ1vc-ufIxWF9AL1hkUtD12eQRrYmEVD6nbZUukU7tKfHuMAjqQLS8Xc8oMAfSWHNkHepRz13_Qg192jGGk5Qw_5mGu8jABBKoGV0IO5KSTuvLfz_GhD96BBcExeXxhLOb-M"
+                        alt="Mike Burton">
+                    <div style="flex:1; min-width:0;">
+                        <div class="staff-name">Mike Burton</div>
+                        <div class="staff-role role-tertiary">Comms Moderator</div>
+                    </div>
+                    <div class="online-dot off"></div>
+                </div>
+
+                <div class="staff-item offline">
+                    <div
+                        style="width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,#8b5cf6,#06b6d4); display:flex; align-items:center; justify-content:center; font-family:var(--font-headline); font-weight:800; color:#fff; font-size:0.9rem; flex-shrink:0; border:2px solid rgba(139,92,246,0.3);">
+                        A</div>
+                    <div style="flex:1; min-width:0;">
+                        <div class="staff-name">Ana Ferreira</div>
+                        <div class="staff-role" style="color:var(--color-on-surface-variant);">Stream Manager</div>
+                    </div>
+                    <div class="online-dot off"></div>
+                </div>
+
+                <button class="staff-chat-btn">
+                    <span class="material-symbols-outlined" style="font-size:1.1rem;">forum</span>
+                    Chat do Staff
+                    <span class="chat-badge">3</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Resumo rápido -->
+        <div class="glass-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">Resumo do Torneio</h3>
+            </div>
+            <div style="padding:1.1rem; display:flex; flex-direction:column; gap:0.75rem;">
+
+                {% for label, value, color in "" %}{% endfor %}
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; padding:0.6rem 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <span style="font-size:0.8rem; color:var(--color-on-surface-variant);">Formato</span>
+                    <span
+                        style="font-family:var(--font-label); font-size:0.75rem; font-weight:600; color:var(--color-on-surface);">Grupos
+                        + Chaveamento</span>
+                </div>
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; padding:0.6rem 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <span style="font-size:0.8rem; color:var(--color-on-surface-variant);">Partidas jogadas</span>
+                    <span
+                        style="font-family:var(--font-label); font-size:0.75rem; font-weight:600; color:var(--color-secondary);">37
+                        / 64</span>
+                </div>
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; padding:0.6rem 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <span style="font-size:0.8rem; color:var(--color-on-surface-variant);">Partidas ao vivo</span>
+                    <span
+                        style="font-family:var(--font-label); font-size:0.75rem; font-weight:600; color:var(--color-secondary);">1</span>
+                </div>
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; padding:0.6rem 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <span style="font-size:0.8rem; color:var(--color-on-surface-variant);">Próxima rodada</span>
+                    <span
+                        style="font-family:var(--font-label); font-size:0.75rem; font-weight:600; color:var(--color-on-surface);">03
+                        Jul, 18:00</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:0.6rem 0;">
+                    <span style="font-size:0.8rem; color:var(--color-on-surface-variant);">Prize Pool</span>
+                    <span
+                        style="font-family:var(--font-headline); font-size:0.9rem; font-weight:800; color:#f59e0b;">$50,000</span>
+                </div>
+
+                <a href="#" class="btn-app-outline" style="width:100%; justify-content:center; margin-top:0.25rem;">
+                    <span class="material-symbols-outlined">open_in_new</span>
+                    Ver página pública
+                </a>
+            </div>
+        </div>
+
+    </div><!-- /sidebar -->
+
+</div><!-- /manager-grid -->
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Mostrar ações ao passar o mouse nas linhas da tabela
+    document.querySelectorAll('.insc-table tbody tr').forEach(row => {
+        row.addEventListener('mouseenter', () => {
+            row.querySelector('.row-actions').style.opacity = '1';
+        });
+        row.addEventListener('mouseleave', () => {
+            row.querySelector('.row-actions').style.opacity = '0';
+        });
+    });
+</script>
+{% endblock %}

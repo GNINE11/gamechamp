@@ -1,0 +1,840 @@
+{% extends "base/logged_base.html" %}
+{% load static %}
+
+{% block title %}Campeonatos{% endblock %}
+
+{# ── Heading ─────────────────────────────────────────────────────────────── #}
+{% block page_label %}Competição Global{% endblock %}
+{% block page_title %}Elite Tournaments{% endblock %}
+
+{% block page_actions %}
+
+<a href="#" class="btn-app-primary">
+    <span class="material-symbols-outlined">filter_alt</span>
+    Aplicar Filtros
+</a>
+{% endblock %}
+
+{# ── Extra CSS ────────────────────────────────────────────────────────────── #}
+{% block extra_css %}
+<style>
+    .glass-panel {
+        background: rgba(23, 31, 51, 0.6);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);
+    }
+
+    .tournament-card {
+        border-radius: 1rem;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tournament-card:hover {
+        border-color: rgba(208, 188, 255, 0.35);
+        box-shadow: 0 10px 32px rgba(139, 92, 246, 0.18);
+        transform: translateY(-3px);
+    }
+
+    .tournament-card.card-live {
+        border-top: 2px solid rgba(77, 215, 246, 0.45);
+    }
+
+    .card-img-wrap {
+        position: relative;
+        height: 192px;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+    .card-img-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.7s ease;
+    }
+
+    .tournament-card:hover .card-img-wrap img {
+        transform: scale(1.08);
+    }
+
+    .card-img-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, var(--color-background) 0%, rgba(11, 19, 38, .18) 55%, transparent 100%);
+    }
+
+    .card-badge {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        font-family: var(--font-label);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .card-badge.badge-live {
+        background: rgba(220, 38, 38, .88);
+        color: #fff;
+    }
+
+    .card-badge.badge-upcoming {
+        background: rgba(139, 92, 246, .18);
+        border: 1px solid rgba(208, 188, 255, .3);
+        color: var(--color-primary);
+    }
+
+    .card-badge.badge-finished {
+        background: rgba(203, 195, 215, .15);
+        border: 1px solid rgba(255, 255, 255, .1);
+        color: var(--color-on-surface-variant);
+    }
+
+    .badge-live .pulse-dot {
+        width: 8px;
+        height: 8px;
+        background: #fff;
+        border-radius: 50%;
+        animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        50% {
+            opacity: .4;
+            transform: scale(.75);
+        }
+    }
+
+    .card-name {
+        position: absolute;
+        bottom: 1rem;
+        left: 1rem;
+        font-family: var(--font-headline);
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #fff;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, .5);
+        margin: 0;
+    }
+
+    /* ── Card body ────────────────────────────────────────────────────── */
+    .card-body-inner {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .card-stats {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .card-stat {
+        flex: 1;
+    }
+
+    .card-stat-label {
+        font-family: var(--font-label);
+        font-size: 0.68rem;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-on-surface-variant);
+        margin: 0 0 2px;
+    }
+
+    .card-stat-value {
+        font-family: var(--font-headline);
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .card-stat-value.color-primary {
+        color: var(--color-primary);
+    }
+
+    .card-stat-value.color-secondary {
+        color: var(--color-secondary);
+    }
+
+    .card-stat-value.color-white {
+        color: #fff;
+    }
+
+    .card-stat-divider {
+        width: 1px;
+        height: 40px;
+        background: rgba(255, 255, 255, .1);
+        flex-shrink: 0;
+    }
+
+    /* ── Progress row ─────────────────────────────────────────────────── */
+    .card-info-rows {
+        margin-bottom: 1.75rem;
+    }
+
+    .card-info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.8125rem;
+        color: var(--color-on-surface-variant);
+        margin-bottom: 0.5rem;
+    }
+
+    .card-info-row .row-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .card-info-row .row-label .material-symbols-outlined {
+        font-size: 18px;
+    }
+
+    .card-info-row .row-value {
+        color: #fff;
+        font-weight: 500;
+    }
+
+    .card-info-row .row-value.color-error {
+        color: var(--color-error);
+    }
+
+    .card-info-row .row-value.color-secondary {
+        color: var(--color-secondary);
+    }
+
+    .progress-bar-wrap {
+        width: 100%;
+        height: 6px;
+        background: var(--color-surface-container-highest);
+        border-radius: 9999px;
+        overflow: hidden;
+        margin-bottom: 0.625rem;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        border-radius: 9999px;
+    }
+
+    .fill-primary {
+        background: var(--color-primary);
+    }
+
+    .fill-secondary {
+        background: var(--color-secondary);
+    }
+
+    /* ── Card description (finished) ──────────────────────────────────── */
+    .card-desc {
+        font-size: 0.8125rem;
+        color: var(--color-on-surface-variant);
+        line-height: 1.55;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        margin-bottom: 1.75rem;
+    }
+
+    /* ── Card CTA buttons ─────────────────────────────────────────────── */
+    .btn-card {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        font-family: var(--font-label);
+        font-size: 0.8125rem;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        transition: filter 0.15s ease, transform 0.1s ease, background-color 0.15s ease;
+        margin-top: auto;
+        border: none;
+    }
+
+    .btn-card:active {
+        transform: scale(0.96);
+    }
+
+    .btn-card .material-symbols-outlined {
+        font-size: 1.1rem;
+    }
+
+    .btn-card-live {
+        background: var(--color-secondary);
+        color: var(--color-on-secondary);
+    }
+
+    .btn-card-live:hover {
+        filter: brightness(1.1);
+    }
+
+    .btn-card-register {
+        background: transparent;
+        border: 1px solid rgba(208, 188, 255, .3);
+        color: var(--color-primary);
+    }
+
+    .btn-card-register:hover {
+        background: rgba(208, 188, 255, .08);
+    }
+
+    .btn-card-waitlist {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, .1);
+        color: var(--color-on-surface-variant);
+        cursor: not-allowed;
+        filter: grayscale(1);
+    }
+
+    .btn-card-results {
+        background: rgba(45, 52, 73, .5);
+        border: 1px solid rgba(255, 255, 255, .05);
+        color: #fff;
+    }
+
+    .btn-card-results:hover {
+        background: rgba(255, 255, 255, .09);
+    }
+
+    /* ── Card finished dim ────────────────────────────────────────────── */
+    .tournament-card.card-finished {
+        opacity: .82;
+    }
+
+    .tournament-card.card-finished .card-img-wrap img {
+        filter: grayscale(1);
+        transition: filter 0.7s ease, transform 0.7s ease;
+    }
+
+    .tournament-card.card-finished:hover .card-img-wrap img {
+        filter: grayscale(0);
+    }
+
+    /* ── Filter panel ─────────────────────────────────────────────────── */
+    .filter-panel {
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .filter-label {
+        font-family: var(--font-label);
+        font-size: 0.68rem;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--color-on-surface-variant);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .filter-select {
+        width: 100%;
+        background: var(--color-surface-container-lowest);
+        border: 1px solid rgba(255, 255, 255, .1);
+        border-radius: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        color: var(--color-on-surface);
+        font-family: var(--font-body);
+        font-size: 0.875rem;
+        appearance: none;
+        -webkit-appearance: none;
+        cursor: pointer;
+        transition: border-color 0.15s ease;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, .2);
+    }
+
+    .filter-select option {
+        background: var(--color-surface-container);
+    }
+
+    .filter-status-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-status {
+        flex: 1;
+        padding: 0.5rem 0.25rem;
+        border-radius: 0.5rem;
+        font-family: var(--font-body);
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        border: 1px solid rgba(255, 255, 255, .06);
+        background: var(--color-surface-container-lowest);
+        color: var(--color-on-surface-variant);
+    }
+
+    .btn-status.active {
+        background: rgba(45, 52, 73, .6);
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+    }
+
+    .btn-status:hover:not(.active) {
+        background: rgba(255, 255, 255, .05);
+    }
+
+    /* ── Grid ─────────────────────────────────────────────────────────── */
+    .tournaments-grid {
+        display: grid;
+        grid-template-columns: repeat(1, 1fr);
+        gap: 2rem;
+    }
+
+    @media (min-width: 768px) {
+        .tournaments-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (min-width: 1200px) {
+        .tournaments-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    /* ── Pagination ───────────────────────────────────────────────────── */
+    .pagination-wrap {
+        margin-top: 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .page-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-label);
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+        border: 1px solid rgba(255, 255, 255, .06);
+        background: transparent;
+        color: var(--color-on-surface-variant);
+    }
+
+    .page-btn:hover:not(.active) {
+        background: rgba(255, 255, 255, .05);
+    }
+
+    .page-btn.active {
+        background: var(--color-primary);
+        color: var(--color-on-primary);
+        border-color: transparent;
+    }
+
+    .page-btn .material-symbols-outlined {
+        font-size: 1.1rem;
+    }
+
+    .page-ellipsis {
+        color: var(--color-on-surface-variant);
+        padding: 0 0.25rem;
+    }
+
+    /* ── FAB ──────────────────────────────────────────────────────────── */
+    .fab {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--color-primary);
+        color: var(--color-on-primary);
+        border: none;
+        box-shadow: 0 8px 30px rgba(139, 92, 246, .45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.15s ease;
+        z-index: 100;
+    }
+
+    .fab:hover {
+        transform: scale(1.1);
+    }
+
+    .fab:active {
+        transform: scale(0.9);
+    }
+
+    .fab .material-symbols-outlined {
+        font-size: 1.75rem;
+    }
+
+    .fab-tooltip {
+        position: absolute;
+        right: calc(100% + 0.75rem);
+        background: var(--color-surface-container-high);
+        border: 1px solid rgba(255, 255, 255, .1);
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.8125rem;
+        color: var(--color-on-surface);
+        white-space: nowrap;
+        opacity: 0;
+        transform: translateX(8px);
+        pointer-events: none;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .fab:hover .fab-tooltip {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    /* ── Scrollbar ────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--color-surface-container-lowest);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: var(--color-surface-container-highest);
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--color-primary);
+    }
+</style>
+{% endblock %}
+
+{# ── Content ──────────────────────────────────────────────────────────────── #}
+{% block content %}
+
+<!-- ── Filter Panel ──────────────────────────────────────────────────────── -->
+<div class="filter-panel glass-panel">
+    <div class="row g-4">
+
+        <!-- Game Title -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <label class="filter-label">Jogo</label>
+            <select class="filter-select">
+                <option>Todos os Jogos</option>
+                <option>Nexus Arena</option>
+                <option>Vanguard Siege</option>
+                <option>Starshot Legacy</option>
+            </select>
+        </div>
+
+        <!-- Prize Pool -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <label class="filter-label">Premiação</label>
+            <select class="filter-select">
+                <option>Qualquer Valor</option>
+                <option>$1.000+</option>
+                <option>$10.000+</option>
+                <option>$50.000+</option>
+            </select>
+        </div>
+
+        <!-- Status -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <label class="filter-label">Status</label>
+            <div class="filter-status-group">
+                <button class="btn-status active" data-status="live">Ao Vivo</button>
+                <button class="btn-status" data-status="upcoming">Próximos</button>
+                <button class="btn-status" data-status="finished">Finalizados</button>
+            </div>
+        </div>
+
+        <!-- Format -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <label class="filter-label">Formato</label>
+            <select class="filter-select">
+                <option>Todos os Formatos</option>
+                <option>Dupla Eliminação</option>
+                <option>Eliminação Simples</option>
+                <option>Round Robin</option>
+            </select>
+        </div>
+
+    </div>
+</div>
+
+<!-- ── Tournament Grid ───────────────────────────────────────────────────── -->
+<div class="tournaments-grid">
+
+    <!-- Card 1 · LIVE -->
+    <div class="tournament-card glass-panel card-live">
+        <div class="card-img-wrap">
+            <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuA58sThSuoemyO5FbxO3uefdc6Q3dlraVUe5lCNUg-YOnVLQXLRR44ANwmqL_voLJsnn7UggOMUSEq7bE03q0RaKlmrN17E7vlGYuUQZDUfYiQ-YaMbbOpSfzh_8fk8aXJbFaeVSANDI0Ebxn8WnOtnc278m5IkV9L9IFUZFIscuLpD5jv1oncwFJ2NYWrMgoqtARI53b7tBnAv-2HvZjeCVbEJuOO1P8KSst9WGgtwB1untVjydxuvCnridFBRzMes1v6ACyZr8hIS"
+                alt="Nexus Pro League S4">
+            <div class="card-img-overlay"></div>
+            <span class="card-badge badge-live">
+                <span class="pulse-dot"></span>
+                Ao Vivo
+            </span>
+            <h3 class="card-name">Nexus Pro League S4</h3>
+        </div>
+
+        <div class="card-body-inner">
+            <div class="card-stats">
+                <div class="card-stat">
+                    <p class="card-stat-label">Premiação</p>
+                    <p class="card-stat-value color-secondary">$125,000</p>
+                </div>
+                <div class="card-stat-divider"></div>
+                <div class="card-stat">
+                    <p class="card-stat-label">Inscrição</p>
+                    <p class="card-stat-value color-white">$500</p>
+                </div>
+            </div>
+
+            <div class="card-info-rows">
+                <div class="card-info-row">
+                    <span class="row-label">
+                        <span class="material-symbols-outlined">group</span>
+                        Times Inscritos
+                    </span>
+                    <span class="row-value">28 / 32</span>
+                </div>
+                <div class="progress-bar-wrap">
+                    <div class="progress-bar-fill fill-secondary" style="width: 87.5%"></div>
+                </div>
+                <div class="card-info-row">
+                    <span class="row-label">
+                        <span class="material-symbols-outlined">calendar_today</span>
+                        Data da Final
+                    </span>
+                    <span class="row-value">15 Nov, 2023</span>
+                </div>
+            </div>
+
+            <button class="btn-card btn-card-live">
+                Ver Bracket ao Vivo
+                <span class="material-symbols-outlined">chevron_right</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Card 2 · UPCOMING (open slots) -->
+    <div class="tournament-card glass-panel">
+        <div class="card-img-wrap">
+            <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9WBugTEBmcUpHdxyFLoY363B0x0AMtb4Mf3rfqqiNZrvCK0MBMHNP3lxpWiK4mX7Ik7-d1ihiUrKSHxoB1cWtfCMRGIx3or7x36FevFj3fFQkDD3yb4K-5WyUwjlrQfN11pAz1agcsbmpIxwwTfw87QxXnXxFAN11tZ_G763FaEAnau3EXZpLW8jqFnsB1lWzP2Qb0sUvcHvIfQ9TrxqodQGKIrdSxwRAddLas7b8_A3PR4Zx_sqlAN8C1akBdhzjylLBAJl4wByB"
+                alt="Stellar Clash Master">
+            <div class="card-img-overlay"></div>
+            <span class="card-badge badge-upcoming">Próximo</span>
+            <h3 class="card-name">Stellar Clash Master</h3>
+        </div>
+
+        <div class="card-body-inner">
+            <div class="card-stats">
+                <div class="card-stat">
+                    <p class="card-stat-label">Premiação</p>
+                    <p class="card-stat-value color-primary">$50,000</p>
+                </div>
+                <div class="card-stat-divider"></div>
+                <div class="card-stat">
+                    <p class="card-stat-label">Inscrição</p>
+                    <p class="card-stat-value color-white">Grátis</p>
+                </div>
+            </div>
+
+            <div class="card-info-rows">
+                <div class="card-info-row">
+                    <span class="row-label">
+                        <span class="material-symbols-outlined">group</span>
+                        Times Inscritos
+                    </span>
+                    <span class="row-value">12 / 64</span>
+                </div>
+                <div class="progress-bar-wrap">
+                    <div class="progress-bar-fill fill-primary" style="width: 18.7%"></div>
+                </div>
+                <div class="card-info-row">
+                    <span class="row-label">
+                        <span class="material-symbols-outlined">query_builder</span>
+                        Inscrições Encerram
+                    </span>
+                    <span class="row-value">2d 14h Restam</span>
+                </div>
+            </div>
+
+            <button class="btn-card btn-card-register">
+                Inscrever Time
+                <span class="material-symbols-outlined">add_circle</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Card 3 · UPCOMING (full / waitlist) -->
+    <div class="tournament-card glass-panel">
+        <div class="card-img-wrap">
+            <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuC0GlTvJSwuIqr_iLudsQzLuC54kUZ3b93MameiB8Vh6K13oARcVbUNxtH1RBZqavlTexw06ZGCJ9bODoWeAriDjQYEEfU4xMmMatB4HNau-yFiG73Mxsx7N4W5daBViZFC-C1tSQr2oMRzTblu1Za7uFoTNl0iVPZLfxe_KZbQ4ryo67MVg-zZXtmlVZc5QbOADx04fkgMrpGhmVcM-J1Y-E5bCF0EgiUeKTfd58ZAd6n2Jd6hgzpGkhA32W4N8BfgOGMIDb1-yVOu"
+                alt="Shadow Siege Open">
+            <div class="card-img-overlay"></div>
+            <span class="card-badge badge-upcoming">Próximo</span>
+            <h3 class="card-name">Shadow Siege Open</h3>
+        </div>
+
+        <div class="card-body-inner">
+            <div class="card-stats">
+                <div class="card-stat">
+                    <p class="card-stat-label">Premiação</p>
+                    <p class="card-stat-value color-primary">$10,000</p>
+                </div>
+                <div class="card-stat-divider"></div>
+                <div class="card-stat">
+                    <p class="card-stat-label">Inscrição</p>
+                    <p class="card-stat-value color-white">$100</p>
+                </div>
+            </div>
+
+            <div class="card-info-rows">
+                <div class="card-info-row">
+                    <span class="row-label">
+                        <span class="material-symbols-outlined">group</span>
+                        Times Inscritos
+                    </span>
+                    <span class="row-value">32 / 32</span>
+                </div>
+                <div class="progress-bar-wrap">
+                    <div class="progress-bar-fill fill-primary" style="width: 100%"></div>
+                </div>
+                <div class="card-info-row">
+                    <span class="row-label">
+                        <span class="material-symbols-outlined">lock</span>
+                        Status
+                    </span>
+                    <span class="row-value color-error">Somente Lista de Espera</span>
+                </div>
+            </div>
+
+            <button class="btn-card btn-card-waitlist" disabled>
+                Entrar na Lista de Espera
+                <span class="material-symbols-outlined">hourglass_empty</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Card 4 · FINISHED -->
+    <div class="tournament-card glass-panel card-finished">
+        <div class="card-img-wrap">
+            <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCxDp2jxxmeqlIvg9bgHsX4Dc-BAN6cU_ERq0-iYZo8y9fUq94vE0WGcjw72YaB2uL5U5YSUMRMX8AL63AX486AbTnQLP9OPJGdBJs7gcByMTKKSRnscnr1-j2isSRsIFMZPOvmd3yWAcMHrNwOW-2q5OMHJiYt7R27MnvmXfMIuLBsqn-cHQL10VSj2iS9W5TCGtQQpYOFvPJpnETyVatjm152uKiWhuy9u7lsftZHfMVi2Oo9rSqclj9Dt5fCzIYTpfYlrPNENdma"
+                alt="Legacy Masters 2023">
+            <div class="card-img-overlay"></div>
+            <span class="card-badge badge-finished">Finalizado</span>
+            <h3 class="card-name">Legacy Masters 2023</h3>
+        </div>
+
+        <div class="card-body-inner">
+            <div class="card-stats">
+                <div class="card-stat">
+                    <p class="card-stat-label">Premiação Total</p>
+                    <p class="card-stat-value color-white">$250,000</p>
+                </div>
+                <div class="card-stat-divider"></div>
+                <div class="card-stat" style="text-align: right;">
+                    <p class="card-stat-label">Campeão</p>
+                    <p class="card-stat-value" style="color: var(--color-secondary);">Team Zenith</p>
+                </div>
+            </div>
+
+            <p class="card-desc">
+                Este torneio histórico encerrou com uma virada surpreendente na grande final. Reveja os melhores
+                momentos e confira o ranking completo.
+            </p>
+
+            <button class="btn-card btn-card-results">
+                Ver Resultados
+                <span class="material-symbols-outlined">history</span>
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Pagination ─────────────────────────────────────────────────────────── -->
+<div class="pagination-wrap">
+    <button class="page-btn">
+        <span class="material-symbols-outlined">chevron_left</span>
+    </button>
+    <button class="page-btn active">1</button>
+    <button class="page-btn">2</button>
+    <button class="page-btn">3</button>
+    <span class="page-ellipsis">…</span>
+    <button class="page-btn">12</button>
+    <button class="page-btn">
+        <span class="material-symbols-outlined">chevron_right</span>
+    </button>
+</div>
+
+<!-- ── FAB ───────────────────────────────────────────────────────────────── -->
+<button class="fab" title="Criar Torneio">
+    <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">add</span>
+    <span class="fab-tooltip">Criar Torneio</span>
+</button>
+
+{% endblock %}
+
+{# ── Extra JS ─────────────────────────────────────────────────────────────── #}
+{% block extra_js %}
+<script>
+    // Status filter toggle
+    document.querySelectorAll('.btn-status').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+
+    // Pagination
+    document.querySelectorAll('.page-btn:not(:first-child):not(:last-child)').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.page-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+</script>
+{% endblock %}
