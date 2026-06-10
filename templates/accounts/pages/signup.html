@@ -15,70 +15,92 @@
     <p class="auth-form-subtitle">Insira suas informações para começar sua jornada.</p>
 </div>
 
-{% if form.errors %}
-<div <div class="error-message">
-    {% for field in form %}{% for error in field.errors %}{{ error }}<br>{% endfor %}{% endfor %}
-    {% for error in form.non_field_errors %}{{ error }}<br>{% endfor %}
-</div>
-{% endif %}
-
-<form method="post" class="form-collum">
+<form action="" method="POST" class="form-collum">
     {% csrf_token %}
+    <div class="form-content">
 
-    <div class="row g-3">
-        <div class="col-md-6">
+        <div class="form-row">
             <div class="auth-field">
-                <label for="id_full_name" class="auth-label">Nome Completo</label>
+                <label for="{{ form.first_name.id_for_label }}" class="auth-label">
+                    {{ form.first_name.label }}
+                </label>
                 <div class="auth-input-wrapper">
-                    <input type="text" name="full_name" id="id_full_name" class="auth-input" placeholder="John Doe"
-                        value="{{ form.full_name.value|default:'' }}">
+                    {{ form.first_name }}
                 </div>
+                {% for error in form.first_name.errors %}
+                    <small class="field-error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="auth-field">
+                <label for="{{ form.last_name.id_for_label }}" class="auth-label">
+                    {{ form.last_name.label }}
+                </label>
+                <div class="auth-input-wrapper">
+                    {{ form.last_name }}
+                </div>
+                {% for error in form.last_name.errors %}
+                    <small class="field-error">{{ error }}</small>
+                {% endfor %}
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="auth-field">
-                <label for="id_username" class="auth-label">Nome de Usuário</label>
-                <div class="auth-input-wrapper">
-                    <input type="text" name="username" id="id_username" class="auth-input" placeholder="ApexHunter"
-                        value="{{ form.username.value|default:'' }}">
-                </div>
+
+        <div class="auth-field">
+            <label for="{{ form.username.id_for_label }}" class="auth-label">
+                {{ form.username.label }}
+            </label>
+            <div class="auth-input-wrapper">
+                {{ form.username }}
             </div>
+            {% for error in form.username.errors %}
+                <small class="field-error">{{ error }}</small>
+            {% endfor %}
         </div>
-    </div>
 
-    <div class="auth-field">
-        <label for="id_email" class="auth-label">Email</label>
-        <div class="auth-input-wrapper">
-            <input type="email" name="email" id="id_email" class="auth-input" placeholder="commander@gamechamp.gg"
-                value="{{ form.email.value|default:'' }}">
+        <div class="auth-field">
+            <label for="{{ form.email.id_for_label }}" class="auth-label">
+                {{ form.email.label }}
+            </label>
+            <div class="auth-input-wrapper">
+                {{ form.email }}
+            </div>
+            {% for error in form.email.errors %}
+                <small class="field-error">{{ error }}</small>
+            {% endfor %}
         </div>
-    </div>
 
-    <div class="row g-3">
-        <div class="col-md-6">
+        <div class="form-row">
             <div class="auth-field">
-                <label for="id_password" class="auth-label">Senha</label>
+                <label for="{{ form.password.id_for_label }}" class="auth-label">
+                    {{ form.password.label }}
+                </label>
                 <div class="auth-input-wrapper">
-                    <input type="password" name="password" id="id_password" class="auth-input"
-                        placeholder="Digite sua senha">
+                    {{ form.password }}
                     <button type="button" class="auth-password-toggle">
                         <span class="material-symbols-outlined">visibility</span>
                     </button>
                 </div>
+                {% for error in form.password.errors %}
+                    <small class="field-error">{{ error }}</small>
+                {% endfor %}
             </div>
-        </div>
-        <div class="col-md-6">
+
             <div class="auth-field">
-                <label for="id_confirm_password" class="auth-label">Confirmar Senha</label>
+                <label for="{{ form.confirm_password.id_for_label }}" class="auth-label">
+                    {{ form.confirm_password.label }}
+                </label>
                 <div class="auth-input-wrapper">
-                    <input type="password" name="confirm_password" id="id_confirm_password" class="auth-input"
-                        placeholder="Confirme sua senha">
+                    {{ form.confirm_password }}
                     <button type="button" class="auth-password-toggle">
                         <span class="material-symbols-outlined">visibility</span>
                     </button>
                 </div>
+                {% for error in form.confirm_password.errors %}
+                    <small class="field-error">{{ error }}</small>
+                {% endfor %}
             </div>
         </div>
+
     </div>
 
     <button type="submit" class="btn-app-primary auth-submit-btn">Finalizar Registro</button>

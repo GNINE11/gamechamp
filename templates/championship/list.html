@@ -1,15 +1,14 @@
 {% extends "base/logged_base.html" %}
 {% load static %}
 
-{% block title %}Campeonatos{% endblock %}
+{% block title %}Gamechamp{% endblock %}
 
 {# ── Heading ─────────────────────────────────────────────────────────────── #}
-{% block page_label %}Competição Global{% endblock %}
-{% block page_title %}Elite Tournaments{% endblock %}
+{% block page_label %}{{ page_label }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
 
 {% block page_actions %}
-
-<a href="#" class="btn-app-primary">
+<a href="#" class="btn-app-primary" id="filterOpen">
     <span class="material-symbols-outlined">filter_alt</span>
     Aplicar Filtros
 </a>
@@ -18,14 +17,16 @@
 {# ── Extra CSS ────────────────────────────────────────────────────────────── #}
 {% block extra_css %}
 <style>
+    /* ── Glass ──────────────────────────────────────────────────────────── */
     .glass-panel {
-        background: rgba(23, 31, 51, 0.6);
+        background: rgba(23, 31, 51, 1);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
         border: 1px solid rgba(255, 255, 255, 0.08);
         box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);
     }
 
+    /* ── Tournament card ────────────────────────────────────────────────── */
     .tournament-card {
         border-radius: 1rem;
         overflow: hidden;
@@ -42,9 +43,10 @@
     }
 
     .tournament-card.card-live {
-        border-top: 2px solid rgba(77, 215, 246, 0.45);
+        border-top: 2px solid rgba(6, 182, 212, 0.5);
     }
 
+    /* ── Card image / placeholder ───────────────────────────────────────── */
     .card-img-wrap {
         position: relative;
         height: 192px;
@@ -52,23 +54,95 @@
         flex-shrink: 0;
     }
 
-    .card-img-wrap img {
+    /* Placeholder visual — replaces <img> */
+    .card-img-placeholder {
         width: 100%;
         height: 100%;
-        object-fit: cover;
-        transition: transform 0.7s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
     }
 
-    .tournament-card:hover .card-img-wrap img {
-        transform: scale(1.08);
+    .card-img-placeholder::before {
+        /* Decorative large circle behind icon */
+        content: '';
+        position: absolute;
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        opacity: 0.12;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    /* Per-status gradients */
+    .card-ph-open {
+        background: linear-gradient(135deg, #1c1050 0%, #2d1b69 45%, #0d2444 100%);
+    }
+
+    .card-ph-open::before {
+        background: var(--color-primary);
+    }
+
+    .card-ph-live {
+        background: linear-gradient(135deg, #062240 0%, #093a52 50%, #041628 100%);
+    }
+
+    .card-ph-live::before {
+        background: var(--color-secondary);
+    }
+
+    .card-ph-finished {
+        background: linear-gradient(135deg, #131330 0%, #191937 50%, #0d0d22 100%);
+        filter: saturate(0.6);
+    }
+
+    .card-ph-finished::before {
+        background: var(--color-on-surface-variant);
+    }
+
+    .ph-icon {
+        font-size: 3.5rem !important;
+        opacity: 0.18;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-variation-settings: 'FILL' 1, 'wght' 400;
+    }
+
+    .ph-game-label {
+        font-family: var(--font-label);
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.22);
+        position: relative;
+        z-index: 1;
+        margin: 0;
+        text-align: center;
+        padding: 0 1rem;
+        /* Bottom-align inside the wrap, overlaid by card-name */
+        position: absolute;
+        bottom: 3.2rem;
+        left: 1rem;
     }
 
     .card-img-overlay {
         position: absolute;
         inset: 0;
-        background: linear-gradient(to top, var(--color-background) 0%, rgba(11, 19, 38, .18) 55%, transparent 100%);
+        background: linear-gradient(to top,
+                var(--color-background) 0%,
+                rgba(11, 19, 38, .2) 55%,
+                transparent 100%);
     }
 
+    /* ── Card badge ─────────────────────────────────────────────────────── */
     .card-badge {
         position: absolute;
         top: 1rem;
@@ -88,19 +162,19 @@
     }
 
     .card-badge.badge-live {
-        background: rgba(220, 38, 38, .88);
+        background: rgba(6, 182, 212, 0.85);
         color: #fff;
     }
 
-    .card-badge.badge-upcoming {
-        background: rgba(139, 92, 246, .18);
-        border: 1px solid rgba(208, 188, 255, .3);
+    .card-badge.badge-open {
+        background: rgba(139, 92, 246, 0.18);
+        border: 1px solid rgba(208, 188, 255, 0.3);
         color: var(--color-primary);
     }
 
     .card-badge.badge-finished {
-        background: rgba(203, 195, 215, .15);
-        border: 1px solid rgba(255, 255, 255, .1);
+        background: rgba(203, 195, 215, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         color: var(--color-on-surface-variant);
     }
 
@@ -130,15 +204,19 @@
         position: absolute;
         bottom: 1rem;
         left: 1rem;
+        right: 1rem;
         font-family: var(--font-headline);
-        font-size: 1.25rem;
+        font-size: 1.2rem;
         font-weight: 700;
         color: #fff;
-        text-shadow: 0 2px 8px rgba(0, 0, 0, .5);
+        text-shadow: 0 2px 8px rgba(0, 0, 0, .6);
         margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    /* ── Card body ────────────────────────────────────────────────────── */
+    /* ── Card body ──────────────────────────────────────────────────────── */
     .card-body-inner {
         padding: 1.5rem;
         display: flex;
@@ -155,6 +233,7 @@
 
     .card-stat {
         flex: 1;
+        min-width: 0;
     }
 
     .card-stat-label {
@@ -165,25 +244,37 @@
         text-transform: uppercase;
         color: var(--color-on-surface-variant);
         margin: 0 0 2px;
+        white-space: nowrap;
     }
 
     .card-stat-value {
         font-family: var(--font-headline);
-        font-size: 1.2rem;
+        font-size: 1.05rem;
         font-weight: 700;
         margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .card-stat-value.color-primary {
+    .color-primary {
         color: var(--color-primary);
     }
 
-    .card-stat-value.color-secondary {
+    .color-secondary {
         color: var(--color-secondary);
     }
 
-    .card-stat-value.color-white {
+    .color-white {
         color: #fff;
+    }
+
+    .color-error {
+        color: var(--color-error);
+    }
+
+    .color-muted {
+        color: var(--color-on-surface-variant);
     }
 
     .card-stat-divider {
@@ -193,7 +284,7 @@
         flex-shrink: 0;
     }
 
-    /* ── Progress row ─────────────────────────────────────────────────── */
+    /* ── Info rows ──────────────────────────────────────────────────────── */
     .card-info-rows {
         margin-bottom: 1.75rem;
     }
@@ -222,14 +313,7 @@
         font-weight: 500;
     }
 
-    .card-info-row .row-value.color-error {
-        color: var(--color-error);
-    }
-
-    .card-info-row .row-value.color-secondary {
-        color: var(--color-secondary);
-    }
-
+    /* ── Progress bar ───────────────────────────────────────────────────── */
     .progress-bar-wrap {
         width: 100%;
         height: 6px;
@@ -242,6 +326,7 @@
     .progress-bar-fill {
         height: 100%;
         border-radius: 9999px;
+        transition: width 0.5s ease;
     }
 
     .fill-primary {
@@ -252,18 +337,7 @@
         background: var(--color-secondary);
     }
 
-    /* ── Card description (finished) ──────────────────────────────────── */
-    .card-desc {
-        font-size: 0.8125rem;
-        color: var(--color-on-surface-variant);
-        line-height: 1.55;
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        margin-bottom: 1.75rem;
-    }
-
-    /* ── Card CTA buttons ─────────────────────────────────────────────── */
+    /* ── Card CTA buttons ───────────────────────────────────────────────── */
     .btn-card {
         width: 100%;
         padding: 0.75rem 1rem;
@@ -327,25 +401,166 @@
         background: rgba(255, 255, 255, .09);
     }
 
-    /* ── Card finished dim ────────────────────────────────────────────── */
+    /* ── Finished dim ───────────────────────────────────────────────────── */
     .tournament-card.card-finished {
         opacity: .82;
     }
 
-    .tournament-card.card-finished .card-img-wrap img {
+    .tournament-card.card-finished .card-img-placeholder {
         filter: grayscale(1);
-        transition: filter 0.7s ease, transform 0.7s ease;
+        transition: filter 0.7s ease;
     }
 
-    .tournament-card.card-finished:hover .card-img-wrap img {
+    .tournament-card.card-finished:hover .card-img-placeholder {
         filter: grayscale(0);
     }
 
-    /* ── Filter panel ─────────────────────────────────────────────────── */
-    .filter-panel {
-        border-radius: 0.75rem;
-        padding: 1.5rem;
-        margin-bottom: 2.5rem;
+    /* ── Search bar ─────────────────────────────────────────────────────── */
+    .filter-search-wrap {
+        position: relative;
+        margin-bottom: 1.25rem;
+    }
+
+    .filter-search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.1rem;
+        color: var(--color-on-surface-variant);
+        pointer-events: none;
+    }
+
+    .filter-search {
+        width: 100%;
+        background: var(--color-surface-container-lowest);
+        border: 1px solid rgba(255, 255, 255, .1);
+        border-radius: 0.5rem;
+        padding: 0.6rem 0.75rem 0.6rem 2.5rem;
+        color: var(--color-on-surface);
+        font-family: var(--font-body);
+        font-size: 0.875rem;
+        transition: border-color 0.15s ease;
+    }
+
+    .filter-search::placeholder {
+        color: var(--color-on-surface-variant);
+    }
+
+    .filter-search:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, .2);
+    }
+
+    /* ── Filter modal ───────────────────────────────────────────────────── */
+    .filter-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        z-index: 200;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 5rem 1rem 1rem;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+
+    .filter-modal-backdrop.is-open {
+        opacity: 1;
+        pointer-events: all;
+    }
+
+    .filter-modal {
+        width: 100%;
+        max-width: 540px;
+        border-radius: 1rem;
+        padding: 1.75rem;
+        transform: translateY(-12px);
+        transition: transform 0.25s ease;
+    }
+
+    .filter-modal-backdrop.is-open .filter-modal {
+        transform: translateY(0);
+    }
+
+    .filter-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+    }
+
+    .filter-modal-title {
+        font-family: var(--font-headline);
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--color-on-surface);
+        margin: 0;
+    }
+
+    .filter-modal-close {
+        background: none;
+        border: none;
+        color: var(--color-on-surface-variant);
+        cursor: pointer;
+        padding: 0.25rem;
+        border-radius: 0.375rem;
+        display: flex;
+        align-items: center;
+        transition: color 0.15s ease, background 0.15s ease;
+    }
+
+    .filter-modal-close:hover {
+        color: var(--color-on-surface);
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .filter-modal-footer {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.75rem;
+    }
+
+    .btn-filter-clear {
+        flex: 1;
+        padding: 0.65rem 1rem;
+        border-radius: 0.5rem;
+        font-family: var(--font-label);
+        font-size: 0.8125rem;
+        font-weight: 500;
+        cursor: pointer;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, .1);
+        color: var(--color-on-surface-variant);
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-filter-clear:hover {
+        background: rgba(255, 255, 255, .05);
+        color: var(--color-on-surface);
+    }
+
+    .btn-filter-apply {
+        flex: 2;
+        padding: 0.65rem 1rem;
+        border-radius: 0.5rem;
+        font-family: var(--font-label);
+        font-size: 0.8125rem;
+        font-weight: 500;
+        cursor: pointer;
+        background: var(--color-primary);
+        border: none;
+        color: var(--color-on-primary);
+        transition: filter 0.15s ease;
+    }
+
+    .btn-filter-apply:hover {
+        filter: brightness(1.1);
     }
 
     .filter-label {
@@ -386,12 +601,14 @@
 
     .filter-status-group {
         display: flex;
+        flex-wrap: wrap;
         gap: 0.5rem;
     }
 
     .btn-status {
-        flex: 1;
-        padding: 0.5rem 0.25rem;
+        flex: 1 1 auto;
+        min-width: max-content;
+        padding: 0.5rem 0.75rem;
         border-radius: 0.5rem;
         font-family: var(--font-body);
         font-size: 0.8rem;
@@ -413,7 +630,7 @@
         background: rgba(255, 255, 255, .05);
     }
 
-    /* ── Grid ─────────────────────────────────────────────────────────── */
+    /* ── Grid ───────────────────────────────────────────────────────────── */
     .tournaments-grid {
         display: grid;
         grid-template-columns: repeat(1, 1fr);
@@ -432,7 +649,42 @@
         }
     }
 
-    /* ── Pagination ───────────────────────────────────────────────────── */
+    /* ── Empty state ────────────────────────────────────────────────────── */
+    .empty-state {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        padding: 5rem 2rem;
+        border-radius: 1rem;
+        border: 1px dashed rgba(255, 255, 255, 0.1);
+        color: var(--color-on-surface-variant);
+        text-align: center;
+    }
+
+    .empty-state .material-symbols-outlined {
+        font-size: 3rem;
+        opacity: 0.3;
+        font-variation-settings: 'FILL' 1;
+    }
+
+    .empty-state-title {
+        font-family: var(--font-headline);
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--color-on-surface);
+        margin: 0;
+    }
+
+    .empty-state-desc {
+        font-size: 0.875rem;
+        margin: 0;
+        max-width: 320px;
+    }
+
+    /* ── Pagination ─────────────────────────────────────────────────────── */
     .pagination-wrap {
         margin-top: 3rem;
         display: flex;
@@ -455,16 +707,24 @@
         border: 1px solid rgba(255, 255, 255, .06);
         background: transparent;
         color: var(--color-on-surface-variant);
+        text-decoration: none;
     }
 
     .page-btn:hover:not(.active) {
         background: rgba(255, 255, 255, .05);
+        color: var(--color-on-surface);
     }
 
     .page-btn.active {
         background: var(--color-primary);
-        color: var(--color-on-primary);
+        color: #fff;
         border-color: transparent;
+        pointer-events: none;
+    }
+
+    .page-btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
     }
 
     .page-btn .material-symbols-outlined {
@@ -476,7 +736,7 @@
         padding: 0 0.25rem;
     }
 
-    /* ── FAB ──────────────────────────────────────────────────────────── */
+    /* ── FAB ────────────────────────────────────────────────────────────── */
     .fab {
         position: fixed;
         bottom: 2rem;
@@ -494,6 +754,7 @@
         cursor: pointer;
         transition: transform 0.15s ease;
         z-index: 100;
+        text-decoration:none;
     }
 
     .fab:hover {
@@ -529,7 +790,12 @@
         transform: translateX(0);
     }
 
-    /* ── Scrollbar ────────────────────────────────────────────────────── */
+    .btn-card,
+    .page-btn {
+        text-decoration: none;
+    }
+
+    /* ── Scrollbar ──────────────────────────────────────────────────────── */
     ::-webkit-scrollbar {
         width: 6px;
     }
@@ -552,51 +818,62 @@
 {# ── Content ──────────────────────────────────────────────────────────────── #}
 {% block content %}
 
-<!-- ── Filter Panel ──────────────────────────────────────────────────────── -->
-<div class="filter-panel glass-panel">
-    <div class="row g-4">
+<!-- ── Filter Modal ──────────────────────────────────────────────────────── -->
+<div class="filter-modal-backdrop" id="filterBackdrop">
+    <div class="filter-modal glass-panel">
 
-        <!-- Game Title -->
-        <div class="col-12 col-sm-6 col-lg-3">
-            <label class="filter-label">Jogo</label>
-            <select class="filter-select">
-                <option>Todos os Jogos</option>
-                <option>Nexus Arena</option>
-                <option>Vanguard Siege</option>
-                <option>Starshot Legacy</option>
-            </select>
+        <div class="filter-modal-header">
+            <h2 class="filter-modal-title">Filtros</h2>
+            <button class="filter-modal-close" id="filterClose" aria-label="Fechar">
+                <span class="material-symbols-outlined">close</span>
+            </button>
         </div>
 
-        <!-- Prize Pool -->
-        <div class="col-12 col-sm-6 col-lg-3">
-            <label class="filter-label">Premiação</label>
-            <select class="filter-select">
-                <option>Qualquer Valor</option>
-                <option>$1.000+</option>
-                <option>$10.000+</option>
-                <option>$50.000+</option>
-            </select>
+        <label class="filter-label">Buscar Campeonato</label>
+        <div class="filter-search-wrap">
+            <span class="material-symbols-outlined filter-search-icon">search</span>
+            <input class="filter-search" type="search" name="q" placeholder="Digite o nome do campeonato..."
+                   value="{{ request.GET.q }}">
         </div>
 
-        <!-- Status -->
-        <div class="col-12 col-sm-6 col-lg-3">
-            <label class="filter-label">Status</label>
-            <div class="filter-status-group">
-                <button class="btn-status active" data-status="live">Ao Vivo</button>
-                <button class="btn-status" data-status="upcoming">Próximos</button>
-                <button class="btn-status" data-status="finished">Finalizados</button>
+        <div class="row g-4">
+
+            <div class="col-12 col-sm-6">
+                <label class="filter-label">Jogo</label>
+                <select class="filter-select" name="game">
+                    <option value="">Todos os Jogos</option>
+                </select>
             </div>
+
+            <div class="col-12 col-sm-6">
+                <label class="filter-label">Formato</label>
+                <select class="filter-select" name="stage_format">
+                    <option value="">Todos os Formatos</option>
+                    <option value="SINGLE_ELIMINATION">Eliminação Simples</option>
+                    <option value="DOUBLE_ELIMINATION">Eliminação Dupla</option>
+                    <option value="ROUND_ROBIN">Pontos Corridos</option>
+                    <option value="GROUP_THEN_PLAYOFFS">Grupos + Playoffs</option>
+                </select>
+            </div>
+
+            <div class="col-12">
+                <label class="filter-label">Status</label>
+                <div class="filter-status-group">
+                    <button class="btn-status active" data-status="">Todos</button>
+                    {% if mode == 'management' %}
+                    <button class="btn-status" data-status="DRAFT">Rascunho</button>
+                    {% endif %}
+                    <button class="btn-status" data-status="OPEN">Abertos</button>
+                    <button class="btn-status" data-status="IN_PROGRESS">Ao Vivo</button>
+                    <button class="btn-status" data-status="FINISHED">Finalizados</button>
+                </div>
+            </div>
+
         </div>
 
-        <!-- Format -->
-        <div class="col-12 col-sm-6 col-lg-3">
-            <label class="filter-label">Formato</label>
-            <select class="filter-select">
-                <option>Todos os Formatos</option>
-                <option>Dupla Eliminação</option>
-                <option>Eliminação Simples</option>
-                <option>Round Robin</option>
-            </select>
+        <div class="filter-modal-footer">
+            <button class="btn-filter-clear" id="filterClear">Limpar</button>
+            <button class="btn-filter-apply" id="filterApply">Aplicar Filtros</button>
         </div>
 
     </div>
@@ -605,234 +882,243 @@
 <!-- ── Tournament Grid ───────────────────────────────────────────────────── -->
 <div class="tournaments-grid">
 
-    <!-- Card 1 · LIVE -->
-    <div class="tournament-card glass-panel card-live">
+    {% for champ in page_obj %}
+
+
+    <div class="tournament-card glass-panel {{ champ.card_class }}">
+
+        {# ── Image / Placeholder ─────────────────────────────────── #}
         <div class="card-img-wrap">
-            <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuA58sThSuoemyO5FbxO3uefdc6Q3dlraVUe5lCNUg-YOnVLQXLRR44ANwmqL_voLJsnn7UggOMUSEq7bE03q0RaKlmrN17E7vlGYuUQZDUfYiQ-YaMbbOpSfzh_8fk8aXJbFaeVSANDI0Ebxn8WnOtnc278m5IkV9L9IFUZFIscuLpD5jv1oncwFJ2NYWrMgoqtARI53b7tBnAv-2HvZjeCVbEJuOO1P8KSst9WGgtwB1untVjydxuvCnridFBRzMes1v6ACyZr8hIS"
-                alt="Nexus Pro League S4">
+            <div class="card-img-placeholder {{ champ.ph_class }}">
+                <span class="material-symbols-outlined ph-icon">emoji_events</span>
+            </div>
+            <p class="ph-game-label">{{ champ.game }}</p>
             <div class="card-img-overlay"></div>
+
+            {# Badge #}
+            {% if champ.status == 'IN_PROGRESS' %}
             <span class="card-badge badge-live">
                 <span class="pulse-dot"></span>
                 Ao Vivo
             </span>
-            <h3 class="card-name">Nexus Pro League S4</h3>
+            {% elif champ.status == 'OPEN' %}
+            <span class="card-badge badge-open">
+                Inscrições Abertas
+            </span>
+            {% else %}
+            <span class="card-badge badge-finished">
+                Finalizado
+            </span>
+            {% endif %}
+
+            <h3 class="card-name">{{ champ.name }}</h3>
         </div>
 
+        {# ── Body ────────────────────────────────────────────────── #}
         <div class="card-body-inner">
+
+            {# Stats row #}
             <div class="card-stats">
                 <div class="card-stat">
-                    <p class="card-stat-label">Premiação</p>
-                    <p class="card-stat-value color-secondary">$125,000</p>
+                    <p class="card-stat-label">Jogo</p>
+                    <p class="card-stat-value color-white" title="{{ champ.game }}">{{ champ.game }}</p>
                 </div>
                 <div class="card-stat-divider"></div>
                 <div class="card-stat">
-                    <p class="card-stat-label">Inscrição</p>
-                    <p class="card-stat-value color-white">$500</p>
+                    <p class="card-stat-label">Formato</p>
+                    <p class="card-stat-value color-muted" title="{{ champ.get_stage_format_display }}"
+                        style="font-size:0.85rem;">
+                        {{ champ.get_stage_format_display }}
+                    </p>
                 </div>
             </div>
 
+            {# Info rows #}
             <div class="card-info-rows">
+
+                {# Teams filled — common to all statuses #}
                 <div class="card-info-row">
                     <span class="row-label">
                         <span class="material-symbols-outlined">group</span>
                         Times Inscritos
                     </span>
-                    <span class="row-value">28 / 32</span>
+                    <span class="row-value">{{ champ.approved_count }} / {{ champ.max_teams }}</span>
                 </div>
                 <div class="progress-bar-wrap">
-                    <div class="progress-bar-fill fill-secondary" style="width: 87.5%"></div>
+                    <div class="progress-bar-fill
+                            {% if champ.status == 'IN_PROGRESS' %}fill-secondary{% else %}fill-primary{% endif %}"
+                        style="width: {{ champ.occupancy_percentage }}%">
+                    </div>
                 </div>
+
+                {# Status-specific second row #}
+                {% if champ.status == 'OPEN' %}
                 <div class="card-info-row">
                     <span class="row-label">
                         <span class="material-symbols-outlined">calendar_today</span>
-                        Data da Final
+                        Início Previsto
                     </span>
-                    <span class="row-value">15 Nov, 2023</span>
+                    <span class="row-value">
+                        {% if champ.start_date %}
+                        {{ champ.start_date|date:"d M, Y" }}
+                        {% else %}
+                        A definir
+                        {% endif %}
+                    </span>
                 </div>
-            </div>
 
-            <button class="btn-card btn-card-live">
-                Ver Bracket ao Vivo
-                <span class="material-symbols-outlined">chevron_right</span>
-            </button>
-        </div>
-    </div>
-
-    <!-- Card 2 · UPCOMING (open slots) -->
-    <div class="tournament-card glass-panel">
-        <div class="card-img-wrap">
-            <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9WBugTEBmcUpHdxyFLoY363B0x0AMtb4Mf3rfqqiNZrvCK0MBMHNP3lxpWiK4mX7Ik7-d1ihiUrKSHxoB1cWtfCMRGIx3or7x36FevFj3fFQkDD3yb4K-5WyUwjlrQfN11pAz1agcsbmpIxwwTfw87QxXnXxFAN11tZ_G763FaEAnau3EXZpLW8jqFnsB1lWzP2Qb0sUvcHvIfQ9TrxqodQGKIrdSxwRAddLas7b8_A3PR4Zx_sqlAN8C1akBdhzjylLBAJl4wByB"
-                alt="Stellar Clash Master">
-            <div class="card-img-overlay"></div>
-            <span class="card-badge badge-upcoming">Próximo</span>
-            <h3 class="card-name">Stellar Clash Master</h3>
-        </div>
-
-        <div class="card-body-inner">
-            <div class="card-stats">
-                <div class="card-stat">
-                    <p class="card-stat-label">Premiação</p>
-                    <p class="card-stat-value color-primary">$50,000</p>
-                </div>
-                <div class="card-stat-divider"></div>
-                <div class="card-stat">
-                    <p class="card-stat-label">Inscrição</p>
-                    <p class="card-stat-value color-white">Grátis</p>
-                </div>
-            </div>
-
-            <div class="card-info-rows">
+                {% elif champ.status == 'IN_PROGRESS' %}
                 <div class="card-info-row">
                     <span class="row-label">
-                        <span class="material-symbols-outlined">group</span>
-                        Times Inscritos
+                        <span class="material-symbols-outlined">play_circle</span>
+                        Em Andamento
                     </span>
-                    <span class="row-value">12 / 64</span>
+                    <span class="row-value color-secondary">
+                        Desde
+                        {% if champ.start_date %}
+                        {{ champ.start_date|date:"d M" }}
+                        {% else %}
+                        —
+                        {% endif %}
+                    </span>
                 </div>
-                <div class="progress-bar-wrap">
-                    <div class="progress-bar-fill fill-primary" style="width: 18.7%"></div>
-                </div>
+
+                {% else %}{# FINISHED #}
                 <div class="card-info-row">
                     <span class="row-label">
-                        <span class="material-symbols-outlined">query_builder</span>
-                        Inscrições Encerram
+                        <span class="material-symbols-outlined">emoji_events</span>
+                        Campeão
                     </span>
-                    <span class="row-value">2d 14h Restam</span>
-                </div>
-            </div>
-
-            <button class="btn-card btn-card-register">
-                Inscrever Time
-                <span class="material-symbols-outlined">add_circle</span>
-            </button>
-        </div>
-    </div>
-
-    <!-- Card 3 · UPCOMING (full / waitlist) -->
-    <div class="tournament-card glass-panel">
-        <div class="card-img-wrap">
-            <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuC0GlTvJSwuIqr_iLudsQzLuC54kUZ3b93MameiB8Vh6K13oARcVbUNxtH1RBZqavlTexw06ZGCJ9bODoWeAriDjQYEEfU4xMmMatB4HNau-yFiG73Mxsx7N4W5daBViZFC-C1tSQr2oMRzTblu1Za7uFoTNl0iVPZLfxe_KZbQ4ryo67MVg-zZXtmlVZc5QbOADx04fkgMrpGhmVcM-J1Y-E5bCF0EgiUeKTfd58ZAd6n2Jd6hgzpGkhA32W4N8BfgOGMIDb1-yVOu"
-                alt="Shadow Siege Open">
-            <div class="card-img-overlay"></div>
-            <span class="card-badge badge-upcoming">Próximo</span>
-            <h3 class="card-name">Shadow Siege Open</h3>
-        </div>
-
-        <div class="card-body-inner">
-            <div class="card-stats">
-                <div class="card-stat">
-                    <p class="card-stat-label">Premiação</p>
-                    <p class="card-stat-value color-primary">$10,000</p>
-                </div>
-                <div class="card-stat-divider"></div>
-                <div class="card-stat">
-                    <p class="card-stat-label">Inscrição</p>
-                    <p class="card-stat-value color-white">$100</p>
-                </div>
-            </div>
-
-            <div class="card-info-rows">
-                <div class="card-info-row">
-                    <span class="row-label">
-                        <span class="material-symbols-outlined">group</span>
-                        Times Inscritos
+                    <span class="row-value
+                                {% if champ.champion %}color-secondary{% else %}color-muted{% endif %}">
+                        {% if champ.champion %}
+                        {{ champ.champion }}
+                        {% else %}
+                        —
+                        {% endif %}
                     </span>
-                    <span class="row-value">32 / 32</span>
                 </div>
-                <div class="progress-bar-wrap">
-                    <div class="progress-bar-fill fill-primary" style="width: 100%"></div>
-                </div>
-                <div class="card-info-row">
-                    <span class="row-label">
-                        <span class="material-symbols-outlined">lock</span>
-                        Status
-                    </span>
-                    <span class="row-value color-error">Somente Lista de Espera</span>
-                </div>
-            </div>
+                {% endif %}
 
-            <button class="btn-card btn-card-waitlist" disabled>
-                Entrar na Lista de Espera
-                <span class="material-symbols-outlined">hourglass_empty</span>
-            </button>
-        </div>
+            </div>{# /card-info-rows #}
+
+            {# CTA button #}
+            {% if champ.cta %}{% with cta=champ.cta %}
+            {% if cta.is_form %}
+            <form method="post" action="{{ cta.url }}">
+                {% csrf_token %}
+                <button type="submit" class="btn-card {{ cta.css }}">
+                    {{ cta.label }}
+                    <span class="material-symbols-outlined">{{ cta.icon }}</span>
+                </button>
+            </form>
+            {% else %}
+            <a {% if not cta.disabled %}href="{{ cta.url }}"{% endif %}
+               class="btn-card {{ cta.css }}"
+               {% if cta.disabled %}aria-disabled="true"{% endif %}>
+                {{ cta.label }}
+                <span class="material-symbols-outlined">{{ cta.icon }}</span>
+            </a>
+            {% endif %}
+            {% endwith %}{% endif %}
+
+        </div>{# /card-body-inner #}
+    </div>{# /tournament-card #}
+
+
+    {% empty %}
+    <div class="empty-state glass-panel">
+        <span class="material-symbols-outlined">emoji_events</span>
+        <p class="empty-state-title">Nenhum campeonato disponível</p>
+        <p class="empty-state-desc">
+            Nenhum campeonato encontrado no momento. Assim que houver novidades, elas aparecerão aqui.
+        </p>
     </div>
+    {% endfor %}
 
-    <!-- Card 4 · FINISHED -->
-    <div class="tournament-card glass-panel card-finished">
-        <div class="card-img-wrap">
-            <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCxDp2jxxmeqlIvg9bgHsX4Dc-BAN6cU_ERq0-iYZo8y9fUq94vE0WGcjw72YaB2uL5U5YSUMRMX8AL63AX486AbTnQLP9OPJGdBJs7gcByMTKKSRnscnr1-j2isSRsIFMZPOvmd3yWAcMHrNwOW-2q5OMHJiYt7R27MnvmXfMIuLBsqn-cHQL10VSj2iS9W5TCGtQQpYOFvPJpnETyVatjm152uKiWhuy9u7lsftZHfMVi2Oo9rSqclj9Dt5fCzIYTpfYlrPNENdma"
-                alt="Legacy Masters 2023">
-            <div class="card-img-overlay"></div>
-            <span class="card-badge badge-finished">Finalizado</span>
-            <h3 class="card-name">Legacy Masters 2023</h3>
-        </div>
-
-        <div class="card-body-inner">
-            <div class="card-stats">
-                <div class="card-stat">
-                    <p class="card-stat-label">Premiação Total</p>
-                    <p class="card-stat-value color-white">$250,000</p>
-                </div>
-                <div class="card-stat-divider"></div>
-                <div class="card-stat" style="text-align: right;">
-                    <p class="card-stat-label">Campeão</p>
-                    <p class="card-stat-value" style="color: var(--color-secondary);">Team Zenith</p>
-                </div>
-            </div>
-
-            <p class="card-desc">
-                Este torneio histórico encerrou com uma virada surpreendente na grande final. Reveja os melhores
-                momentos e confira o ranking completo.
-            </p>
-
-            <button class="btn-card btn-card-results">
-                Ver Resultados
-                <span class="material-symbols-outlined">history</span>
-            </button>
-        </div>
-    </div>
-
-</div>
+</div>{# /tournaments-grid #}
 
 <!-- ── Pagination ─────────────────────────────────────────────────────────── -->
 <div class="pagination-wrap">
-    <button class="page-btn">
-        <span class="material-symbols-outlined">chevron_left</span>
-    </button>
-    <button class="page-btn active">1</button>
-    <button class="page-btn">2</button>
-    <button class="page-btn">3</button>
-    <span class="page-ellipsis">…</span>
-    <button class="page-btn">12</button>
-    <button class="page-btn">
-        <span class="material-symbols-outlined">chevron_right</span>
-    </button>
+
+    {% if page_obj.has_previous %}
+        <a class="page-btn" href="?page={{ page_obj.previous_page_number }}">
+            <span class="material-symbols-outlined">chevron_left</span>
+        </a>
+    {% else %}
+        <button class="page-btn" disabled>
+            <span class="material-symbols-outlined">chevron_left</span>
+        </button>
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+
+        {% if num == page_obj.number %}
+            <button class="page-btn active">{{ num }}</button>
+
+        {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+            <a class="page-btn" href="?page={{ num }}">{{ num }}</a>
+
+        {% endif %}
+
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+        <a class="page-btn" href="?page={{ page_obj.next_page_number }}">
+            <span class="material-symbols-outlined">chevron_right</span>
+        </a>
+    {% else %}
+        <button class="page-btn" disabled>
+            <span class="material-symbols-outlined">chevron_right</span>
+        </button>
+    {% endif %}
+
 </div>
 
 <!-- ── FAB ───────────────────────────────────────────────────────────────── -->
-<button class="fab" title="Criar Torneio">
+{% if show_fab %}
+<a href="#" class="fab" title="Criar Campeonato">
     <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">add</span>
-    <span class="fab-tooltip">Criar Torneio</span>
-</button>
+    <span class="fab-tooltip">Criar Campeonato</span>
+</a>
+{% endif %}
 
 {% endblock %}
 
 {# ── Extra JS ─────────────────────────────────────────────────────────────── #}
 {% block extra_js %}
 <script>
-    // Status filter toggle
-    document.querySelectorAll('.btn-status').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        });
+    const backdrop = document.getElementById('filterBackdrop');
+
+    function openFilter()  { backdrop.classList.add('is-open');    document.body.style.overflow = 'hidden'; }
+    function closeFilter() { backdrop.classList.remove('is-open'); document.body.style.overflow = ''; }
+
+    document.getElementById('filterOpen').addEventListener('click', e => { e.preventDefault(); openFilter(); });
+    document.getElementById('filterClose').addEventListener('click', closeFilter);
+
+    // Fechar ao clicar fora do modal
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) closeFilter(); });
+
+    // Fechar com Escape
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFilter(); });
+
+    // Limpar filtros
+    document.getElementById('filterClear').addEventListener('click', () => {
+        backdrop.querySelectorAll('.filter-select').forEach(s => s.value = '');
+        backdrop.querySelector('.filter-search').value = '';
+        backdrop.querySelectorAll('.btn-status').forEach(b => b.classList.remove('active'));
+        backdrop.querySelector('.btn-status[data-status=""]').classList.add('active');
     });
 
-    // Pagination
-    document.querySelectorAll('.page-btn:not(:first-child):not(:last-child)').forEach(btn => {
+    // Aplicar fecha o modal (conectar à URL query se precisar)
+    document.getElementById('filterApply').addEventListener('click', closeFilter);
+
+    // Status filter buttons
+    document.querySelectorAll('.btn-status').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.page-btn').forEach(b => b.classList.remove('active'));
+            btn.closest('.filter-status-group')
+                .querySelectorAll('.btn-status')
+                .forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
         });
     });

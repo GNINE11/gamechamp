@@ -1,6 +1,6 @@
 :root {
     --header-bg-color: #0b1326;
-    --header-primary-text-color: #001E40;
+    --header-primary-text-color: var(--color-on-surface);
     --header-primary-text-color-80-opacity: #001E40CC;
     --header-primary-text-color-60-opacity: #001E4099;
     --header-line-color: #E2E8F0;

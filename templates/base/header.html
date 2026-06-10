@@ -12,14 +12,14 @@
       <button id="headerUserButton" class="header-user-container" data-bs-toggle="tooltip" data-bs-placement="bottom"
         data-bs-title="Conta e configurações">
         <div class="header-user-text-container">
-          <span class="header-username-text">Nickname</span>
-          <span class="header-user-secondary-text">JOGADOR</span>
+          <span class="header-username-text">{{ request.user.username }}</span>
+          <span class="header-user-secondary-text">{{ request.user.first_name }}</span>
         </div>
 
         <div class="header-user-icon">
           <img
-            src="https://api.dicebear.com/7.x/thumbs/svg?seed=Gabriel"
-            alt="Avatar de Gabriel"
+            src="https://api.dicebear.com/7.x/thumbs/svg?seed={{ request.user.username }}"
+            alt="Avatar de {{ request.user.username }}"
             class="header-user-avatar-img"
           >
         </div>
@@ -29,14 +29,14 @@
         <div class="header-dropdown-user-card">
           <div class="header-user-icon header-dropdown-avatar">
             <img
-              src="https://api.dicebear.com/7.x/thumbs/svg?seed=Gabriel"
-              alt="Avatar de Gabriel"
+              src="https://api.dicebear.com/7.x/thumbs/svg?seed={{ request.user.username }}"
+              alt="Avatar de {{ request.user.username }}"
               class="header-user-avatar-img"
             >
           </div>
           <div class="header-dropdown-user-info">
-            <span class="header-dropdown-name">Nickname</span>
-            <span class="header-dropdown-secondary">JOGADOR</span>
+            <span class="header-dropdown-name">{{ request.user.username }}</span>
+            <span class="header-dropdown-secondary">{{ request.user.first_name }}</span>
           </div>
         </div>
 

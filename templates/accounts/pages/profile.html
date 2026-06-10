@@ -12,7 +12,7 @@
 {% block content %}
 
 <section class="profile-hero">
-    <img class="profile-cover" src="https://plus.unsplash.com/premium_photo-1674374443275-20dae04975ac?w=1600"
+    <img class="profile-cover" src="https://t3.ftcdn.net/jpg/04/13/99/08/360_F_413990886_hChS8igRgaOC4IlkIFIxiQ2EeW5U8LKf.jpg"
         alt="Foto de capa">
     <div class="profile-overlay"></div>
 
@@ -21,7 +21,7 @@
             {% if request.user.avatar %}
             <img src="{{ request.user.avatar.url }}" alt="Avatar">
             {% else %}
-            <img src="https://ui-avatars.com/api/?name={{ request.user.username }}&background=8B5CF6&color=fff&size=140"
+            <img src="https://api.dicebear.com/7.x/thumbs/svg?seed={{ request.user.username }}"
                 alt="Avatar">
             {% endif %}
         </div>

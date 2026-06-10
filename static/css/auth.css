@@ -28,7 +28,7 @@
 
 .auth-container {
     width: 100%;
-    max-width: 480px;
+    max-width: 600px;
 
     display: flex;
     flex-direction: column;
@@ -82,10 +82,6 @@
     display: flex;
     flex-direction: column;
     gap: .5rem;
-}
-
-.auth-field+.auth-field {
-    margin-top: 1.25rem;
 }
 
 .auth-label {
@@ -226,21 +222,99 @@
 .auth-avatar-placeholder .material-symbols-outlined {
     font-size: 2rem;
     color: var(--color-secondary);
+    opacity: 0.9;
 }
 
-.form-collum {
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.25rem;
+}
+
+.form-content {
     display: flex;
     flex-direction: column;
-
+    gap: 1.25rem;
 }
 
-.error-message {
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    border-radius: 0.5rem;
-    padding: 0.75rem 1rem;
-    margin-bottom: 1rem;
-    font-size: 0.875rem;
-    color: #EF4444;
+.field-error {
+    display: block;
+    margin-top: 4px;
+    color: #ef4444;
+    font-size: 0.85rem;
+}
+
+
+.form-row .auth-field + .auth-field {
+    margin-top: 0;
+}
+
+.form-row .auth-input-wrapper {
+    min-width: 0;
+}
+
+
+/* ===== RESPONSIVIDADE ===== */
+@media (max-width: 640px) {
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .auth-glass-card {
+        padding: 1.5rem;
+    }
+
+    .auth-form-title {
+        font-size: 1.5rem;
+    }
+
+    .auth-form-subtitle {
+        font-size: 0.875rem;
+    }
+
+    .form-content {
+        gap: 1rem;
+    }
+
+    .auth-submit-btn {
+        padding-block: 0.75rem;
+    }
+
+    .auth-avatar-placeholder {
+        width: 4rem;
+        height: 4rem;
+    }
+
+    .auth-avatar-placeholder .material-symbols-outlined {
+        font-size: 1.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .auth-main {
+        padding: 1.5rem 0.75rem;
+    }
+
+    .auth-glass-card {
+        padding: 1.25rem;
+    }
+
+    .auth-form-title {
+        font-size: 1.35rem;
+    }
+
+    .auth-label {
+        font-size: 0.75rem;
+    }
+
+    .auth-input {
+        font-size: 0.875rem;
+        padding: 0 0.5rem;
+    }
+
+    .auth-password-toggle {
+        width: 2.5rem;
+        height: 2.5rem;
+    }
 }

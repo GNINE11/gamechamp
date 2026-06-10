@@ -9,44 +9,49 @@
     <p class="auth-form-subtitle">Acesse sua conta para continuar.</p>
 </div>
 
-{% if error %}
-<div class="error-message">
-    {{ error }}
-</div>
-{% endif %}
-
 <form method="post">
     {% csrf_token %}
 
-    <div class="auth-field">
-        <label for="id_username" class="auth-label">Email ou Usuário</label>
-        <div class="auth-input-wrapper">
-            <span class="material-symbols-outlined auth-input-icon">person</span>
-            <input type="text" name="username" id="id_username" class="auth-input" placeholder="commander@gamechamp.gg"
-                value="{{ request.POST.username|default:'' }}">
-        </div>
-    </div>
+    <div class="form-content">
+        <div class="auth-field">
+            <label for="id_username" class="auth-label">Email ou Usuário</label>
+            <div class="auth-input-wrapper">
+                <span class="material-symbols-outlined auth-input-icon">person</span>
+                {{ form.username }}
+            </div>
 
-    <div class="auth-field">
-        <label for="id_password" class="auth-label">Senha</label>
-        <div class="auth-input-wrapper">
-            <span class="material-symbols-outlined auth-input-icon">lock</span>
-            <input type="password" name="password" id="id_password" class="auth-input" placeholder="Digite sua senha">
-            <button type="button" class="auth-password-toggle">
-                <span class="material-symbols-outlined">visibility</span>
-            </button>
+            {% for error in form.username.errors %}
+                <small class="field-error">{{ error }}</small>
+            {% endfor %}
         </div>
-        <div class="auth-field-link">
-            <a href="#" class="auth-link">Esqueci minha senha</a>
+
+        <div class="auth-field">
+            <label for="id_password" class="auth-label">Senha</label>
+            <div class="auth-input-wrapper">
+                <span class="material-symbols-outlined auth-input-icon">lock</span>
+
+                {{ form.password }}
+
+                <button type="button" class="auth-password-toggle">
+                    <span class="material-symbols-outlined">visibility</span>
+                </button>
+            </div>
+
+            {% for error in form.password.errors %}
+                <small class="field-error">{{ error }}</small>
+            {% endfor %}
+            <div class="auth-field-link">
+                <a href="#" class="auth-link">Esqueci minha senha</a>
+            </div>
         </div>
-    </div>
 
-    <div class="auth-remember">
-        <input type="checkbox" id="remember_me" class="auth-checkbox">
-        <label for="remember_me" class="auth-checkbox-label">Manter-me conectado</label>
-    </div>
+        <div class="auth-remember">
+            <input type="checkbox" id="remember_me" class="auth-checkbox">
+            <label for="remember_me" class="auth-checkbox-label">Manter-me conectado</label>
+        </div>
 
-    <button type="submit" class="btn-app-primary auth-submit-btn">Entrar</button>
+        <button type="submit" class="btn-app-primary auth-submit-btn">Entrar</button>
+    </div>
 </form>
 
 <div class="auth-signup">

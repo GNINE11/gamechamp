@@ -22,9 +22,10 @@
 
   <nav class="flex-grow-1 px-3">
 
-    <a href="{% url 'championship:championship-list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':13' == 'championship-' %}active{% endif %}">
-      <span class="material-symbols-outlined">emoji_events</span>
-      <span>Campeonatos</span>
+    <a href="{% url 'championship:available-championship-list' %}"
+      class="sidebar-link {% if request.resolver_match.url_name|slice:':23' == 'available-championship-' %}active{% endif %}">
+        <span class="material-symbols-outlined">home</span>
+        <span>Início</span>
     </a>
 
     <a href="{% url 'teams:teams-home' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':6' == 'teams-' and request.resolver_match.url_name != 'teams-invitations' and request.resolver_match.url_name|slice:':13' != 'teams-invite-' %}active{% endif %}">
@@ -40,11 +41,23 @@
     <a href="#" class="sidebar-link {% if request.resolver_match.url_name|slice:':8' == 'matches-' %}active{% endif %}">
       <span class="material-symbols-outlined">stadia_controller</span>
       <span>Partidas</span>
+    <a href="{% url 'championship:my-championship-list' %}"
+      class="sidebar-link {% if request.resolver_match.url_name|slice:':16' == 'my-championship-' %}active{% endif %}">
+      <span class="material-symbols-outlined">emoji_events</span>
+      <span>Meus Campeonatos</span>
     </a>
 
-    <a href="{% url 'accounts:profile' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':7' == 'profile' %}active{% endif %}">
-      <span class="material-symbols-outlined">account_circle</span>
-      <span>Perfil</span>
+    <!-- 'teams:my-team-detail' -->
+    <a href="#"
+      class="sidebar-link {% if request.resolver_match.url_name|slice:':8' == 'my-team-' %}active{% endif %}">
+      <span class="material-symbols-outlined">groups</span>
+      <span>Meu Time</span>
+    </a>
+
+    <a href="{% url 'championship:management-championship-list' %}"
+      class="sidebar-link {% if request.resolver_match.url_name|slice:':24' == 'management-championship-' %}active{% endif %}">
+      <span class="material-symbols-outlined">edit_note</span>
+      <span>Campeonatos que Gerencio</span>
     </a>
 
   </nav>

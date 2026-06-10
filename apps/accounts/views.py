@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
 
-from .forms import SignupForm, EditProfileForm
+from .forms import SignupForm, EditProfileForm, LoginForm
 
 User = get_user_model()
 
@@ -16,7 +16,7 @@ User = get_user_model()
 
 def signup_view(request):
     if request.user.is_authenticated:
-        return redirect("championship:championship-list")
+        return redirect("championship:available-championship-list")
 
     form = SignupForm(request.POST or None)
 
@@ -34,32 +34,50 @@ def signup_view(request):
 
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect("championship:championship-list")
+        return redirect("championship:available-championship-list")
 
-    error = None
+    form = LoginForm(request.POST or None)
 
-    if request.method == "POST":
-        identifier = request.POST.get("username", "").strip()
-        password   = request.POST.get("password", "")
+    if request.method == "POST" and form.is_valid():
 
-        # Aceita tanto username quanto e-mail
-        user = authenticate(request, username=identifier, password=password)
+        identifier = form.cleaned_data["username"].strip()
+        password = form.cleaned_data["password"]
+
+        user = authenticate(
+            request,
+            username=identifier,
+            password=password
+        )
+
         if user is None:
-            # Tenta via e-mail
             try:
                 u = User.objects.get(email=identifier)
-                user = authenticate(request, username=u.username, password=password)
+
+                user = authenticate(
+                    request,
+                    username=u.username,
+                    password=password
+                )
+
             except User.DoesNotExist:
                 pass
 
         if user:
             login(request, user)
-            next_url = request.GET.get("next", "championship:championship-list")
-            return redirect(next_url)
-        else:
-            error = "Usuário ou senha incorretos."
 
-    return render(request, "accounts/pages/login.html", {"error": error})
+            next_url = request.GET.get(
+                "next",
+                "championship:available-championship-list"
+            )
+
+            return redirect(next_url)
+
+        form.add_error(
+            None,
+            "Usuário ou senha incorretos."
+        )
+
+    return render(request,"accounts/pages/login.html",{"form": form})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -126,11 +144,11 @@ def profile_view(request):
 # ─────────────────────────────────────────────────────────────────────────────
 # EDIT PROFILE
 # ─────────────────────────────────────────────────────────────────────────────
-
+ 
 @login_required
 def edit_profile_view(request):
     user = request.user
-
+ 
     if request.method == "POST":
         form = EditProfileForm(
             user,
@@ -142,15 +160,16 @@ def edit_profile_view(request):
             messages.success(request, "Perfil atualizado com sucesso!")
             # Se trocou a senha, faz login novamente para não deslogar
             from django.contrib.auth import update_session_auth_hash
-            if form.cleaned_data.get("new_password"):
+            if form.cleaned_data.get("password"):
                 update_session_auth_hash(request, user)
             return redirect("accounts:profile")
     else:
         form = EditProfileForm(user, initial={
-            "full_name": user.get_full_name(),
-            "username" : user.username,
-            "email"    : user.email,
-            "bio"      : getattr(user, "bio", ""),
+            "first_name": user.first_name,
+            "last_name" : user.last_name,
+            "username"  : user.username,
+            "email"     : user.email,
+            "bio"       : getattr(user, "bio", ""),
         })
-
+ 
     return render(request, "accounts/pages/edit_profile.html", {"form": form})
