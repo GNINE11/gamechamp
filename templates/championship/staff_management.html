@@ -8,6 +8,10 @@
 {% block page_title %}Gerenciar Staff{% endblock %}
 
 {% block page_actions %}
+  <a href="{% url 'championship:management-championship-dashboard' championship.pk %}" class="btn-app-outline">
+      <span class="material-symbols-outlined">arrow_back</span>
+      Voltar
+  </a>
   {% if is_owner %}
   <button class="btn-app-primary" onclick="openAddDrawer()">
     <span class="material-symbols-outlined">person_add</span>

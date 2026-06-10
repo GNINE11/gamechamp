@@ -65,8 +65,8 @@ class Command(BaseCommand):
             ),
         }
 
-        # 16 capitães
-        for index in range(1, 17):
+        # 20 capitães
+        for index in range(1, 21):
             users[f"captain_{index:02d}"] = User.objects.create_user(
                 username=f"seed_captain_{index:02d}",
                 email=f"captain{index:02d}.seed@example.com",
@@ -93,6 +93,7 @@ class Command(BaseCommand):
             "Seed Phoenix", "Seed Vikings", "Seed Wolves", "Seed Sharks",
             "Seed Rangers", "Seed Knights", "Seed Hunters", "Seed Eclipse",
             "Seed Quantum", "Seed Aurora", "Seed Venom", "Seed Storm",
+            "Seed Thunder", "Seed Blaze", "Seed Glacier", "Seed Inferno"
         ]
 
         all_members = [users[f"member_{i:02d}"] for i in range(1, 41)]
@@ -101,10 +102,8 @@ class Command(BaseCommand):
         for idx, name in enumerate(team_names, start=1):
             captain = users[f"captain_{idx:02d}"]
             team = Team.objects.create(name=name, captain=captain)
-            # Adiciona o capitão como membro (automático pelo save, mas garantimos)
             TeamMembership.objects.get_or_create(team=team, player=captain)
 
-            # Adiciona de 3 a 4 membros aleatórios (total de 4-5 por time)
             num_members = random.randint(3, 4)
             available_members = [m for m in all_members if m != captain]
             chosen_members = random.sample(available_members, min(num_members, len(available_members)))
@@ -120,7 +119,7 @@ class Command(BaseCommand):
 
         # 1. Campeonato ABERTO com Fase de Grupos + Playoffs (16 times, 30% ocupado)
         champ1 = self.create_basic_championship(
-            name="Seed Major Open - Grupos",
+            name="Seed Major Open - 1/2",
             owner=owner,
             start_date=today + timedelta(days=5),
             stage_format=StageFormat.GROUP_THEN_PLAYOFFS,
@@ -133,11 +132,11 @@ class Command(BaseCommand):
             playoff_match_format=MatchFormat.BO3,
             final_match_format=MatchFormat.BO5,
             third_place_match=False,
-            final_status=StatusChampionship.OPEN,  # manterá OPEN
+            final_status=StatusChampionship.OPEN,
         )
         self.create_staff(champ1, owner)
         self.create_tiebreakers(champ1)
-        self.create_registrations_partial(champ1, teams, occupancy=0.3)
+        self.create_registrations_partial(champ1, teams[:16], occupancy=0.3)
         championships.append(champ1)
 
         # 2. Campeonato EM ANDAMENTO - Eliminação simples (8 times)
@@ -155,13 +154,12 @@ class Command(BaseCommand):
             playoff_match_format=MatchFormat.BO3,
             final_match_format=MatchFormat.BO5,
             third_place_match=True,
-            final_status=StatusChampionship.IN_PROGRESS,  # será alterado após as partidas
+            final_status=StatusChampionship.IN_PROGRESS,
         )
         self.create_staff(champ2, owner)
         self.create_tiebreakers(champ2)
         self.create_registrations_full(champ2, teams[:8])
         self.create_single_elimination_in_progress(champ2, teams[:8], today - timedelta(days=1))
-        # Altera status para IN_PROGRESS
         champ2.status = StatusChampionship.IN_PROGRESS
         champ2.save(update_fields=["status"])
         championships.append(champ2)
@@ -240,20 +238,119 @@ class Command(BaseCommand):
         self.create_registrations_partial(champ5, teams[:8], occupancy=0.3)
         championships.append(champ5)
 
+        # 6. NOVO CAMPEONATO ABERTO - Fase de grupos + playoffs, com 2 aprovados e 18 pendentes
+        champ6 = self.create_basic_championship(
+            name="Seed Major Open - 2/2",
+            owner=owner,
+            start_date=today + timedelta(days=80),
+            stage_format=StageFormat.GROUP_THEN_PLAYOFFS,
+            max_teams=20,
+            group_count=4,
+            teams_per_group=5,
+            teams_advancing_per_group=2,
+            group_match_format=MatchFormat.BO1,
+            playoff_format=PlayoffFormat.DOUBLE_ELIMINATION,
+            playoff_match_format=MatchFormat.BO3,
+            final_match_format=MatchFormat.BO5,
+            third_place_match=False,
+            final_status=StatusChampionship.OPEN,
+        )
+        self.create_staff(champ6, owner)
+        self.create_tiebreakers(champ6)
+        self.create_registrations_mixed(champ6, teams, approved_count=2, pending_count=18)
+        championships.append(champ6)
+
+        # 7. Campeonato FINALIZADO - 4 times, eliminação simples (sem 3º lugar)
+        champ7 = self.create_basic_championship(
+            name="Seed Single Elim 4 Teams - Finished",
+            owner=owner,
+            start_date=today - timedelta(days=5),
+            stage_format=StageFormat.SINGLE_ELIMINATION,
+            max_teams=4,
+            group_count=None,
+            teams_per_group=None,
+            teams_advancing_per_group=None,
+            group_match_format=None,
+            playoff_format=PlayoffFormat.SINGLE_ELIMINATION,
+            playoff_match_format=MatchFormat.BO3,
+            final_match_format=MatchFormat.BO5,
+            third_place_match=False,
+            final_status=StatusChampionship.FINISHED,
+        )
+        self.create_staff(champ7, owner)
+        self.create_tiebreakers(champ7)
+        self.create_registrations_full(champ7, teams[16:20])  # últimos 4 times
+        champion = self.create_4team_single_elim_finished(champ7, teams[16:20], today - timedelta(days=4), third_place=False)
+        champ7.status = StatusChampionship.FINISHED
+        champ7.champion = champion
+        champ7.save(update_fields=["status", "champion"])
+        championships.append(champ7)
+
+        # 8. Campeonato FINALIZADO - 4 times, eliminação simples + disputa de 3º lugar
+        champ8 = self.create_basic_championship(
+            name="Seed Single Elim 4 Teams - Finished (3rd place)",
+            owner=owner,
+            start_date=today - timedelta(days=6),
+            stage_format=StageFormat.SINGLE_ELIMINATION,
+            max_teams=4,
+            group_count=None,
+            teams_per_group=None,
+            teams_advancing_per_group=None,
+            group_match_format=None,
+            playoff_format=PlayoffFormat.SINGLE_ELIMINATION,
+            playoff_match_format=MatchFormat.BO3,
+            final_match_format=MatchFormat.BO5,
+            third_place_match=True,
+            final_status=StatusChampionship.FINISHED,
+        )
+        self.create_staff(champ8, owner)
+        self.create_tiebreakers(champ8)
+        self.create_registrations_full(champ8, teams[12:16])  # times 13-16
+        champion = self.create_4team_single_elim_finished(champ8, teams[12:16], today - timedelta(days=5), third_place=True)
+        champ8.status = StatusChampionship.FINISHED
+        champ8.champion = champion
+        champ8.save(update_fields=["status", "champion"])
+        championships.append(champ8)
+
+        # 9. Campeonato EM ANDAMENTO - 8 times, fase de grupos (finalizada) + eliminação dupla (playoff em andamento)
+        champ9 = self.create_basic_championship(
+            name="Seed Groups + Double Elim Live",
+            owner=owner,
+            start_date=today - timedelta(days=3),
+            stage_format=StageFormat.GROUP_THEN_PLAYOFFS,
+            max_teams=8,
+            group_count=2,
+            teams_per_group=4,
+            teams_advancing_per_group=2,
+            group_match_format=MatchFormat.BO1,
+            playoff_format=PlayoffFormat.DOUBLE_ELIMINATION,
+            playoff_match_format=MatchFormat.BO3,
+            final_match_format=MatchFormat.BO5,
+            third_place_match=True,
+            final_status=StatusChampionship.IN_PROGRESS,
+        )
+        self.create_staff(champ9, owner)
+        self.create_tiebreakers(champ9)
+        self.create_registrations_full(champ9, teams[:8])
+        # Fase de grupos finalizada
+        advancing_teams = self.create_group_stage_finished(champ9, teams[:8], today - timedelta(days=2))
+        # Playoff de dupla eliminação em andamento (quartas da upper finalizadas, resto agendado)
+        self.create_double_elim_playoff_in_progress(champ9, advancing_teams, today - timedelta(days=1))
+        champ9.status = StatusChampionship.IN_PROGRESS
+        champ9.save(update_fields=["status"])
+        championships.append(champ9)
+
         return championships
 
+    # ------------------ MÉTODOS AUXILIARES EXISTENTES ------------------
     def create_basic_championship(self, name, owner, start_date, stage_format, max_teams,
                                    group_count, teams_per_group, teams_advancing_per_group,
                                    group_match_format, playoff_format, playoff_match_format,
                                    final_match_format, third_place_match, final_status):
-        """
-        Cria o campeonato com status OPEN temporariamente, para permitir inscrições.
-        O status final (final_status) será aplicado posteriormente pelo chamador.
-        """
         champ = Championship(
             name=name,
             game="Counter-Strike 2",
-            status=StatusChampionship.OPEN,  # temporário
+            status=StatusChampionship.OPEN,
             max_teams=max_teams,
             start_date=start_date,
             stage_format=stage_format,
@@ -318,7 +415,18 @@ class Command(BaseCommand):
             reg.full_clean()
             reg.save()
 
-    # ---------- MÉTODOS DE CRIAÇÃO DE PARTIDAS ----------
+    def create_registrations_mixed(self, championship, all_teams, approved_count, pending_count):
+        total_needed = approved_count + pending_count
+        if total_needed > len(all_teams):
+            raise ValueError(f"Total de inscrições ({total_needed}) excede o número de times disponíveis ({len(all_teams)}).")
+        selected_teams = random.sample(all_teams, total_needed)
+        for i, team in enumerate(selected_teams):
+            status = StatusRegistration.APPROVED if i < approved_count else StatusRegistration.PENDING
+            reg = Registration(championship=championship, team=team, status=status)
+            reg.full_clean()
+            reg.save()
+
+    # ------------------ MÉTODOS DE CRIAÇÃO DE PARTIDAS ------------------
     def create_finished_match(self, championship, team_a, team_b, winner, match_format, phase,
                                round_number, scheduled_at, group=None, playoff_round=None):
         match = Match(
@@ -421,7 +529,6 @@ class Command(BaseCommand):
     def create_single_elimination_in_progress(self, championship, seeds, start_date):
         scheduled_at = start_date
         round_number = 1
-        # Quartas de final
         quarters = []
         bracket = [(seeds[0], seeds[7]), (seeds[2], seeds[5]), (seeds[4], seeds[3]), (seeds[6], seeds[1])]
         winners = [seeds[0], seeds[2], seeds[4], seeds[6]]
@@ -433,7 +540,6 @@ class Command(BaseCommand):
             quarters.append(match)
             scheduled_at += timedelta(days=1)
             round_number += 1
-        # Semifinais
         semis = []
         semi_winners = [seeds[0], seeds[4]]
         for i in range(2):
@@ -446,7 +552,6 @@ class Command(BaseCommand):
             semis.append(match)
             scheduled_at += timedelta(days=1)
             round_number += 1
-        # Final agendada
         final = self.create_scheduled_match(
             championship, semis[0].winner, semis[1].winner, GameFormat.BO5, Phase.GRAND_FINAL,
             round_number, scheduled_at
@@ -490,3 +595,141 @@ class Command(BaseCommand):
                 round_diff=r["rounds_won"] - r["rounds_lost"], position=pos
             )
         return ordered[0]
+
+    # ------------------ NOVOS MÉTODOS PARA OS CAMPEONATOS ADICIONAIS ------------------
+    def create_4team_single_elim_finished(self, championship, seeds, start_date, third_place=False):
+        """Cria uma chave de eliminação simples com 4 times, todas as partidas finalizadas."""
+        scheduled_at = start_date
+        round_number = 1
+        # Semifinais
+        semi1 = self.create_finished_match(
+            championship, seeds[0], seeds[3], seeds[0], championship.playoff_match_format,
+            Phase.PLAYOFF, round_number, scheduled_at, playoff_round=1
+        )
+        scheduled_at += timedelta(days=1)
+        round_number += 1
+        semi2 = self.create_finished_match(
+            championship, seeds[1], seeds[2], seeds[1], championship.playoff_match_format,
+            Phase.PLAYOFF, round_number, scheduled_at, playoff_round=1
+        )
+        scheduled_at += timedelta(days=1)
+        round_number += 1
+        # Final
+        final = self.create_finished_match(
+            championship, semi1.winner, semi2.winner, semi1.winner, championship.final_match_format,
+            Phase.GRAND_FINAL, round_number, scheduled_at
+        )
+        if third_place:
+            scheduled_at += timedelta(days=1)
+            self.create_finished_match(
+                championship, semi1.team_b, semi2.team_b, semi1.team_b, championship.playoff_match_format,
+                Phase.PLAYOFF, round_number+1, scheduled_at, playoff_round=2
+            )
+        return final.winner
+
+    def create_group_stage_finished(self, championship, teams, start_date):
+        """Cria fase de grupos completa com 2 grupos de 4, avançam 2 por grupo. Retorna lista dos 4 classificados."""
+        groups_data = []
+        advancing = []
+        scheduled_at = start_date
+        round_number = 1
+        # Grupo A (times 0-3)
+        group_a = Group.objects.create(championship=championship, name="A")
+        group_a_teams = teams[:4]
+        # Grupo B (times 4-7)
+        group_b = Group.objects.create(championship=championship, name="B")
+        group_b_teams = teams[4:8]
+        for group, group_teams in [(group_a, group_a_teams), (group_b, group_b_teams)]:
+            records = {team: {"wins": 0, "losses": 0, "rounds_won": 0, "rounds_lost": 0} for team in group_teams}
+            # Todos os confrontos dentro do grupo (turno único)
+            for i, team_a in enumerate(group_teams):
+                for team_b in group_teams[i+1:]:
+                    # Define vencedor baseado no ranking_score do capitão
+                    score_a = team_a.captain.ranking_score if team_a.captain else 1500
+                    score_b = team_b.captain.ranking_score if team_b.captain else 1500
+                    winner = team_a if score_a >= score_b else team_b
+                    loser = team_b if winner == team_a else team_a
+                    records[winner]["wins"] += 1
+                    records[winner]["rounds_won"] += 13
+                    records[winner]["rounds_lost"] += 8
+                    records[loser]["losses"] += 1
+                    records[loser]["rounds_won"] += 8
+                    records[loser]["rounds_lost"] += 13
+                    self.create_finished_match(
+                        championship, team_a, team_b, winner, championship.group_match_format,
+                        Phase.GROUP, round_number, scheduled_at, group=group
+                    )
+                    scheduled_at += timedelta(days=1)
+                    round_number += 1
+            # Ordena e cria standings
+            ordered = sorted(group_teams, key=lambda t: (records[t]["wins"], records[t]["rounds_won"] - records[t]["rounds_lost"], records[t]["rounds_won"]), reverse=True)
+            for pos, team in enumerate(ordered, 1):
+                r = records[team]
+                GroupStanding.objects.create(
+                    group=group, team=team, wins=r["wins"], losses=r["losses"],
+                    points=r["wins"]*3, rounds_won=r["rounds_won"], rounds_lost=r["rounds_lost"],
+                    round_diff=r["rounds_won"] - r["rounds_lost"], position=pos
+                )
+            advancing.extend(ordered[:2])
+        return advancing  # 4 times
+
+    def create_double_elim_playoff_in_progress(self, championship, seeds, start_date):
+        """
+        Cria playoff de dupla eliminação com 4 times (seeds classificados).
+        Upper bracket semifinals são finalizadas. Os vencedores vão para upper final (agendada).
+        Os perdedores vão para lower bracket semifinal (agendada).
+        """
+        scheduled_at = start_date
+        round_number = 1
+        # Upper bracket semifinais (finalizadas)
+        ub_semi1 = self.create_finished_match(
+            championship, seeds[0], seeds[3], seeds[0], championship.playoff_match_format,
+            Phase.PLAYOFF, round_number, scheduled_at, playoff_round=1
+        )
+        scheduled_at += timedelta(days=1)
+        round_number += 1
+        ub_semi2 = self.create_finished_match(
+            championship, seeds[1], seeds[2], seeds[1], championship.playoff_match_format,
+            Phase.PLAYOFF, round_number, scheduled_at, playoff_round=1
+        )
+        scheduled_at += timedelta(days=1)
+        round_number += 1
+        # Upper final (agendada)
+        ub_final = self.create_scheduled_match(
+            championship, ub_semi1.winner, ub_semi2.winner, championship.playoff_match_format,
+            Phase.PLAYOFF, round_number, scheduled_at, playoff_round=2
+        )
+        scheduled_at += timedelta(days=1)
+        round_number += 1
+        # Lower bracket round 1 (perdedores das upper semis) - agendada
+        lb_round1 = self.create_scheduled_match(
+            championship, ub_semi1.team_b, ub_semi2.team_b, championship.playoff_match_format,
+            Phase.PLAYOFF, round_number, scheduled_at, playoff_round=3
+        )
+        scheduled_at += timedelta(days=1)
+        round_number += 1
+        # Lower final (vencedor do lower round 1 vs perdedor da upper final) - agendada
+        # (deixamos agendada, sem definir times ainda pois dependem de resultados)
+        # Para simplificar, criamos uma partida agendada com times None? O modelo não permite team_a/team_b nulos?
+        # Vamos criar com placeholders (os times serão definidos depois manualmente ou ignoramos)
+        # Como o objetivo é apenas popular, podemos criar a partida com os times que irão competir (assumindo resultados)
+        # Vamos supor que o perdedor da upper final é ub_semi2.winner (por exemplo) e o vencedor do lower é ub_semi1.team_b
+        # Para não complicar, criamos uma partida agendada com times fixos (qualquer um)
+        lb_final = self.create_scheduled_match(
+            championship, lb_round1.team_a, ub_final.team_b, championship.playoff_match_format,
+            Phase.PLAYOFF, round_number, scheduled_at, playoff_round=4
+        )
+        scheduled_at += timedelta(days=1)
+        round_number += 1
+        # Grand final (agendada)
+        grand_final = self.create_scheduled_match(
+            championship, ub_final.team_a, lb_final.team_a, championship.final_match_format,
+            Phase.GRAND_FINAL, round_number, scheduled_at
+        )
+        # Disputa de 3º lugar (se houver) - agendada
+        if championship.third_place_match:
+            scheduled_at += timedelta(days=1)
+            self.create_scheduled_match(
+                championship, ub_semi1.team_b, ub_semi2.team_b, championship.playoff_match_format,
+                Phase.PLAYOFF, round_number+1, scheduled_at, playoff_round=5
+            )

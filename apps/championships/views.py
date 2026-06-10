@@ -4,9 +4,10 @@ from django.core.paginator import Paginator
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages                      # NOVO
-from django.core.exceptions import PermissionDenied       # NOVO
+from django.core.exceptions import PermissionDenied, ValidationError       # NOVO
 from django.db.models import Case, When, Value, IntegerField, Count, Q, OuterRef, Subquery
 from django.db.models.functions import Coalesce
+from apps.matches.models import Match, GameResult, GameStatus 
 from .models import (
     Championship,
     ChampionshipStaff,
@@ -15,8 +16,10 @@ from .models import (
     Registration,
     Team,
     RoleStaff,
-    User
+    User,
+    MatchFormat,
 )
+
 
 _MODE_CONFIG = {
     'public': {
@@ -55,9 +58,12 @@ def _compute_cta(champ, mode, reg_status):
     if mode == 'management':
         return {
             'label': 'Gerenciar', 'icon': 'settings',
-            'css': 'btn-card-results', 'url': reverse('championship:management-championship-dashboard'),
+            'css': 'btn-card-results',
+            'url': reverse('championship:management-championship-dashboard', args=[champ.pk]),
             'is_form': False, 'disabled': False,
         }
+
+         
  
     if mode == 'my':
         if reg_status == StatusRegistration.PENDING:
@@ -223,15 +229,200 @@ def structure_championship(request):
             'page_obj': page_obj,
         })
 
+_BEST_OF_WINS = {
+    'BO1': 1,
+    'BO3': 2,
+    'BO5': 3,
+}
+ 
+# Total de games possíveis em cada formato (para montar o formulário de placar)
+_BEST_OF_MAX_GAMES = {
+    'BO1': 1,
+    'BO3': 3,
+    'BO5': 5,
+}
+ 
+ 
+def _build_match_card(match):
+    """Anexa dados auxiliares (placar agregado, lista de games) ao objeto Match."""
+    games = list(match.gameresult_set.all())  # já vem prefetched e ordenado
+    score_a = sum(1 for g in games if g.winner_id == match.team_a_id)
+    score_b = sum(1 for g in games if g.winner_id == match.team_b_id)
+ 
+    by_number = {g.game_number: g for g in games}
+    max_games = _BEST_OF_MAX_GAMES.get(match.match_format, 1)
+ 
+    match.games = games
+    match.score_a = score_a
+    match.score_b = score_b
+    match.max_games = max_games
+    match.game_rows = [
+        by_number.get(n) or type('EmptyGame', (), {
+            'game_number': n, 'score_a': '', 'score_b': '', 'map_name': '',
+        })()
+        for n in range(1, max_games + 1)
+    ]
+    match.is_live = match.status == GameStatus.ONGOING
+    match.is_finished = match.status == GameStatus.FINISHED
+    match.is_scheduled = match.status == GameStatus.SCHEDULED
+    return match
+ 
+ 
 @login_required
-def manager_championship(request):
-    qs = Championship.objects.all()
-    paginator = Paginator(qs, per_page=10)
-    page_obj  = paginator.get_page(request.GET.get('page', 1))
+def manager_championship(request, championship_id):
+    championship = get_object_or_404(
+        Championship.objects.annotate(
+            approved_count=Count(
+                'registrations',
+                filter=Q(registrations__status=StatusRegistration.APPROVED),
+            ),
+        ),
+        pk=championship_id,
+    )
+ 
+    # Apenas staff do campeonato pode acessar
+    is_staff_member = ChampionshipStaff.objects.filter(
+        championship=championship,
+        user=request.user,
+    ).exists()
+ 
+    if not is_staff_member:
+        raise PermissionDenied("Você não faz parte da staff deste campeonato.")
+ 
+    # ── POST: ações de gestão ───────────────────────────────────────────
+    if request.method == 'POST':
+        action = request.POST.get('action')
+ 
+        # Aprovar / rejeitar inscrição
+        if action in ('approve_registration', 'reject_registration'):
+            reg = get_object_or_404(
+                Registration,
+                pk=request.POST.get('registration_id'),
+                championship=championship,
+            )
+            new_status = (
+                StatusRegistration.APPROVED if action == 'approve_registration'
+                else StatusRegistration.REJECTED
+            )
+            try:
+                reg.status = new_status
+                reg.full_clean()
+                reg.save()
+                messages.success(request, f'Inscrição de "{reg.team}" atualizada.')
+            except ValidationError as e:
+                messages.error(request, " ".join(sum(e.message_dict.values(), [])))
+ 
+        # Alterar status de uma partida (forçar início / encerrar)
+        elif action == 'set_match_status':
+            match = get_object_or_404(
+                Match, pk=request.POST.get('match_id'), championship=championship,
+            )
+            new_status = request.POST.get('new_status')
+            if new_status in GameStatus.values:
+                match.status = new_status
+                match.save(update_fields=['status'])
+                messages.success(request, f"Status da partida #{match.pk} atualizado.")
+ 
+        # Atualizar placar (games) de uma partida
+        elif action == 'update_match_scores':
+            match = get_object_or_404(
+                Match, pk=request.POST.get('match_id'), championship=championship,
+            )
+ 
+            game_numbers = request.POST.getlist('game_number')
+            scores_a = request.POST.getlist('score_a')
+            scores_b = request.POST.getlist('score_b')
+            maps = request.POST.getlist('map_name')
+ 
+            # Recria os GameResults a partir do formulário
+            GameResult.objects.filter(match_id=match).delete()
+ 
+            wins_a, wins_b = 0, 0
+            for num, sa, sb, map_name in zip(game_numbers, scores_a, scores_b, maps):
+                sa, sb = int(sa or 0), int(sb or 0)
+                if sa == sb:
+                    continue  # ignora games empatados/incompletos
+ 
+                winner = match.team_a if sa > sb else match.team_b
+                if winner_id := getattr(winner, 'pk', None):
+                    GameResult.objects.create(
+                        match_id=match,
+                        winner=winner,
+                        game_number=int(num),
+                        score_a=sa,
+                        score_b=sb,
+                        map_name=map_name,
+                    )
+                    if winner_id == match.team_a_id:
+                        wins_a += 1
+                    else:
+                        wins_b += 1
+ 
+            needed = _BEST_OF_WINS.get(match.match_format, 1)
+            if wins_a >= needed or wins_b >= needed:
+                match.winner = match.team_a if wins_a > wins_b else match.team_b
+                match.status = GameStatus.FINISHED
+            elif wins_a or wins_b:
+                match.status = GameStatus.ONGOING
+            match.save()
+ 
+            messages.success(request, f"Placar da partida #{match.pk} atualizado.")
+ 
+        return redirect('championship:management-championship-dashboard', championship_id=championship.pk)
+ 
+    # ── GET: monta o dashboard ──────────────────────────────────────────
+ 
+    pending_registrations = (
+        Registration.objects
+        .filter(championship=championship, status=StatusRegistration.PENDING)
+        .select_related('team')
+        .order_by('registered_at')[:10]
+    )
 
+    pending_registrations_count = Registration.objects.filter(
+        championship=championship,
+        status=StatusRegistration.PENDING
+    ).count()
+ 
+    matches_qs = (
+        Match.objects
+        .filter(championship=championship)
+        .select_related('team_a', 'team_b', 'winner')
+        .prefetch_related('gameresult_set')
+    )
+ 
+    live_matches = [_build_match_card(m) for m in matches_qs.filter(status=GameStatus.ONGOING)]
+    upcoming_matches = [_build_match_card(m) for m in matches_qs.filter(status=GameStatus.SCHEDULED).order_by('scheduled_at')[:6]]
+    finished_matches = [_build_match_card(m) for m in matches_qs.filter(status=GameStatus.FINISHED).order_by('-scheduled_at')[:6]]
+ 
+    total_matches = matches_qs.count()
+    finished_count = matches_qs.filter(status=GameStatus.FINISHED).count()
+    live_count = len(live_matches)
+    next_match = matches_qs.filter(status=GameStatus.SCHEDULED).order_by('scheduled_at').first()
+ 
+    staff_members = (
+        ChampionshipStaff.objects
+        .filter(championship=championship)
+        .select_related('user')
+        .order_by('-role', 'added_at')
+    )
+ 
     return render(request, 'championship/manager.html', {
-            'page_obj': page_obj,
-        })
+        'championship': championship,
+        'pending_registrations': pending_registrations,
+        'pending_registrations_count': pending_registrations_count,
+        'live_matches': live_matches,
+        'upcoming_matches': upcoming_matches,
+        'finished_matches': finished_matches,
+        'total_matches': total_matches,
+        'finished_count': finished_count,
+        'live_count': live_count,
+        'next_match': next_match,
+        'staff_members': staff_members,
+        'best_of_choices': MatchFormat.choices,
+        'game_status_choices': GameStatus.choices,
+    })
+ 
 
 @login_required
 def staff_management(request, championship_id):
