@@ -6,7 +6,7 @@ Suporta: SINGLE_ELIMINATION, DOUBLE_ELIMINATION, GROUP_THEN_PLAYOFFS, ROUND_ROBI
 """
 from collections import defaultdict
 from .models import Match, GameResult, Phase, GameStatus
-from apps.championships.models import StageFormat
+from apps.championships.models import PlayoffFormat, StageFormat
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -75,16 +75,18 @@ def get_bracket_rounds(championship):
         'connector_pairs': [int],     # range para o template iterar e desenhar SVG
     }
     """
-    playoff_matches = (
+    playoff_matches = list(
         Match.objects
         .filter(championship=championship, phase__in=[Phase.PLAYOFF, Phase.GRAND_FINAL])
         .select_related('team_a', 'team_b', 'winner')
         .order_by('playoff_round', 'round_number')
     )
 
+    max_round = max([m.playoff_round or 0 for m in playoff_matches] or [0])
     rounds_map = defaultdict(list)
     for m in playoff_matches:
-        rounds_map[m.playoff_round].append(m)
+        key = max_round + 1 if m.phase == Phase.GRAND_FINAL else m.playoff_round
+        rounds_map[key].append(m)
 
     if not rounds_map:
         return []
@@ -186,7 +188,13 @@ def get_structure_context(championship):
         StageFormat.DOUBLE_ELIMINATION,
         StageFormat.GROUP_THEN_PLAYOFFS,
     )
-    is_double_elim = fmt == StageFormat.DOUBLE_ELIMINATION
+    is_double_elim = (
+        fmt == StageFormat.DOUBLE_ELIMINATION
+        or (
+            fmt == StageFormat.GROUP_THEN_PLAYOFFS
+            and championship.playoff_format == PlayoffFormat.DOUBLE_ELIMINATION
+        )
+    )
 
     ctx = {
         'championship':  championship,

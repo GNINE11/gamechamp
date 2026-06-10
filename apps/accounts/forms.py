@@ -176,32 +176,18 @@ class LoginForm(forms.Form):
         }
     )
 
-class EditProfileForm(SignupForm):
-    """
-    Herda todos os campos de SignupForm e:
-      - Torna password/confirm_password opcionais
-      - Adiciona bio e current_password
-      - Sobrescreve clean_username/clean_email para excluir o próprio usuário
-    """
- 
-    def __init__(self, user, *args, **kwargs):
-        self.user = user
-        super().__init__(*args, **kwargs)
-
-        self.fields["username"].required = False
-        self.fields["username"].min_length = None  # ← adicionar isso
-        self.fields["email"].required = False
-        self.fields["password"].required = False
-        self.fields["confirm_password"].required = False
-        self.fields["password"].label = "Nova Senha"
-        self.fields["confirm_password"].label = "Confirmar nova senha"
-
-        add_placeholder(self.fields["bio"], "Fale um pouco sobre você...")
-        add_placeholder(self.fields["current_password"], "Digite sua senha atual")
-        add_placeholder(self.fields["password"], "")
-        add_placeholder(self.fields["confirm_password"], "")
-    
-    #campos adicionais
+class EditProfileForm(forms.ModelForm):
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={"class": "auth-input"}),
+        required=False,
+        label="Nova Senha",
+        validators=[strong_password],
+    )
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={"class": "auth-input"}),
+        required=False,
+        label="Confirmar nova senha",
+    )
     bio = forms.CharField(
         widget=forms.Textarea(attrs={
             "class": "auth-input",
@@ -219,28 +205,57 @@ class EditProfileForm(SignupForm):
         label="Senha atual",
     )
 
+    class Meta:
+        model = User
+        fields = [
+            "first_name",
+            "last_name",
+            "username",
+            "email",
+            "bio",
+        ]
+        widgets = {
+            "first_name": forms.TextInput(attrs={"class": "auth-input"}),
+            "last_name": forms.TextInput(attrs={"class": "auth-input"}),
+            "username": forms.TextInput(attrs={"class": "auth-input"}),
+            "email": forms.TextInput(attrs={"class": "auth-input"}),
+        }
+
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        kwargs.setdefault("instance", user)
+        super().__init__(*args, **kwargs)
+
+        add_placeholder(self.fields["first_name"], "Digite seu primeiro nome")
+        add_placeholder(self.fields["last_name"], "Digite seu último nome")
+        add_placeholder(self.fields["username"], "Digite um nome de usuário")
+        add_placeholder(self.fields["email"], "email@exemplo.com")
+        add_placeholder(self.fields["bio"], "Fale um pouco sobre você...")
+        add_placeholder(self.fields["current_password"], "Digite sua senha atual")
 
     # ── Validações de unicidade excluindo o próprio usuário ─────────────────
  
     def clean_username(self):
-        username = self.cleaned_data.get("username")
+        username = (self.cleaned_data.get("username") or "").strip()
 
-        # Se veio vazio ou é o mesmo do usuário atual, deixa intacto
-        if not username or username == self.user.username:
+        if not username:
+            raise ValidationError("Insira um nome de usuário.")
+
+        if username == self.user.username:
             return self.user.username
 
-        if User.objects.filter(username=username).exists():
+        if User.objects.filter(username=username).exclude(pk=self.user.pk).exists():
             raise ValidationError("Este nome de usuário já está em uso.")
 
         return username
  
     def clean_email(self):
-        email = self.cleaned_data.get("email")
+        email = (self.cleaned_data.get("email") or "").strip()
 
         if not email or email == self.user.email:
             return self.user.email
 
-        if User.objects.filter(email=email).exists():
+        if User.objects.filter(email=email).exclude(pk=self.user.pk).exists():
             raise ValidationError("Este e-mail já está em uso.")
 
         return email
@@ -251,13 +266,29 @@ class EditProfileForm(SignupForm):
         new_p   = cleaned.get("password")
         confirm = cleaned.get("confirm_password")
  
-        # Só valida senha se o usuário preencheu algum campo de senha
         if current or new_p or confirm:
-            if not self.user.check_password(current):
+            if not new_p:
+                self.add_error("password", "Informe a nova senha.")
+            if new_p and new_p != confirm:
+                self.add_error("confirm_password", "As senhas não coincidem.")
+            if not current or not self.user.check_password(current):
                 self.add_error("current_password", "Senha atual incorreta.")
-            # super().clean() já verifica se new_p == confirm e aplica strong_password
+            if new_p:
+                try:
+                    validate_password(new_p, self.user)
+                except ValidationError as e:
+                    self.add_error("password", e)
  
         return cleaned
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        password = self.cleaned_data.get("password")
+        if password:
+            user.set_password(password)
+        if commit:
+            user.save()
+        return user
  
     def save(self, commit=True):
         user = self.user

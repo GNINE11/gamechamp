@@ -387,6 +387,9 @@
         background: transparent;
         border: 1px solid rgba(255, 255, 255, .1);
         color: var(--color-on-surface-variant);
+    }
+
+    .btn-card-waitlist[aria-disabled="true"] {
         cursor: not-allowed;
         filter: grayscale(1);
     }
@@ -399,6 +402,18 @@
 
     .btn-card-results:hover {
         background: rgba(255, 255, 255, .09);
+    }
+
+    .card-team-select {
+        width: 100%;
+        min-height: 38px;
+        margin-bottom: 0.6rem;
+        background: var(--color-surface-container-lowest);
+        border: 1px solid rgba(255, 255, 255, .1);
+        border-radius: 0.5rem;
+        color: var(--color-on-surface);
+        padding: 0.55rem 0.65rem;
+        font-size: 0.82rem;
     }
 
     /* ── Finished dim ───────────────────────────────────────────────────── */
@@ -905,9 +920,13 @@
             <span class="card-badge badge-open">
                 Inscrições Abertas
             </span>
-            {% else %}
+            {% elif champ.status == 'FINISHED' %}
             <span class="card-badge badge-finished">
                 Finalizado
+            </span>
+            {% else %}
+            <span class="card-badge badge-finished">
+                Rascunho
             </span>
             {% endif %}
 
@@ -983,7 +1002,7 @@
                     </span>
                 </div>
 
-                {% else %}{# FINISHED #}
+                {% elif champ.status == 'FINISHED' %}
                 <div class="card-info-row">
                     <span class="row-label">
                         <span class="material-symbols-outlined">emoji_events</span>
@@ -998,6 +1017,16 @@
                         {% endif %}
                     </span>
                 </div>
+                {% else %}
+                <div class="card-info-row">
+                    <span class="row-label">
+                        <span class="material-symbols-outlined">edit_note</span>
+                        Status
+                    </span>
+                    <span class="row-value color-muted">
+                        {{ champ.get_status_display }}
+                    </span>
+                </div>
                 {% endif %}
 
             </div>{# /card-info-rows #}
@@ -1007,6 +1036,16 @@
             {% if cta.is_form %}
             <form method="post" action="{{ cta.url }}">
                 {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                {% if cta.team_options|length > 1 %}
+                <select name="team_id" class="card-team-select" aria-label="Escolha a equipe">
+                    {% for team in cta.team_options %}
+                    <option value="{{ team.pk }}">{{ team.name }}</option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <input type="hidden" name="team_id" value="{{ cta.team_id }}">
+                {% endif %}
                 <button type="submit" class="btn-card {{ cta.css }}">
                     {{ cta.label }}
                     <span class="material-symbols-outlined">{{ cta.icon }}</span>
@@ -1077,7 +1116,7 @@
 
 <!-- ── FAB ───────────────────────────────────────────────────────────────── -->
 {% if show_fab %}
-<a href="#" class="fab" title="Criar Campeonato">
+<a href="{% url 'championship:management-championship-create' %}" class="fab" title="Criar Campeonato">
     <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">add</span>
     <span class="fab-tooltip">Criar Campeonato</span>
 </a>

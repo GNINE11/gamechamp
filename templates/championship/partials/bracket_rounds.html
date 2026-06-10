@@ -1,0 +1,22 @@
+{% if rounds %}
+<div class="bracket-scroll">
+    <div class="bracket-board" style="padding:1rem;">
+        {% for round in rounds %}
+        <div class="bracket-round">
+            <div class="round-header">{{ round.label }}</div>
+            <div class="round-matches">
+                {% for match in round.matches %}
+                    {% include "championship/partials/match_card.html" with match=match %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="empty-structure">
+    <span class="material-symbols-outlined">account_tree</span>
+    Nenhuma partida de chaveamento foi gerada.
+</div>
+{% endif %}
+

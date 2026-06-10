@@ -22,6 +22,7 @@ from apps.championships.models import (
 )
 from apps.matches.models import GameFormat, GameResult, GameStatus, Group, GroupStanding, Match, Phase
 from apps.teams.models import Team, TeamMembership
+from apps.championships.services import ensure_championship_structure
 
 
 class Command(BaseCommand):
@@ -340,6 +341,10 @@ class Command(BaseCommand):
         champ9.save(update_fields=["status"])
         championships.append(champ9)
 
+        for championship in championships:
+            if championship.status in (StatusChampionship.IN_PROGRESS, StatusChampionship.FINISHED):
+                ensure_championship_structure(championship)
+
         return championships
 
     # ------------------ MÉTODOS AUXILIARES EXISTENTES ------------------
@@ -500,20 +505,20 @@ class Command(BaseCommand):
             playoff_match(seeds[6], seeds[1], seeds[6], 1),
         ]
         lower_round_one = [
-            playoff_match(upper_quarters[0].team_b, upper_quarters[1].team_b, upper_quarters[0].team_b, 2),
-            playoff_match(upper_quarters[2].team_b, upper_quarters[3].team_b, upper_quarters[3].team_b, 2),
+            playoff_match(upper_quarters[0].team_b, upper_quarters[1].team_b, upper_quarters[0].team_b, -1),
+            playoff_match(upper_quarters[2].team_b, upper_quarters[3].team_b, upper_quarters[3].team_b, -1),
         ]
         upper_semis = [
-            playoff_match(upper_quarters[0].winner, upper_quarters[1].winner, upper_quarters[0].winner, 3),
-            playoff_match(upper_quarters[2].winner, upper_quarters[3].winner, upper_quarters[2].winner, 3),
+            playoff_match(upper_quarters[0].winner, upper_quarters[1].winner, upper_quarters[0].winner, 2),
+            playoff_match(upper_quarters[2].winner, upper_quarters[3].winner, upper_quarters[2].winner, 2),
         ]
         lower_round_two = [
-            playoff_match(lower_round_one[0].winner, upper_semis[1].team_b, upper_semis[1].team_b, 4),
-            playoff_match(lower_round_one[1].winner, upper_semis[0].team_b, upper_semis[0].team_b, 4),
+            playoff_match(lower_round_one[0].winner, upper_semis[1].team_b, upper_semis[1].team_b, -2),
+            playoff_match(lower_round_one[1].winner, upper_semis[0].team_b, upper_semis[0].team_b, -2),
         ]
-        lower_semifinal = playoff_match(lower_round_two[0].winner, lower_round_two[1].winner, lower_round_two[1].winner, 5)
-        upper_final = playoff_match(upper_semis[0].winner, upper_semis[1].winner, upper_semis[0].winner, 5)
-        lower_final = playoff_match(lower_semifinal.winner, upper_final.team_b, upper_final.team_b, 6)
+        lower_semifinal = playoff_match(lower_round_two[0].winner, lower_round_two[1].winner, lower_round_two[1].winner, -3)
+        upper_final = playoff_match(upper_semis[0].winner, upper_semis[1].winner, upper_semis[0].winner, 3)
+        lower_final = playoff_match(lower_semifinal.winner, upper_final.team_b, upper_final.team_b, -4)
         grand_final = self.create_finished_match(
             championship=championship,
             team_a=upper_final.winner,
@@ -704,7 +709,7 @@ class Command(BaseCommand):
         # Lower bracket round 1 (perdedores das upper semis) - agendada
         lb_round1 = self.create_scheduled_match(
             championship, ub_semi1.team_b, ub_semi2.team_b, championship.playoff_match_format,
-            Phase.PLAYOFF, round_number, scheduled_at, playoff_round=3
+            Phase.PLAYOFF, round_number, scheduled_at, playoff_round=-1
         )
         scheduled_at += timedelta(days=1)
         round_number += 1
@@ -717,7 +722,7 @@ class Command(BaseCommand):
         # Para não complicar, criamos uma partida agendada com times fixos (qualquer um)
         lb_final = self.create_scheduled_match(
             championship, lb_round1.team_a, ub_final.team_b, championship.playoff_match_format,
-            Phase.PLAYOFF, round_number, scheduled_at, playoff_round=4
+            Phase.PLAYOFF, round_number, scheduled_at, playoff_round=-2
         )
         scheduled_at += timedelta(days=1)
         round_number += 1
@@ -731,5 +736,5 @@ class Command(BaseCommand):
             scheduled_at += timedelta(days=1)
             self.create_scheduled_match(
                 championship, ub_semi1.team_b, ub_semi2.team_b, championship.playoff_match_format,
-                Phase.PLAYOFF, round_number+1, scheduled_at, playoff_round=5
+                Phase.PLAYOFF, round_number+1, scheduled_at, playoff_round=-3
             )

@@ -11,10 +11,12 @@
     <span class="material-symbols-outlined">arrow_back</span>
     Voltar
 </a>
-<a href="#" class="btn-app-primary">
+{% if is_owner %}
+<a href="{% url 'championship:management-championship-edit' championship.pk %}" class="btn-app-primary">
     <span class="material-symbols-outlined">add</span>
     Editar Campeonato
 </a>
+{% endif %}
 {% endblock %}
 
 {% block extra_css %}

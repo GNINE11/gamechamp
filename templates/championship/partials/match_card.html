@@ -1,0 +1,39 @@
+<div class="match-card">
+    <div class="match-row {% if match.winner and match.team_a and match.winner.pk == match.team_a.pk %}winner{% endif %}">
+        <div class="match-team">
+            {% if match.team_a %}
+                {% if match.team_a.logo %}
+                <img src="{{ match.team_a.logo.url }}" alt="" class="team-logo">
+                {% else %}
+                <span class="team-fallback">{{ match.team_a.name|slice:":2"|upper }}</span>
+                {% endif %}
+                <span class="team-name">{{ match.team_a.name }}</span>
+            {% else %}
+                <span class="team-fallback">?</span>
+                <span class="team-name">A definir</span>
+            {% endif %}
+        </div>
+        <span class="match-score">{{ match.score_a }}</span>
+    </div>
+    <div class="match-row {% if match.winner and match.team_b and match.winner.pk == match.team_b.pk %}winner{% endif %}">
+        <div class="match-team">
+            {% if match.team_b %}
+                {% if match.team_b.logo %}
+                <img src="{{ match.team_b.logo.url }}" alt="" class="team-logo">
+                {% else %}
+                <span class="team-fallback">{{ match.team_b.name|slice:":2"|upper }}</span>
+                {% endif %}
+                <span class="team-name">{{ match.team_b.name }}</span>
+            {% else %}
+                <span class="team-fallback">?</span>
+                <span class="team-name">A definir</span>
+            {% endif %}
+        </div>
+        <span class="match-score">{{ match.score_b }}</span>
+    </div>
+    <div class="match-meta">
+        <span>#{{ match.id }}</span>
+        <span>{% if match.scheduled_at %}{{ match.scheduled_at|date:"d/m/Y" }}{% else %}Sem data{% endif %}</span>
+    </div>
+</div>
+

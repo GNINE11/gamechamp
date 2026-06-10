@@ -1,13 +1,17 @@
+from collections import defaultdict
+
 from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse
 from django.core.paginator import Paginator
-from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages                      # NOVO
 from django.core.exceptions import PermissionDenied, ValidationError       # NOVO
 from django.db.models import Case, When, Value, IntegerField, Count, Q, OuterRef, Subquery
 from django.db.models.functions import Coalesce
+from django.views.decorators.http import require_POST
+from apps.matches.bracket import get_structure_context
 from apps.matches.models import Match, GameResult, GameStatus 
+from .forms import ChampionshipForm
 from .models import (
     Championship,
     ChampionshipStaff,
@@ -16,9 +20,11 @@ from .models import (
     Registration,
     Team,
     RoleStaff,
+    StageFormat,
     User,
     MatchFormat,
 )
+from .services import ensure_championship_structure
 
 
 _MODE_CONFIG = {
@@ -48,12 +54,21 @@ _PH_CLASS = {
  
 # ── Lógica do CTA ─────────────────────────────────────────────────────────────
  
-def _compute_cta(champ, mode, reg_status):
+def _compute_cta(champ, mode, user_context=None):
     """
     Retorna um dict descrevendo o botão de ação do card, ou None se não houver ação.
     Toda a lógica fica aqui — o template só renderiza o que recebe.
     """
     s = champ.status
+    user_context = user_context or {}
+    registrations = user_context.get('registrations', [])
+    captained_teams = user_context.get('captained_teams', [])
+    active_registrations = [
+        registration for registration in registrations
+        if registration.status in (StatusRegistration.PENDING, StatusRegistration.APPROVED)
+    ]
+    registered_team_ids = {registration.team_id for registration in registrations}
+    available_teams = [team for team in captained_teams if team.pk not in registered_team_ids]
  
     if mode == 'management':
         return {
@@ -66,22 +81,26 @@ def _compute_cta(champ, mode, reg_status):
          
  
     if mode == 'my':
-        if reg_status == StatusRegistration.PENDING:
+        if s == StatusChampionship.OPEN and active_registrations:
             return {
                 'label': 'Cancelar Inscrição', 'icon': 'cancel',
-                'css': 'btn-card-waitlist', 'url': '#',   # TODO: url 'cancel_registration'
-                'is_form': True, 'disabled': False,
+                'css': 'btn-card-waitlist',
+                'url': reverse('championship:championship-cancel-registration', args=[champ.pk]),
+                'is_form': True,
+                'disabled': False,
+                'team_options': [registration.team for registration in active_registrations],
+                'team_id': active_registrations[0].team_id,
             }
         if s == StatusChampionship.IN_PROGRESS:
             return {
                 'label': 'Ver Chaveamento', 'icon': 'chevron_right',
-                'css': 'btn-card-live', 'url': reverse('championship:my-championship-structure'),        # TODO: url 'bracket'
+                'css': 'btn-card-live', 'url': reverse('championship:championship-structure', args=[champ.pk]),
                 'is_form': False, 'disabled': False,
             }
         if s == StatusChampionship.FINISHED:
             return {
                 'label': 'Ver Resultados', 'icon': 'history',
-                'css': 'btn-card-results', 'url': reverse('championship:my-championship-structure'),     # TODO: url 'bracket'
+                'css': 'btn-card-results', 'url': reverse('championship:championship-structure', args=[champ.pk]),
                 'is_form': False, 'disabled': False,
             }
         return None
@@ -90,32 +109,48 @@ def _compute_cta(champ, mode, reg_status):
     if s == StatusChampionship.IN_PROGRESS:
         return {
             'label': 'Ver Chaveamento ao Vivo', 'icon': 'chevron_right',
-            'css': 'btn-card-live', 'url': reverse('championship:available-championship-structure'),            # TODO: url 'bracket'
+            'css': 'btn-card-live', 'url': reverse('championship:championship-structure', args=[champ.pk]),
             'is_form': False, 'disabled': False,
         }
     if s == StatusChampionship.FINISHED:
         return {
             'label': 'Ver Resultados', 'icon': 'history',
-            'css': 'btn-card-results', 'url': reverse('championship:available-championship-structure'),         # TODO: url 'bracket'
+            'css': 'btn-card-results', 'url': reverse('championship:championship-structure', args=[champ.pk]),
             'is_form': False, 'disabled': False,
         }
     if s == StatusChampionship.OPEN:
-        if reg_status in (StatusRegistration.APPROVED, StatusRegistration.PENDING):
+        if active_registrations:
             return {
                 'label': 'Cancelar Inscrição', 'icon': 'cancel',
-                'css': 'btn-card-waitlist', 'url': '#',    # TODO: url 'cancel_registration'
-                'is_form': True, 'disabled': False,
+                'css': 'btn-card-waitlist',
+                'url': reverse('championship:championship-cancel-registration', args=[champ.pk]),
+                'is_form': True,
+                'disabled': False,
+                'team_options': [registration.team for registration in active_registrations],
+                'team_id': active_registrations[0].team_id,
             }
-        if champ.approved_count >= champ.max_teams:
+        if not captained_teams:
             return {
-                'label': 'Lista de Espera', 'icon': 'hourglass_empty',
+                'label': 'Crie uma Equipe', 'icon': 'groups',
                 'css': 'btn-card-waitlist', 'url': None,
                 'is_form': False, 'disabled': True,
             }
+        if not available_teams:
+            return {
+                'label': 'Inscrição indisponível', 'icon': 'block',
+                'css': 'btn-card-waitlist', 'url': None,
+                'is_form': False, 'disabled': True,
+            }
+        is_waitlist = champ.approved_count >= champ.max_teams
         return {
-            'label': 'Inscrever Time', 'icon': 'add_circle',
-            'css': 'btn-card-register', 'url': '#',        # TODO: url 'register_championship'
-            'is_form': False, 'disabled': False,
+            'label': 'Entrar na Lista' if is_waitlist else 'Inscrever Time',
+            'icon': 'hourglass_empty' if is_waitlist else 'add_circle',
+            'css': 'btn-card-register',
+            'url': reverse('championship:championship-register', args=[champ.pk]),
+            'is_form': True,
+            'disabled': False,
+            'team_options': available_teams,
+            'team_id': available_teams[0].pk,
         }
  
     return None
@@ -171,26 +206,35 @@ def build_championship_qs(*, user=None, mode='public'):
     ).order_by('status_order', 'start_date', '-created_at',)
  
  
-def _get_reg_status_map(championships, user):
-    """Uma única query: championship_id → status da inscrição do usuário."""
+def _get_user_registration_context(championships, user):
     ids = [c.pk for c in championships]
-    rows = (
+    captained_teams = list(Team.objects.filter(captain=user).order_by('name'))
+    registrations_by_championship = defaultdict(list)
+    registrations = (
         Registration.objects
         .filter(
             championship_id__in=ids,
-            team__in=Team.objects.filter(Q(members=user) | Q(captain=user)),
+            team__in=captained_teams,
         )
-        .values('championship_id', 'status')
+        .select_related('team')
+        .order_by('registered_at', 'pk')
     )
-    return {r['championship_id']: r['status'] for r in rows}
+    for registration in registrations:
+        registrations_by_championship[registration.championship_id].append(registration)
+    return captained_teams, registrations_by_championship
  
  
 def _attach_card_data(page_obj, mode, user=None):
     """Adiciona ph_class e cta em cada championship do page_obj."""
-    reg_map = _get_reg_status_map(page_obj.object_list, user) if user else {}
+    captained_teams, registrations_by_championship = (
+        _get_user_registration_context(page_obj.object_list, user) if user else ([], {})
+    )
     for champ in page_obj.object_list:
         champ.ph_class = _PH_CLASS.get(champ.status, 'card-ph-finished')
-        champ.cta = _compute_cta(champ, mode, reg_map.get(champ.pk))
+        champ.cta = _compute_cta(champ, mode, {
+            'captained_teams': captained_teams,
+            'registrations': registrations_by_championship.get(champ.pk, []),
+        })
  
  
 # ── Views ─────────────────────────────────────────────────────────────────────
@@ -215,19 +259,169 @@ def list_my_championships(request):
 def list_management_championships(request):
     mode = 'management'
     page_obj = Paginator(build_championship_qs(user=request.user, mode=mode), 9).get_page(request.GET.get('page', 1))
-    _attach_card_data(page_obj, mode)   # management não precisa de reg_map
+    _attach_card_data(page_obj, mode, user=request.user)
     return render(request, 'championship/list.html', {'page_obj': page_obj, 'mode': mode, **_MODE_CONFIG[mode]})
  
 
 @login_required
-def structure_championship(request):
-    qs = Championship.objects.all()
-    paginator = Paginator(qs, per_page=10)
-    page_obj  = paginator.get_page(request.GET.get('page', 1))
-
-    return render(request, 'championship/structure.html', {
-            'page_obj': page_obj,
+def create_championship(request):
+    if request.method == 'POST':
+        form = ChampionshipForm(request.POST, is_create=True)
+        if form.is_valid():
+            championship = form.save(commit=False)
+            championship.created_by = request.user
+            championship.status = StatusChampionship.DRAFT
+            championship.full_clean()
+            championship.save()
+            ChampionshipStaff.objects.create(
+                championship=championship,
+                user=request.user,
+                role=RoleStaff.OWNER,
+            )
+            messages.success(request, "Campeonato criado como rascunho.")
+            return redirect('championship:management-championship-dashboard', championship_id=championship.pk)
+    else:
+        form = ChampionshipForm(is_create=True, initial={
+            'stage_format': StageFormat.SINGLE_ELIMINATION,
+            'max_teams': 8,
+            'playoff_format': 'SINGLE_ELIMINATION',
+            'playoff_match_format': MatchFormat.BO1,
+            'final_match_format': MatchFormat.BO3,
         })
+
+    return render(request, 'championship/form.html', {
+        'form': form,
+        'form_mode': 'create',
+        'page_label': 'Gestão',
+        'page_title': 'Cadastrar Campeonato',
+    })
+
+
+def _require_owner(championship, user):
+    is_owner = ChampionshipStaff.objects.filter(
+        championship=championship,
+        user=user,
+        role=RoleStaff.OWNER,
+    ).exists()
+    if not is_owner:
+        raise PermissionDenied("Apenas o dono pode editar este campeonato.")
+
+
+@login_required
+def edit_championship(request, championship_id):
+    championship = get_object_or_404(Championship, pk=championship_id)
+    _require_owner(championship, request.user)
+    old_status = championship.status
+
+    if request.method == 'POST':
+        form = ChampionshipForm(request.POST, instance=championship)
+        if form.is_valid():
+            championship = form.save()
+            if championship.status in (StatusChampionship.IN_PROGRESS, StatusChampionship.FINISHED):
+                result = ensure_championship_structure(championship)
+                if old_status != championship.status or result['created']:
+                    messages.success(
+                        request,
+                        f"Campeonato atualizado. Estrutura pronta com {result['created']} partida(s) nova(s).",
+                    )
+                else:
+                    messages.success(request, "Campeonato atualizado.")
+            else:
+                messages.success(request, "Campeonato atualizado.")
+            return redirect('championship:management-championship-dashboard', championship_id=championship.pk)
+    else:
+        form = ChampionshipForm(instance=championship)
+
+    return render(request, 'championship/form.html', {
+        'form': form,
+        'form_mode': 'edit',
+        'championship': championship,
+        'page_label': 'Gestão',
+        'page_title': f'Editar {championship.name}',
+    })
+
+
+@login_required
+def structure_championship(request, championship_id):
+    championship = get_object_or_404(Championship, pk=championship_id)
+    if championship.status not in (StatusChampionship.IN_PROGRESS, StatusChampionship.FINISHED):
+        raise PermissionDenied("O chaveamento so pode ser visualizado com o campeonato em andamento ou finalizado.")
+
+    context = get_structure_context(championship)
+    context.update({
+        'page_label': championship.game,
+        'page_title': championship.name,
+    })
+    return render(request, 'championship/structure.html', context)
+
+
+def _redirect_back(request):
+    return redirect(request.POST.get('next') or request.META.get('HTTP_REFERER') or 'championship:available-championship-list')
+
+
+@login_required
+@require_POST
+def register_championship(request, championship_id):
+    championship = get_object_or_404(Championship, pk=championship_id)
+    if championship.status != StatusChampionship.OPEN:
+        messages.error(request, "Este campeonato nao esta com inscricoes abertas.")
+        return _redirect_back(request)
+
+    captained_teams = Team.objects.filter(captain=request.user).order_by('name')
+    team_id = request.POST.get('team_id')
+    if team_id:
+        team = captained_teams.filter(pk=team_id).first()
+    elif captained_teams.count() == 1:
+        team = captained_teams.first()
+    else:
+        team = None
+
+    if not team:
+        messages.error(request, "Escolha uma equipe que voce lidera para se inscrever.")
+        return _redirect_back(request)
+
+    registration = Registration(championship=championship, team=team, status=StatusRegistration.PENDING)
+    try:
+        registration.full_clean()
+        registration.save()
+        messages.success(request, f"{team.name} foi inscrita e aguarda aprovacao.")
+    except ValidationError as exc:
+        if hasattr(exc, 'message_dict'):
+            error_messages = sum(exc.message_dict.values(), [])
+        else:
+            error_messages = exc.messages
+        messages.error(request, " ".join(error_messages))
+
+    return _redirect_back(request)
+
+
+@login_required
+@require_POST
+def cancel_registration(request, championship_id):
+    championship = get_object_or_404(Championship, pk=championship_id)
+    if championship.status != StatusChampionship.OPEN:
+        messages.error(request, "Inscricoes so podem ser canceladas enquanto o campeonato esta aberto.")
+        return _redirect_back(request)
+
+    registrations = Registration.objects.filter(
+        championship=championship,
+        team__captain=request.user,
+        status__in=(StatusRegistration.PENDING, StatusRegistration.APPROVED),
+    ).select_related('team')
+
+    team_id = request.POST.get('team_id')
+    if team_id:
+        registrations = registrations.filter(team_id=team_id)
+
+    registration = registrations.first()
+    if not registration:
+        messages.error(request, "Nenhuma inscricao cancelavel foi encontrada.")
+        return _redirect_back(request)
+
+    team_name = registration.team.name
+    registration.delete()
+    messages.success(request, f"Inscricao de {team_name} cancelada.")
+    return _redirect_back(request)
 
 _BEST_OF_WINS = {
     'BO1': 1,
@@ -281,13 +475,14 @@ def manager_championship(request, championship_id):
     )
  
     # Apenas staff do campeonato pode acessar
-    is_staff_member = ChampionshipStaff.objects.filter(
+    staff_membership = ChampionshipStaff.objects.filter(
         championship=championship,
         user=request.user,
-    ).exists()
+    ).first()
  
-    if not is_staff_member:
+    if not staff_membership:
         raise PermissionDenied("Você não faz parte da staff deste campeonato.")
+    is_owner = staff_membership.role == RoleStaff.OWNER
  
     # ── POST: ações de gestão ───────────────────────────────────────────
     if request.method == 'POST':
@@ -419,6 +614,7 @@ def manager_championship(request, championship_id):
         'live_count': live_count,
         'next_match': next_match,
         'staff_members': staff_members,
+        'is_owner': is_owner,
         'best_of_choices': MatchFormat.choices,
         'game_status_choices': GameStatus.choices,
     })
