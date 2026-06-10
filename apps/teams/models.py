@@ -13,7 +13,16 @@ class InviteStatus(models.TextChoices):
 
 class Team(models.Model):
     name = models.CharField("Nome da equipe", max_length = 100)
+    tag = models.CharField("Tag da equipe", max_length = 4, blank = True)
     logo = models.ImageField("Logo", upload_to = "team_logos", blank = True, null = True)
+    banner = models.ImageField("Banner", upload_to = "team_banners", blank = True, null = True)
+    description = models.TextField("Descrição", blank = True)
+    public_recruitment = models.BooleanField("Recrutamento público", default = True)
+    region = models.CharField("Região", max_length = 80, blank = True)
+    primary_game = models.CharField("Jogo principal", max_length = 80, blank = True)
+    social_url = models.URLField("URL social", blank = True)
+    primary_color = models.CharField("Cor primária", max_length = 7, default = "#d0bcff", blank = True)
+    accent_color = models.CharField("Cor de destaque", max_length = 7, default = "#4cd7f6", blank = True)
     captain = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete = models.CASCADE,
@@ -40,11 +49,20 @@ class Team(models.Model):
                 })
 
     def save(self, *args, **kwargs):
+        self.tag = (self.tag or "").upper()
         super().save(*args, **kwargs)
-        TeamMembership.objects.get_or_create(team = self, player = self.captain)
+        TeamMembership.objects.get_or_create(
+            team = self,
+            player = self.captain,
+            defaults = {"role": "Capitão"}
+        )
 
-    def add_member(self, player):
-        return TeamMembership.objects.get_or_create(team = self, player = player)
+    def add_member(self, player, role = "Jogador"):
+        return TeamMembership.objects.get_or_create(
+            team = self,
+            player = player,
+            defaults = {"role": role or "Jogador"}
+        )
 
     def remove_member(self, player):
         if player == self.captain:
@@ -82,6 +100,7 @@ class TeamMembership(models.Model):
         related_name = "team_memberships",
         verbose_name = "Jogador"
     )
+    role = models.CharField("Função", max_length = 80, blank = True, default = "Jogador")
     joined_at = models.DateTimeField("Data de entrada", auto_now_add = True)
 
     def clean(self):
@@ -134,6 +153,8 @@ class Invite(models.Model):
         choices = InviteStatus.choices,
         default = InviteStatus.PENDING
     )
+    message = models.TextField("Mensagem", blank = True)
+    proposed_role = models.CharField("Função proposta", max_length = 80, blank = True)
     created_at = models.DateTimeField("Data do convite", auto_now_add = True)
     responded_at = models.DateTimeField("Data da resposta", blank = True, null = True)
 
@@ -175,7 +196,14 @@ class Invite(models.Model):
         super().save(*args, **kwargs)
 
         if self.status == InviteStatus.ACCEPTED:
-            TeamMembership.objects.get_or_create(team = self.team, player = self.invited_player)
+            membership, created = TeamMembership.objects.get_or_create(
+                team = self.team,
+                player = self.invited_player,
+                defaults = {"role": self.proposed_role or "Jogador"}
+            )
+            if not created and self.proposed_role and not membership.role:
+                membership.role = self.proposed_role
+                membership.save(update_fields = ["role"])
 
     def _validate_pending_status(self):
         if self.status != InviteStatus.PENDING:
