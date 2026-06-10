@@ -1,11 +1,27 @@
+import shutil
+import tempfile
+from pathlib import Path
+
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.accounts.models import User
 
 from .forms import TeamForm, TeamInviteForm
 from .models import Invite, InviteStatus, Team, TeamMembership
+
+
+TEST_MEDIA_ROOT = tempfile.mkdtemp()
+ONE_PIXEL_GIF = (
+    b"GIF87a\x01\x00\x01\x00\x80\x01\x00\x00\x00\x00\xff\xff\xff,"
+    b"\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+)
+
+
+def test_image(name):
+    return SimpleUploadedFile(name, ONE_PIXEL_GIF, content_type="image/gif")
 
 
 class TeamModelTest(TestCase):
@@ -203,7 +219,13 @@ class TeamInviteFormTest(TestCase):
         self.assertIn("player", form.errors)
 
 
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
 class TeamViewsTest(TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
+
     def setUp(self):
         self.captain = User.objects.create_user("captain_view", email="captain_view@example.com", password="testpass123")
         self.member = User.objects.create_user("member_view", email="member_view@example.com", password="testpass123")
@@ -251,6 +273,25 @@ class TeamViewsTest(TestCase):
         self.assertTrue(team.public_recruitment)
         self.assertEqual(team.captain, self.other)
         self.assertTrue(team.memberships.filter(player=self.other).exists())
+
+    def test_create_team_uploads_logo_and_banner(self):
+        self.client.login(username="other_view", password="testpass123")
+
+        response = self.client.post(reverse("teams:teams-create"), {
+            "name": "Media Squad",
+            "tag": "MED",
+            "primary_color": "#abcdef",
+            "accent_color": "#123456",
+            "logo": test_image("logo.gif"),
+            "banner": test_image("banner.gif"),
+        })
+
+        team = Team.objects.get(name="Media Squad")
+        self.assertRedirects(response, reverse("teams:teams-detail", kwargs={"pk": team.pk}))
+        self.assertTrue(team.logo.name.startswith("team_logos/"))
+        self.assertTrue(team.banner.name.startswith("team_banners/"))
+        self.assertTrue(Path(team.logo.path).exists())
+        self.assertTrue(Path(team.banner.path).exists())
 
     def test_non_captain_cannot_edit_remove_promote_or_cancel_invites(self):
         invite = Invite.objects.create(team=self.team, invited_player=self.player)

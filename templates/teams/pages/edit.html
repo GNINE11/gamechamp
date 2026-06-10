@@ -67,7 +67,7 @@
         <div class="team-panel">
           <h2 class="team-section-title mb-2">Marca da equipe</h2>
           <p class="team-muted">Logo principal exibido em paginas e partidas.</p>
-          <label class="team-upload-card" for="id_logo">
+          <label class="team-upload-card" for="id_logo" data-upload-preview="logo">
             {% if team.logo %}
             <img src="{{ team.logo.url }}" alt="Logo atual de {{ team.name }}">
             {% else %}
@@ -81,7 +81,7 @@
         <div class="team-panel">
           <h2 class="team-section-title mb-2">Banner do perfil</h2>
           <p class="team-muted">Imagem ampla para o topo da pagina publica.</p>
-          <label class="team-upload-card wide" for="id_banner">
+          <label class="team-upload-card wide" for="id_banner" data-upload-preview="banner">
             {% if team.banner %}
             <img src="{{ team.banner.url }}" alt="Banner atual de {{ team.name }}">
             {% else %}
@@ -200,6 +200,21 @@
       document.querySelectorAll('.team-tab-panel').forEach((panel) => panel.classList.remove('active'));
       button.classList.add('active');
       document.getElementById(`team-panel-${tab}`).classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('input[type="file"][accept^="image/"]').forEach((input) => {
+    input.addEventListener('change', () => {
+      const file = input.files && input.files[0];
+      const preview = document.querySelector(`[data-upload-preview="${input.name}"]`);
+      if (!file || !preview) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        preview.classList.add('has-preview');
+        preview.innerHTML = `<img src="${event.target.result}" alt="Preview de ${input.name}">`;
+      };
+      reader.readAsDataURL(file);
     });
   });
 </script>

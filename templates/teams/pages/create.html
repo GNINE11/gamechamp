@@ -33,7 +33,7 @@
     <div class="team-form-grid">
       <div class="team-field">
         <span class="team-label">Logo da equipe</span>
-        <label class="team-upload-card" for="id_logo">
+        <label class="team-upload-card" for="id_logo" data-upload-preview="logo">
           <span class="material-symbols-outlined fs-1">upload_file</span>
           <strong>Enviar logo</strong>
           <span class="team-small-text">PNG, WEBP ou JPG</span>
@@ -44,7 +44,7 @@
 
       <div class="team-field">
         <span class="team-label">Banner da equipe</span>
-        <label class="team-upload-card wide" for="id_banner">
+        <label class="team-upload-card wide" for="id_banner" data-upload-preview="banner">
           <span class="material-symbols-outlined fs-1">add_photo_alternate</span>
           <strong>Enviar banner</strong>
           <span class="team-small-text">Recomendado: imagem horizontal</span>
@@ -99,4 +99,23 @@
     </div>
   </form>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.querySelectorAll('input[type="file"][accept^="image/"]').forEach((input) => {
+    input.addEventListener('change', () => {
+      const file = input.files && input.files[0];
+      const preview = document.querySelector(`[data-upload-preview="${input.name}"]`);
+      if (!file || !preview) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        preview.classList.add('has-preview');
+        preview.innerHTML = `<img src="${event.target.result}" alt="Preview de ${input.name}">`;
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+</script>
 {% endblock %}
