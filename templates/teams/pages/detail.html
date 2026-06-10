@@ -174,23 +174,45 @@
         {% endif %}
       </div>
 
-      <div class="team-panel">
-        <h2 class="team-section-title mb-3">Identidade</h2>
-        <div class="team-stack">
-          <div class="team-member-card">
-            <span class="material-symbols-outlined text-primary">palette</span>
-            <div>
-              <p class="team-small-text mb-1">Cores</p>
-              <p class="mb-0">{{ team.primary_color }} / {{ team.accent_color }}</p>
+      <div class="team-panel team-identity-panel">
+        <div class="team-card-header team-card-header-compact">
+          <h2 class="team-section-title">Identidade</h2>
+        </div>
+
+        <div class="team-identity-card" style="--team-primary-color: {{ team.primary_color }}; --team-accent-color: {{ team.accent_color }};">
+          <div class="team-identity-main">
+            <div class="team-logo-box small">
+              {% if team.logo %}
+              <img src="{{ team.logo.url }}" alt="Logo de {{ team.name }}">
+              {% else %}
+              <span class="team-logo-initials">{{ team.name|slice:":2"|upper }}</span>
+              {% endif %}
             </div>
           </div>
-          <div class="team-member-card">
-            <span class="material-symbols-outlined text-primary">person</span>
+
+          <dl class="team-identity-list">
             <div>
-              <p class="team-small-text mb-1">Capitao</p>
-              <p class="mb-0">{{ team.captain.username }}</p>
+              <dt>Nome</dt>
+              <dd>{{ team.name }}</dd>
             </div>
-          </div>
+            <div>
+              <dt>Sigla</dt>
+              <dd>{{ team.tag|default:"Nao definida" }}</dd>
+            </div>
+            <div>
+              <dt>Capitao</dt>
+              <dd>{{ team.captain.username }}</dd>
+            </div>
+            <div>
+              <dt>Cores</dt>
+              <dd>
+                <span class="team-identity-palette" title="Primaria {{ team.primary_color }} / destaque {{ team.accent_color }}">
+                  <span style="background: {{ team.primary_color }};"></span>
+                  <span style="background: {{ team.accent_color }};"></span>
+                </span>
+              </dd>
+            </div>
+          </dl>
         </div>
       </div>
     </aside>
