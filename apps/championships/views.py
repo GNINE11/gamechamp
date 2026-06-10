@@ -5,7 +5,8 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages                      # NOVO
 from django.core.exceptions import PermissionDenied       # NOVO
-from django.db.models import Case, When, Value, IntegerField, Count, Q
+from django.db.models import Case, When, Value, IntegerField, Count, Q, OuterRef, Subquery
+from django.db.models.functions import Coalesce
 from .models import (
     Championship,
     ChampionshipStaff,
@@ -118,9 +119,7 @@ def _compute_cta(champ, mode, reg_status):
  
 def get_my_championships(user):
     return (
-        Championship.objects
-        .filter(registrations__status=StatusRegistration.APPROVED)
-        .filter(
+        Championship.objects.filter(
             Q(registrations__team__members=user) |
             Q(registrations__team__captain=user)
         )
@@ -130,27 +129,40 @@ def get_my_championships(user):
  
 def build_championship_qs(*, user=None, mode='public'):
     qs = Championship.objects.all()
- 
+
     if mode == 'public':
         qs = qs.exclude(status=StatusChampionship.DRAFT)
+
     elif mode == 'my':
         qs = get_my_championships(user)
+
     elif mode == 'management':
         qs = qs.filter(staff_members__user=user).distinct()
- 
+
+    approved_count_subquery = (
+        Registration.objects
+        .filter(
+            championship=OuterRef('pk'),
+            status=StatusRegistration.APPROVED,
+        )
+        .values('championship')
+        .annotate(total=Count('id'))
+        .values('total')[:1]
+    )
+
     return qs.annotate(
         status_order=Case(
-            When(status=StatusChampionship.DRAFT,       then=Value(1)),
-            When(status=StatusChampionship.OPEN,        then=Value(2)),
+            When(status=StatusChampionship.DRAFT, then=Value(1)),
+            When(status=StatusChampionship.OPEN, then=Value(2)),
             When(status=StatusChampionship.IN_PROGRESS, then=Value(3)),
-            When(status=StatusChampionship.FINISHED,    then=Value(4)),
+            When(status=StatusChampionship.FINISHED, then=Value(4)),
             output_field=IntegerField(),
         ),
-        approved_count=Count(
-            'registrations',
-            filter=Q(registrations__status=StatusRegistration.APPROVED),
+        approved_count=Coalesce(
+            Subquery(approved_count_subquery),
+            0,
         ),
-    ).order_by('status_order', 'start_date', '-created_at')
+    ).order_by('status_order', 'start_date', '-created_at',)
  
  
 def _get_reg_status_map(championships, user):
