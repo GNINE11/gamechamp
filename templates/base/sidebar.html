@@ -27,9 +27,14 @@
       <span>Campeonatos</span>
     </a>
 
-    <a href="#" class="sidebar-link {% if request.resolver_match.url_name|slice:':6' == 'teams-' %}active{% endif %}">
+    <a href="{% url 'teams:teams-home' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':6' == 'teams-' and request.resolver_match.url_name != 'teams-invitations' and request.resolver_match.url_name|slice:':13' != 'teams-invite-' %}active{% endif %}">
       <span class="material-symbols-outlined">groups</span>
       <span>Equipes</span>
+    </a>
+
+    <a href="{% url 'teams:teams-invitations' %}" class="sidebar-link {% if request.resolver_match.url_name == 'teams-invitations' or request.resolver_match.url_name|slice:':13' == 'teams-invite-' %}active{% endif %}">
+      <span class="material-symbols-outlined">mail</span>
+      <span>Convites</span>
     </a>
 
     <a href="#" class="sidebar-link {% if request.resolver_match.url_name|slice:':8' == 'matches-' %}active{% endif %}">

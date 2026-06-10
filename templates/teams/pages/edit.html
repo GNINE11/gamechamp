@@ -1,0 +1,206 @@
+{% extends "base/logged_base.html" %}
+{% load static %}
+
+{% block title %}Editar {{ team.name }} | Gamechamp{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/teams.css' %}">
+{% endblock %}
+
+{% block page_heading %}{% endblock %}
+
+{% block content %}
+<section class="team-hero compact">
+  {% if team.banner %}
+  <div class="team-hero-image" style="background-image: url('{{ team.banner.url }}');"></div>
+  {% endif %}
+
+  <div class="team-hero-content">
+    <div class="team-logo-box small">
+      {% if team.logo %}
+      <img src="{{ team.logo.url }}" alt="Logo de {{ team.name }}">
+      {% else %}
+      <span class="team-logo-initials">{{ team.name|slice:":2"|upper }}</span>
+      {% endif %}
+    </div>
+
+    <div class="team-title-wrap">
+      <p class="team-kicker">Organizacao</p>
+      <h1 class="team-hero-title">{{ team.name }}</h1>
+      <p class="team-muted mb-0">Criada em {{ team.created_at|date:"d/m/Y" }} • {{ team.memberships.count }} membros ativos</p>
+    </div>
+
+    <div class="team-action-row justify-content-end">
+      <a href="{% url 'teams:teams-detail' team.pk %}" class="btn-app-outline">Descartar</a>
+      <button type="submit" form="team-edit-form" class="btn-app-primary">
+        <span class="material-symbols-outlined">save</span>
+        Salvar Alteracoes
+      </button>
+    </div>
+  </div>
+</section>
+
+<section class="teams-page">
+  <form id="team-edit-form" method="post" enctype="multipart/form-data" class="team-stack">
+    {% csrf_token %}
+
+    {% if form.errors %}
+    <div class="team-panel team-danger">
+      <strong>Confira os campos abaixo.</strong>
+      {% for field in form %}
+        {% for error in field.errors %}
+        <p class="mb-0">{{ field.label }}: {{ error }}</p>
+        {% endfor %}
+      {% endfor %}
+      {% for error in form.non_field_errors %}<p class="mb-0">{{ error }}</p>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="team-tabs" role="tablist">
+      <button class="team-tab active" type="button" data-team-tab="visual">Identidade Visual</button>
+      <button class="team-tab" type="button" data-team-tab="general">Informacoes Gerais</button>
+      <button class="team-tab" type="button" data-team-tab="settings">Configuracoes</button>
+    </div>
+
+    <div id="team-panel-visual" class="team-tab-panel active">
+      <div class="team-form-grid">
+        <div class="team-panel">
+          <h2 class="team-section-title mb-2">Marca da equipe</h2>
+          <p class="team-muted">Logo principal exibido em paginas e partidas.</p>
+          <label class="team-upload-card" for="id_logo">
+            {% if team.logo %}
+            <img src="{{ team.logo.url }}" alt="Logo atual de {{ team.name }}">
+            {% else %}
+            <span class="material-symbols-outlined fs-1">upload_file</span>
+            <strong>Clique para enviar logo</strong>
+            {% endif %}
+          </label>
+          <input type="file" name="logo" id="id_logo" accept="image/*" class="visually-hidden">
+        </div>
+
+        <div class="team-panel">
+          <h2 class="team-section-title mb-2">Banner do perfil</h2>
+          <p class="team-muted">Imagem ampla para o topo da pagina publica.</p>
+          <label class="team-upload-card wide" for="id_banner">
+            {% if team.banner %}
+            <img src="{{ team.banner.url }}" alt="Banner atual de {{ team.name }}">
+            {% else %}
+            <span class="material-symbols-outlined fs-1">add_photo_alternate</span>
+            <strong>Clique para enviar banner</strong>
+            {% endif %}
+          </label>
+          <input type="file" name="banner" id="id_banner" accept="image/*" class="visually-hidden">
+        </div>
+      </div>
+
+      <div class="team-panel mt-4">
+        <h2 class="team-section-title mb-3">Paleta</h2>
+        <div class="team-field-grid">
+          <div class="team-field">
+            <label class="team-label" for="id_primary_color">Cor primaria</label>
+            <input class="team-input" type="text" name="primary_color" id="id_primary_color" value="{{ form.primary_color.value|default:'#d0bcff' }}">
+          </div>
+          <div class="team-field">
+            <label class="team-label" for="id_accent_color">Cor de destaque</label>
+            <input class="team-input" type="text" name="accent_color" id="id_accent_color" value="{{ form.accent_color.value|default:'#4cd7f6' }}">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="team-panel-general" class="team-tab-panel">
+      <div class="team-panel">
+        <div class="team-field-grid">
+          <div class="team-field">
+            <label class="team-label" for="id_name">Nome da equipe</label>
+            <input class="team-input" type="text" name="name" id="id_name" value="{{ form.name.value|default:'' }}" required>
+          </div>
+          <div class="team-field">
+            <label class="team-label" for="id_tag">Tag</label>
+            <input class="team-input text-uppercase" type="text" name="tag" id="id_tag" value="{{ form.tag.value|default:'' }}" maxlength="4">
+          </div>
+          <div class="team-field full">
+            <label class="team-label" for="id_description">Descricao</label>
+            <textarea class="team-textarea" name="description" id="id_description">{{ form.description.value|default:'' }}</textarea>
+          </div>
+          <div class="team-field">
+            <label class="team-label" for="id_region">Regiao</label>
+            <input class="team-input" type="text" name="region" id="id_region" value="{{ form.region.value|default:'' }}" placeholder="Brasil, LATAM, Europa...">
+          </div>
+          <div class="team-field">
+            <label class="team-label" for="id_primary_game">Jogo principal</label>
+            <input class="team-input" type="text" name="primary_game" id="id_primary_game" value="{{ form.primary_game.value|default:'' }}" placeholder="Valorant, CS2, LoL...">
+          </div>
+          <div class="team-field full">
+            <label class="team-label" for="id_social_url">Link social</label>
+            <input class="team-input" type="url" name="social_url" id="id_social_url" value="{{ form.social_url.value|default:'' }}" placeholder="https://...">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="team-panel-settings" class="team-tab-panel">
+      <div class="team-panel">
+        <div class="team-switch-row">
+          <div>
+            <h2 class="team-section-title">Recrutamento publico</h2>
+            <p class="team-muted mb-0">Exibe a equipe como aberta para receber novos jogadores.</p>
+          </div>
+          <input type="checkbox" name="public_recruitment" id="id_public_recruitment" class="team-switch" {% if form.public_recruitment.value %}checked{% endif %}>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div class="team-panel team-danger">
+    <div class="team-switch-row">
+      <div>
+        <h2 class="team-section-title">Zona de risco</h2>
+        <p class="team-muted mb-0">Excluir a equipe remove membros e convites vinculados a ela.</p>
+      </div>
+      <button type="button" class="btn-app-outline" data-bs-toggle="modal" data-bs-target="#deleteTeamModal">
+        <span class="material-symbols-outlined">delete</span>
+        Excluir Equipe
+      </button>
+    </div>
+  </div>
+</section>
+
+<div class="modal fade" id="deleteTeamModal" tabindex="-1" aria-labelledby="deleteTeamModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content team-panel">
+      <div class="modal-header border-0">
+        <h2 class="modal-title team-section-title" id="deleteTeamModalLabel">Excluir equipe</h2>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body team-muted">
+        Tem certeza que deseja excluir {{ team.name }}? Esta acao nao pode ser desfeita.
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn-app-outline" data-bs-dismiss="modal">Cancelar</button>
+        <form method="post" action="{% url 'teams:teams-delete' team.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn-app-primary">
+            <span class="material-symbols-outlined">delete</span>
+            Excluir
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.querySelectorAll('[data-team-tab]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const tab = button.dataset.teamTab;
+      document.querySelectorAll('[data-team-tab]').forEach((item) => item.classList.remove('active'));
+      document.querySelectorAll('.team-tab-panel').forEach((panel) => panel.classList.remove('active'));
+      button.classList.add('active');
+      document.getElementById(`team-panel-${tab}`).classList.add('active');
+    });
+  });
+</script>
+{% endblock %}

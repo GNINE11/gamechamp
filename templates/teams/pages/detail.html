@@ -1,0 +1,199 @@
+{% extends "base/logged_base.html" %}
+{% load static %}
+
+{% block title %}{{ team.name }} | Gamechamp{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/teams.css' %}">
+{% endblock %}
+
+{% block page_heading %}{% endblock %}
+
+{% block content %}
+<section class="team-hero">
+  {% if team.banner %}
+  <div class="team-hero-image" style="background-image: url('{{ team.banner.url }}');"></div>
+  {% endif %}
+
+  <div class="team-hero-content">
+    <div class="team-logo-box">
+      {% if team.logo %}
+      <img src="{{ team.logo.url }}" alt="Logo de {{ team.name }}">
+      {% else %}
+      <span class="team-logo-initials">{{ team.name|slice:":2"|upper }}</span>
+      {% endif %}
+    </div>
+
+    <div class="team-title-wrap">
+      <div class="team-meta-row">
+        <span class="team-badge">{{ team.tag|default:"Equipe" }}</span>
+        {% if team.primary_game %}<span class="team-badge neutral">{{ team.primary_game }}</span>{% endif %}
+        {% if team.region %}<span class="team-muted">{{ team.region }}</span>{% endif %}
+      </div>
+      <h1 class="team-hero-title">{{ team.name }}</h1>
+      <p class="team-hero-description">
+        {% if team.description %}{{ team.description }}{% else %}Equipe criada para competir nos campeonatos da Gamechamp.{% endif %}
+      </p>
+    </div>
+
+    <div class="team-action-row justify-content-end">
+      {% if is_captain %}
+      <a href="{% url 'teams:teams-members' team.pk %}" class="btn-app-outline">
+        <span class="material-symbols-outlined">groups</span>
+        Membros
+      </a>
+      <a href="{% url 'teams:teams-edit' team.pk %}" class="btn-app-primary">
+        <span class="material-symbols-outlined">edit</span>
+        Editar
+      </a>
+      {% else %}
+      <a href="{% url 'teams:teams-invitations' %}" class="btn-app-outline">
+        <span class="material-symbols-outlined">mail</span>
+        Convites
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="teams-page">
+  <div class="team-dashboard-grid">
+    <div class="team-stack">
+      <div class="team-panel">
+        <div class="team-card-header">
+          <h2 class="team-section-title">Elenco ativo</h2>
+          {% if team.public_recruitment %}
+          <span class="team-badge primary">Recrutando</span>
+          {% endif %}
+        </div>
+
+        {% if memberships %}
+        <div class="team-roster-grid">
+          {% for membership in memberships %}
+          <article class="team-member-card {% if membership.player_id == team.captain_id %}captain{% endif %}">
+            <div class="team-avatar">
+              {% if membership.player.avatar %}
+              <img src="{{ membership.player.avatar.url }}" alt="{{ membership.player.username }}">
+              {% else %}
+              {{ membership.player.username|slice:":2"|upper }}
+              {% endif %}
+            </div>
+            <div class="min-w-0">
+              <h3 class="team-member-name">{{ membership.player.username }}</h3>
+              <p class="team-member-role">
+                {% if membership.player_id == team.captain_id %}Capitao{% else %}{{ membership.role|default:"Jogador" }}{% endif %}
+              </p>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="team-empty">
+          <span class="material-symbols-outlined fs-1">group_off</span>
+          <p class="mb-0">Nenhum membro cadastrado ainda.</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="team-panel">
+        <div class="team-card-header">
+          <h2 class="team-section-title">Performance recente</h2>
+          <span class="team-muted">{{ stats.total_matches }} partidas</span>
+        </div>
+
+        {% if stats.recent_matches %}
+        <div class="team-match-list">
+          {% for item in stats.recent_matches %}
+          <article class="team-match-row">
+            <div>
+              <p class="team-small-text mb-1">{{ item.match.scheduled_at|date:"d M" }}</p>
+              <div class="team-score {% if not item.won %}loss{% endif %}">{{ item.score_a }} - {{ item.score_b }}</div>
+            </div>
+            <div class="min-w-0">
+              <h3 class="team-member-name mb-1">vs. {{ item.opponent.name|default:"Adversario indefinido" }}</h3>
+              <p class="team-muted mb-0">{{ item.match.championship.name }} • {{ item.match.get_phase_display }}</p>
+            </div>
+            <span class="team-badge {% if item.won %}primary{% else %}neutral{% endif %}">
+              {% if item.won %}Vitoria{% else %}Derrota{% endif %}
+            </span>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="team-empty">
+          <span class="material-symbols-outlined fs-1">query_stats</span>
+          <p class="mb-0">A equipe ainda nao possui partidas finalizadas.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <aside class="team-stack">
+      <div class="team-panel">
+        <h2 class="team-section-title mb-3">Estatisticas</h2>
+        <div class="team-stat-grid">
+          <div class="team-stat">
+            <p class="team-stat-label">Win rate</p>
+            <p class="team-stat-value">{{ stats.win_rate }}%</p>
+            <div class="team-progress"><span style="width: {{ stats.win_rate }}%;"></span></div>
+          </div>
+          <div class="team-stat">
+            <p class="team-stat-label">Vitorias</p>
+            <p class="team-stat-value">{{ stats.total_wins }}</p>
+          </div>
+          <div class="team-stat">
+            <p class="team-stat-label">Sequencia</p>
+            <p class="team-stat-value">{{ stats.win_streak }}</p>
+          </div>
+          <div class="team-stat">
+            <p class="team-stat-label">Membros</p>
+            <p class="team-stat-value">{{ memberships|length }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="team-panel">
+        <h2 class="team-section-title mb-3">Campeonatos</h2>
+        {% if registrations %}
+        <div class="team-stack">
+          {% for registration in registrations %}
+          <div class="team-member-card">
+            <span class="material-symbols-outlined text-primary">emoji_events</span>
+            <div>
+              <h3 class="team-member-name">{{ registration.championship.name }}</h3>
+              <p class="team-muted mb-0">{{ registration.championship.game }} • {{ registration.get_status_display }}</p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="team-empty">
+          <span class="material-symbols-outlined fs-1">emoji_events</span>
+          <p class="mb-0">Nenhuma inscricao em campeonato ainda.</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="team-panel">
+        <h2 class="team-section-title mb-3">Identidade</h2>
+        <div class="team-stack">
+          <div class="team-member-card">
+            <span class="material-symbols-outlined text-primary">palette</span>
+            <div>
+              <p class="team-small-text mb-1">Cores</p>
+              <p class="mb-0">{{ team.primary_color }} / {{ team.accent_color }}</p>
+            </div>
+          </div>
+          <div class="team-member-card">
+            <span class="material-symbols-outlined text-primary">person</span>
+            <div>
+              <p class="team-small-text mb-1">Capitao</p>
+              <p class="mb-0">{{ team.captain.username }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+{% endblock %}
