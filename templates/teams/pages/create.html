@@ -80,15 +80,7 @@
       </div>
     </div>
 
-    <div class="team-panel">
-      <div class="team-switch-row">
-        <div>
-          <h2 class="team-section-title">Recrutamento publico</h2>
-          <p class="team-muted mb-0">Permite que jogadores saibam que a equipe esta aberta a novos integrantes.</p>
-        </div>
-        <input type="checkbox" name="public_recruitment" id="id_public_recruitment" class="team-switch" {% if form.public_recruitment.value|default_if_none:True %}checked{% endif %}>
-      </div>
-    </div>
+    <input type="hidden" name="public_recruitment" value="on">
 
     <div class="team-action-row">
       <button type="submit" class="btn-app-primary flex-grow-1 justify-content-center py-3">

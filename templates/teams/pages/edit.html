@@ -59,7 +59,6 @@
     <div class="team-tabs" role="tablist">
       <button class="team-tab active" type="button" data-team-tab="visual">Identidade Visual</button>
       <button class="team-tab" type="button" data-team-tab="general">Informacoes Gerais</button>
-      <button class="team-tab" type="button" data-team-tab="settings">Configuracoes</button>
     </div>
 
     <div id="team-panel-visual" class="team-tab-panel active">
@@ -139,17 +138,7 @@
       </div>
     </div>
 
-    <div id="team-panel-settings" class="team-tab-panel">
-      <div class="team-panel">
-        <div class="team-switch-row">
-          <div>
-            <h2 class="team-section-title">Recrutamento publico</h2>
-            <p class="team-muted mb-0">Exibe a equipe como aberta para receber novos jogadores.</p>
-          </div>
-          <input type="checkbox" name="public_recruitment" id="id_public_recruitment" class="team-switch" {% if form.public_recruitment.value %}checked{% endif %}>
-        </div>
-      </div>
-    </div>
+    <input type="hidden" name="public_recruitment" value="on">
   </form>
 
   <div class="team-panel team-danger">
