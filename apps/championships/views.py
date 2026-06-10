@@ -3,6 +3,8 @@ from django.urls import reverse
 from django.core.paginator import Paginator
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages                      # NOVO
+from django.core.exceptions import PermissionDenied       # NOVO
 from django.db.models import Case, When, Value, IntegerField, Count, Q
 from .models import (
     Championship,
@@ -10,7 +12,9 @@ from .models import (
     StatusChampionship,
     StatusRegistration,
     Registration,
-    Team
+    Team,
+    RoleStaff,
+    User
 )
 
 _MODE_CONFIG = {
@@ -25,9 +29,9 @@ _MODE_CONFIG = {
         'show_fab':   False,
     },
     'management': {
-        'page_label': 'Seus torneios criados',
-        'page_title': 'Campeonatos Criados',
-        'show_fab':   True,
+        'page_label': 'Campeonatos que você gerencia',
+        'page_title': 'Área da Staff',
+        'show_fab': True,
     },
 }
  
@@ -50,7 +54,7 @@ def _compute_cta(champ, mode, reg_status):
     if mode == 'management':
         return {
             'label': 'Gerenciar', 'icon': 'settings',
-            'css': 'btn-card-results', 'url': '#',
+            'css': 'btn-card-results', 'url': reverse('championship:management-championship-dashboard'),
             'is_form': False, 'disabled': False,
         }
  
@@ -64,13 +68,13 @@ def _compute_cta(champ, mode, reg_status):
         if s == StatusChampionship.IN_PROGRESS:
             return {
                 'label': 'Ver Chaveamento', 'icon': 'chevron_right',
-                'css': 'btn-card-live', 'url': '#',        # TODO: url 'bracket'
+                'css': 'btn-card-live', 'url': reverse('championship:my-championship-structure'),        # TODO: url 'bracket'
                 'is_form': False, 'disabled': False,
             }
         if s == StatusChampionship.FINISHED:
             return {
                 'label': 'Ver Resultados', 'icon': 'history',
-                'css': 'btn-card-results', 'url': '#',     # TODO: url 'bracket'
+                'css': 'btn-card-results', 'url': reverse('championship:my-championship-structure'),     # TODO: url 'bracket'
                 'is_form': False, 'disabled': False,
             }
         return None
@@ -78,14 +82,14 @@ def _compute_cta(champ, mode, reg_status):
     # mode == 'public'
     if s == StatusChampionship.IN_PROGRESS:
         return {
-            'label': 'Ver Bracket ao Vivo', 'icon': 'chevron_right',
-            'css': 'btn-card-live', 'url': '#',            # TODO: url 'bracket'
+            'label': 'Ver Chaveamento ao Vivo', 'icon': 'chevron_right',
+            'css': 'btn-card-live', 'url': reverse('championship:available-championship-structure'),            # TODO: url 'bracket'
             'is_form': False, 'disabled': False,
         }
     if s == StatusChampionship.FINISHED:
         return {
             'label': 'Ver Resultados', 'icon': 'history',
-            'css': 'btn-card-results', 'url': '#',         # TODO: url 'bracket'
+            'css': 'btn-card-results', 'url': reverse('championship:available-championship-structure'),         # TODO: url 'bracket'
             'is_form': False, 'disabled': False,
         }
     if s == StatusChampionship.OPEN:
@@ -132,7 +136,7 @@ def build_championship_qs(*, user=None, mode='public'):
     elif mode == 'my':
         qs = get_my_championships(user)
     elif mode == 'management':
-        qs = qs.filter(created_by=user)
+        qs = qs.filter(staff_members__user=user).distinct()
  
     return qs.annotate(
         status_order=Case(
@@ -190,7 +194,7 @@ def list_my_championships(request):
  
  
 @login_required
-def list_created_championships(request):
+def list_management_championships(request):
     mode = 'management'
     page_obj = Paginator(build_championship_qs(user=request.user, mode=mode), 9).get_page(request.GET.get('page', 1))
     _attach_card_data(page_obj, mode)   # management não precisa de reg_map
@@ -198,12 +202,12 @@ def list_created_championships(request):
  
 
 @login_required
-def detail_championship(request):
+def structure_championship(request):
     qs = Championship.objects.all()
     paginator = Paginator(qs, per_page=10)
     page_obj  = paginator.get_page(request.GET.get('page', 1))
 
-    return render(request, 'championship/detail.html', {
+    return render(request, 'championship/structure.html', {
             'page_obj': page_obj,
         })
 
@@ -216,6 +220,118 @@ def manager_championship(request):
     return render(request, 'championship/manager.html', {
             'page_obj': page_obj,
         })
+
+@login_required
+def staff_management(request, championship_id):
+    championship = get_object_or_404(Championship, pk=championship_id)
+ 
+    # Membro de staff do usuário logado neste campeonato (None se não for staff)
+    my_membership = ChampionshipStaff.objects.filter(
+        championship=championship,
+        user=request.user,
+    ).first()
+ 
+    is_owner = bool(my_membership and my_membership.role == RoleStaff.OWNER)
+ 
+    # Apenas staff pode acessar a página
+    if not my_membership:
+        raise PermissionDenied("Você não faz parte da staff deste campeonato.")
+ 
+    if request.method == 'POST':
+        action = request.POST.get('action')
+ 
+        # ── Adicionar membro ──────────────────────────────────────────
+        if action == 'add_member':
+            if not is_owner:
+                raise PermissionDenied("Apenas o Dono pode adicionar membros.")
+ 
+            username = request.POST.get('username', '').strip()
+            target_user = (
+                User.objects
+                .filter(Q(username__iexact=username) | Q(email__iexact=username))
+                .first()
+            )
+ 
+            if not target_user:
+                messages.error(request, f'Usuário "{username}" não encontrado.')
+            elif ChampionshipStaff.objects.filter(championship=championship, user=target_user).exists():
+                messages.error(request, f'"{target_user.username}" já faz parte da staff.')
+            else:
+                ChampionshipStaff.objects.create(
+                    championship=championship,
+                    user=target_user,
+                    role=RoleStaff.MODERATOR,
+                )
+                messages.success(request, f'"{target_user.username}" adicionado como Moderador.')
+ 
+        # ── Remover membro ────────────────────────────────────────────
+        elif action == 'remove_member':
+            if not is_owner:
+                raise PermissionDenied("Apenas o Dono pode remover membros.")
+ 
+            target_id = request.POST.get('target_user_id')
+            target_membership = ChampionshipStaff.objects.filter(
+                championship=championship,
+                user_id=target_id,
+            ).first()
+ 
+            if not target_membership:
+                messages.error(request, "Membro não encontrado.")
+            elif target_membership.role == RoleStaff.OWNER:
+                messages.error(request, "O Dono não pode ser removido. Transfira a posse primeiro.")
+            else:
+                username = target_membership.user.username
+                target_membership.delete()
+                messages.success(request, f'"{username}" foi removido da staff.')
+ 
+        # ── Transferir posse ──────────────────────────────────────────
+        elif action == 'transfer_ownership':
+            if not is_owner:
+                raise PermissionDenied("Apenas o Dono pode transferir a posse.")
+ 
+            target_id = request.POST.get('target_user_id')
+            new_owner_membership = ChampionshipStaff.objects.filter(
+                championship=championship,
+                user_id=target_id,
+            ).first()
+ 
+            if not new_owner_membership or new_owner_membership.role != RoleStaff.MODERATOR:
+                messages.error(request, "Só é possível transferir a posse para um Moderador da staff.")
+            else:
+                # Garante que apenas 1 owner exista por vez
+                ChampionshipStaff.objects.filter(
+                    championship=championship,
+                    role=RoleStaff.OWNER,
+                ).update(role=RoleStaff.MODERATOR)
+ 
+                new_owner_membership.role = RoleStaff.OWNER
+                new_owner_membership.save()
+ 
+                messages.success(
+                    request,
+                    f'A posse foi transferida para "{new_owner_membership.user.username}".'
+                )
+ 
+        return redirect('championship:management-championship-staff', championship_id=championship.pk)
+ 
+    # ── GET: lista de staff ────────────────────────────────────────────
+    qs = (
+        ChampionshipStaff.objects
+        .filter(championship=championship)
+        .select_related('user')
+        .order_by('-role', 'added_at')  # OWNER ('O') vem antes de MODERATOR ('M') em ordem desc
+    )
+ 
+    paginator = Paginator(qs, per_page=10)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+ 
+    return render(request, 'championship/staff_management.html', {
+        'championship': championship,
+        'staff_members': page_obj,
+        'page_obj': page_obj,
+        'is_owner': is_owner,
+    })
+
 
 @login_required
 def team_approval(request):

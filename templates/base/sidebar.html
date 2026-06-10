@@ -41,10 +41,10 @@
       <span>Meu Time</span>
     </a>
 
-    <a href="{% url 'championship:created-championship-list' %}"
-      class="sidebar-link {% if request.resolver_match.url_name|slice:':21' == 'created-championship-' %}active{% endif %}">
+    <a href="{% url 'championship:management-championship-list' %}"
+      class="sidebar-link {% if request.resolver_match.url_name|slice:':24' == 'management-championship-' %}active{% endif %}">
       <span class="material-symbols-outlined">edit_note</span>
-      <span>Campeonatos Criados</span>
+      <span>Campeonatos que Gerencio</span>
     </a>
 
   </nav>
