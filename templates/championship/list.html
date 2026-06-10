@@ -754,6 +754,7 @@
         cursor: pointer;
         transition: transform 0.15s ease;
         z-index: 100;
+        text-decoration:none;
     }
 
     .fab:hover {
@@ -1076,10 +1077,10 @@
 
 <!-- ── FAB ───────────────────────────────────────────────────────────────── -->
 {% if show_fab %}
-<button class="fab" title="Criar Campeonato">
+<a href="#" class="fab" title="Criar Campeonato">
     <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">add</span>
     <span class="fab-tooltip">Criar Campeonato</span>
-</button>
+</a>
 {% endif %}
 
 {% endblock %}
