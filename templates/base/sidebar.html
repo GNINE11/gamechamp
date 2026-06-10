@@ -30,7 +30,7 @@
 
     <a href="{% url 'teams:teams-home' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':6' == 'teams-' and request.resolver_match.url_name != 'teams-invitations' and request.resolver_match.url_name|slice:':13' != 'teams-invite-' %}active{% endif %}">
       <span class="material-symbols-outlined">groups</span>
-      <span>Equipes</span>
+      <span>Meu Time</span>
     </a>
 
     <a href="{% url 'teams:teams-invitations' %}" class="sidebar-link {% if request.resolver_match.url_name == 'teams-invitations' or request.resolver_match.url_name|slice:':13' == 'teams-invite-' %}active{% endif %}">
@@ -38,20 +38,10 @@
       <span>Convites</span>
     </a>
 
-    <a href="#" class="sidebar-link {% if request.resolver_match.url_name|slice:':8' == 'matches-' %}active{% endif %}">
-      <span class="material-symbols-outlined">stadia_controller</span>
-      <span>Partidas</span>
     <a href="{% url 'championship:my-championship-list' %}"
       class="sidebar-link {% if request.resolver_match.url_name|slice:':16' == 'my-championship-' %}active{% endif %}">
       <span class="material-symbols-outlined">emoji_events</span>
       <span>Meus Campeonatos</span>
-    </a>
-
-    <!-- 'teams:my-team-detail' -->
-    <a href="#"
-      class="sidebar-link {% if request.resolver_match.url_name|slice:':8' == 'my-team-' %}active{% endif %}">
-      <span class="material-symbols-outlined">groups</span>
-      <span>Meu Time</span>
     </a>
 
     <a href="{% url 'championship:management-championship-list' %}"
