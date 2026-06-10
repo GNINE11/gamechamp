@@ -8,81 +8,194 @@ from .models import (
     Championship,
     ChampionshipStaff,
     StatusChampionship,
-    StatusRegistration
+    StatusRegistration,
+    Registration,
+    Team
 )
 
+_MODE_CONFIG = {
+    'public': {
+        'page_label': 'Descubra novos desafios',
+        'page_title': 'Campeonatos Disponíveis',
+        'show_fab':   False,
+    },
+    'my': {
+        'page_label': 'Suas participações',
+        'page_title': 'Meus Campeonatos',
+        'show_fab':   False,
+    },
+    'management': {
+        'page_label': 'Seus torneios criados',
+        'page_title': 'Campeonatos Criados',
+        'show_fab':   True,
+    },
+}
+ 
+_PH_CLASS = {
+    StatusChampionship.OPEN:        'card-ph-open',
+    StatusChampionship.IN_PROGRESS: 'card-ph-live',
+    StatusChampionship.FINISHED:    'card-ph-finished',
+    StatusChampionship.DRAFT:       'card-ph-finished',
+}
+ 
+# ── Lógica do CTA ─────────────────────────────────────────────────────────────
+ 
+def _compute_cta(champ, mode, reg_status):
+    """
+    Retorna um dict descrevendo o botão de ação do card, ou None se não houver ação.
+    Toda a lógica fica aqui — o template só renderiza o que recebe.
+    """
+    s = champ.status
+ 
+    if mode == 'management':
+        return {
+            'label': 'Gerenciar', 'icon': 'settings',
+            'css': 'btn-card-results', 'url': '#',
+            'is_form': False, 'disabled': False,
+        }
+ 
+    if mode == 'my':
+        if reg_status == StatusRegistration.PENDING:
+            return {
+                'label': 'Cancelar Inscrição', 'icon': 'cancel',
+                'css': 'btn-card-waitlist', 'url': '#',   # TODO: url 'cancel_registration'
+                'is_form': True, 'disabled': False,
+            }
+        if s == StatusChampionship.IN_PROGRESS:
+            return {
+                'label': 'Ver Chaveamento', 'icon': 'chevron_right',
+                'css': 'btn-card-live', 'url': '#',        # TODO: url 'bracket'
+                'is_form': False, 'disabled': False,
+            }
+        if s == StatusChampionship.FINISHED:
+            return {
+                'label': 'Ver Resultados', 'icon': 'history',
+                'css': 'btn-card-results', 'url': '#',     # TODO: url 'bracket'
+                'is_form': False, 'disabled': False,
+            }
+        return None
+ 
+    # mode == 'public'
+    if s == StatusChampionship.IN_PROGRESS:
+        return {
+            'label': 'Ver Bracket ao Vivo', 'icon': 'chevron_right',
+            'css': 'btn-card-live', 'url': '#',            # TODO: url 'bracket'
+            'is_form': False, 'disabled': False,
+        }
+    if s == StatusChampionship.FINISHED:
+        return {
+            'label': 'Ver Resultados', 'icon': 'history',
+            'css': 'btn-card-results', 'url': '#',         # TODO: url 'bracket'
+            'is_form': False, 'disabled': False,
+        }
+    if s == StatusChampionship.OPEN:
+        if reg_status in (StatusRegistration.APPROVED, StatusRegistration.PENDING):
+            return {
+                'label': 'Cancelar Inscrição', 'icon': 'cancel',
+                'css': 'btn-card-waitlist', 'url': '#',    # TODO: url 'cancel_registration'
+                'is_form': True, 'disabled': False,
+            }
+        if champ.approved_count >= champ.max_teams:
+            return {
+                'label': 'Lista de Espera', 'icon': 'hourglass_empty',
+                'css': 'btn-card-waitlist', 'url': None,
+                'is_form': False, 'disabled': True,
+            }
+        return {
+            'label': 'Inscrever Time', 'icon': 'add_circle',
+            'css': 'btn-card-register', 'url': '#',        # TODO: url 'register_championship'
+            'is_form': False, 'disabled': False,
+        }
+ 
+    return None
+ 
+ 
+# ── Helpers de queryset ───────────────────────────────────────────────────────
+ 
 def get_my_championships(user):
     return (
         Championship.objects
-        .filter(
-            registrations__status=StatusRegistration.APPROVED
-        )
+        .filter(registrations__status=StatusRegistration.APPROVED)
         .filter(
             Q(registrations__team__members=user) |
             Q(registrations__team__captain=user)
         )
         .distinct()
     )
-
-
-def build_championship_qs(*, user=None, mode="public"):
+ 
+ 
+def build_championship_qs(*, user=None, mode='public'):
     qs = Championship.objects.all()
-
-    if mode == "public":
+ 
+    if mode == 'public':
         qs = qs.exclude(status=StatusChampionship.DRAFT)
-    elif mode == "my":
+    elif mode == 'my':
         qs = get_my_championships(user)
-    elif mode == "created":
+    elif mode == 'management':
         qs = qs.filter(created_by=user)
-
-    qs = qs.annotate(
+ 
+    return qs.annotate(
         status_order=Case(
-            When(status=StatusChampionship.DRAFT, then=Value(1)),
-            When(status=StatusChampionship.OPEN, then=Value(2)),
+            When(status=StatusChampionship.DRAFT,       then=Value(1)),
+            When(status=StatusChampionship.OPEN,        then=Value(2)),
             When(status=StatusChampionship.IN_PROGRESS, then=Value(3)),
-            When(status=StatusChampionship.FINISHED, then=Value(4)),
+            When(status=StatusChampionship.FINISHED,    then=Value(4)),
             output_field=IntegerField(),
         ),
         approved_count=Count(
             'registrations',
-            filter=Q(registrations__status='APPROVED'),
+            filter=Q(registrations__status=StatusRegistration.APPROVED),
         ),
     ).order_by('status_order', 'start_date', '-created_at')
-
-    return qs
-
-
+ 
+ 
+def _get_reg_status_map(championships, user):
+    """Uma única query: championship_id → status da inscrição do usuário."""
+    ids = [c.pk for c in championships]
+    rows = (
+        Registration.objects
+        .filter(
+            championship_id__in=ids,
+            team__in=Team.objects.filter(Q(members=user) | Q(captain=user)),
+        )
+        .values('championship_id', 'status')
+    )
+    return {r['championship_id']: r['status'] for r in rows}
+ 
+ 
+def _attach_card_data(page_obj, mode, user=None):
+    """Adiciona ph_class e cta em cada championship do page_obj."""
+    reg_map = _get_reg_status_map(page_obj.object_list, user) if user else {}
+    for champ in page_obj.object_list:
+        champ.ph_class = _PH_CLASS.get(champ.status, 'card-ph-finished')
+        champ.cta = _compute_cta(champ, mode, reg_map.get(champ.pk))
+ 
+ 
+# ── Views ─────────────────────────────────────────────────────────────────────
+ 
 @login_required
 def list_available_championships(request):
-    qs = build_championship_qs(mode="public")
-
-    page_obj = Paginator(qs, 9).get_page(request.GET.get('page', 1))
-
-    return render(request, 'championship/list.html', {
-        'page_obj': page_obj,
-    })
-
+    mode = 'public'
+    page_obj = Paginator(build_championship_qs(mode=mode), 9).get_page(request.GET.get('page', 1))
+    _attach_card_data(page_obj, mode, user=request.user)
+    return render(request, 'championship/list.html', {'page_obj': page_obj, 'mode': mode, **_MODE_CONFIG[mode]})
+ 
+ 
 @login_required
 def list_my_championships(request):
-    qs = build_championship_qs(user=request.user, mode="my")
-
-    page_obj = Paginator(qs, 9).get_page(request.GET.get('page', 1))
-
-    return render(request, 'championship/list.html', {
-        'page_obj': page_obj,
-    })
-
-
+    mode = 'my'
+    page_obj = Paginator(build_championship_qs(user=request.user, mode=mode), 9).get_page(request.GET.get('page', 1))
+    _attach_card_data(page_obj, mode, user=request.user)
+    return render(request, 'championship/list.html', {'page_obj': page_obj, 'mode': mode, **_MODE_CONFIG[mode]})
+ 
+ 
 @login_required
 def list_created_championships(request):
-    qs = build_championship_qs(user=request.user, mode="created")
-
-    page_obj = Paginator(qs, 9).get_page(request.GET.get('page', 1))
-
-    return render(request, 'championship/list.html', {
-        'page_obj': page_obj,
-    })
-
+    mode = 'management'
+    page_obj = Paginator(build_championship_qs(user=request.user, mode=mode), 9).get_page(request.GET.get('page', 1))
+    _attach_card_data(page_obj, mode)   # management não precisa de reg_map
+    return render(request, 'championship/list.html', {'page_obj': page_obj, 'mode': mode, **_MODE_CONFIG[mode]})
+ 
 
 @login_required
 def detail_championship(request):

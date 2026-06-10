@@ -4,8 +4,8 @@
 {% block title %}Início{% endblock %}
 
 {# ── Heading ─────────────────────────────────────────────────────────────── #}
-{% block page_label %}Descubra novos desafios{% endblock %}
-{% block page_title %}Campeonatos Disponíveis{% endblock %}
+{% block page_label %}{{ page_label }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
 
 {% block page_actions %}
 <a href="#" class="btn-app-primary">
@@ -415,6 +415,44 @@
         filter: grayscale(0);
     }
 
+    /* ── Search bar ─────────────────────────────────────────────────────── */
+    .filter-search-wrap {
+        position: relative;
+        margin-bottom: 1.25rem;
+    }
+
+    .filter-search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.1rem;
+        color: var(--color-on-surface-variant);
+        pointer-events: none;
+    }
+
+    .filter-search {
+        width: 100%;
+        background: var(--color-surface-container-lowest);
+        border: 1px solid rgba(255, 255, 255, .1);
+        border-radius: 0.5rem;
+        padding: 0.6rem 0.75rem 0.6rem 2.5rem;
+        color: var(--color-on-surface);
+        font-family: var(--font-body);
+        font-size: 0.875rem;
+        transition: border-color 0.15s ease;
+    }
+
+    .filter-search::placeholder {
+        color: var(--color-on-surface-variant);
+    }
+
+    .filter-search:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, .2);
+    }
+
     /* ── Filter panel ───────────────────────────────────────────────────── */
     .filter-panel {
         border-radius: 0.75rem;
@@ -460,12 +498,14 @@
 
     .filter-status-group {
         display: flex;
+        flex-wrap: wrap;
         gap: 0.5rem;
     }
 
     .btn-status {
-        flex: 1;
-        padding: 0.5rem 0.25rem;
+        flex: 1 1 auto;
+        min-width: max-content;
+        padding: 0.5rem 0.75rem;
         border-radius: 0.5rem;
         font-family: var(--font-body);
         font-size: 0.8rem;
@@ -646,6 +686,11 @@
         transform: translateX(0);
     }
 
+    .btn-card,
+    .page-btn {
+        text-decoration: none;
+    }
+
     /* ── Scrollbar ──────────────────────────────────────────────────────── */
     ::-webkit-scrollbar {
         width: 6px;
@@ -671,16 +716,24 @@
 
 <!-- ── Filter Panel ──────────────────────────────────────────────────────── -->
 <div class="filter-panel glass-panel">
+
+    <label class="filter-label">Buscar Campeonato</label>
+    <div class="filter-search-wrap">
+        <span class="material-symbols-outlined filter-search-icon">search</span>
+        <input class="filter-search" type="search" name="q" placeholder="Digite o nome do campeonato..."
+               value="{{ request.GET.q }}">
+    </div>
+
     <div class="row g-4">
 
-        <div class="col-12 col-sm-6 col-lg-4">
+        <div class="col-12 col-lg-6">
             <label class="filter-label">Jogo</label>
             <select class="filter-select" name="game">
                 <option value="">Todos os Jogos</option>
             </select>
         </div>
 
-        <div class="col-12 col-sm-6 col-lg-4">
+        <div class="col-12 col-lg-6">
             <label class="filter-label">Formato</label>
             <select class="filter-select" name="stage_format">
                 <option value="">Todos os Formatos</option>
@@ -691,10 +744,13 @@
             </select>
         </div>
 
-        <div class="col-12 col-sm-6 col-lg-4">
+        <div class="col-12">
             <label class="filter-label">Status</label>
             <div class="filter-status-group">
                 <button class="btn-status active" data-status="">Todos</button>
+                {% if mode == 'management' %}
+                <button class="btn-status" data-status="DRAFT">Rascunho</button>
+                {% endif %}
                 <button class="btn-status" data-status="OPEN">Abertos</button>
                 <button class="btn-status" data-status="IN_PROGRESS">Ao Vivo</button>
                 <button class="btn-status" data-status="FINISHED">Finalizados</button>
@@ -714,7 +770,7 @@
 
         {# ── Image / Placeholder ─────────────────────────────────── #}
         <div class="card-img-wrap">
-            <div class="card-img-placeholder {{ ph_mod }}">
+            <div class="card-img-placeholder {{ champ.ph_class }}">
                 <span class="material-symbols-outlined ph-icon">emoji_events</span>
             </div>
             <p class="ph-game-label">{{ champ.game }}</p>
@@ -828,30 +884,24 @@
             </div>{# /card-info-rows #}
 
             {# CTA button #}
-            {% if champ.status == 'OPEN' %}
-            {% if champ.approved_count < champ.max_teams %} <button class="btn-card btn-card-register">
-                Inscrever Time
-                <span class="material-symbols-outlined">add_circle</span>
+            {% if champ.cta %}{% with cta=champ.cta %}
+            {% if cta.is_form %}
+            <form method="post" action="{{ cta.url }}">
+                {% csrf_token %}
+                <button type="submit" class="btn-card {{ cta.css }}">
+                    {{ cta.label }}
+                    <span class="material-symbols-outlined">{{ cta.icon }}</span>
                 </button>
-                {% else %}
-                <button class="btn-card btn-card-waitlist" disabled>
-                    Lista de Espera
-                    <span class="material-symbols-outlined">hourglass_empty</span>
-                </button>
-                {% endif %}
-
-                {% elif champ.status == 'IN_PROGRESS' %}
-                <button class="btn-card btn-card-live">
-                    Ver Bracket ao Vivo
-                    <span class="material-symbols-outlined">chevron_right</span>
-                </button>
-
-                {% else %}
-                <button class="btn-card btn-card-results">
-                    Ver Resultados
-                    <span class="material-symbols-outlined">history</span>
-                </button>
-                {% endif %}
+            </form>
+            {% else %}
+            <a {% if not cta.disabled %}href="{{ cta.url }}"{% endif %}
+               class="btn-card {{ cta.css }}"
+               {% if cta.disabled %}aria-disabled="true"{% endif %}>
+                {{ cta.label }}
+                <span class="material-symbols-outlined">{{ cta.icon }}</span>
+            </a>
+            {% endif %}
+            {% endwith %}{% endif %}
 
         </div>{# /card-body-inner #}
     </div>{# /tournament-card #}
@@ -907,10 +957,12 @@
 </div>
 
 <!-- ── FAB ───────────────────────────────────────────────────────────────── -->
+{% if show_fab %}
 <button class="fab" title="Criar Campeonato">
     <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">add</span>
     <span class="fab-tooltip">Criar Campeonato</span>
 </button>
+{% endif %}
 
 {% endblock %}
 
