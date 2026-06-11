@@ -5,6 +5,7 @@ from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
+from apps.matches.progression import on_match_finished
 from django.contrib import messages                      # NOVO
 from django.core.exceptions import PermissionDenied, ValidationError       # NOVO
 from django.db.models import Case, When, Value, IntegerField, Count, Q, OuterRef, Subquery
@@ -624,9 +625,9 @@ def manager_championship(request, championship_id):
             )
  
             game_numbers = request.POST.getlist('game_number')
-            scores_a = request.POST.getlist('score_a')
-            scores_b = request.POST.getlist('score_b')
-            maps = request.POST.getlist('map_name')
+            scores_a     = request.POST.getlist('score_a')
+            scores_b     = request.POST.getlist('score_b')
+            maps         = request.POST.getlist('map_name')
  
             # Recria os GameResults a partir do formulário
             GameResult.objects.filter(match_id=match).delete()
@@ -656,9 +657,13 @@ def manager_championship(request, championship_id):
             if wins_a >= needed or wins_b >= needed:
                 match.winner = match.team_a if wins_a > wins_b else match.team_b
                 match.status = GameStatus.FINISHED
+                match.save()
+                on_match_finished(match)   # ← LINHA NOVA
             elif wins_a or wins_b:
                 match.status = GameStatus.ONGOING
-            match.save()
+                match.save()
+            else:
+                match.save()
  
             messages.success(request, f"Placar da partida #{match.pk} atualizado.")
  
