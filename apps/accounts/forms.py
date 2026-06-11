@@ -232,6 +232,8 @@ class EditProfileForm(forms.ModelForm):
         add_placeholder(self.fields["email"], "email@exemplo.com")
         add_placeholder(self.fields["bio"], "Fale um pouco sobre você...")
         add_placeholder(self.fields["current_password"], "Digite sua senha atual")
+        add_placeholder(self.fields["password"], "Digite sua senha")
+        add_placeholder(self.fields["confirm_password"], "Confirme sua senha")
 
     # ── Validações de unicidade excluindo o próprio usuário ─────────────────
  
