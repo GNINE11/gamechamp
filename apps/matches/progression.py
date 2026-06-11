@@ -7,7 +7,9 @@ Chamado após cada partida finalizada em update_match_scores.
 Responsabilidades:
   1. Propagar o vencedor para a próxima partida (single e double elimination).
   2. Atualizar GroupStanding quando a partida é de fase de grupos.
-  3. Encerrar o campeonato e registrar o grande campeão quando a grande
+  3. Semear o bracket de playoffs com os classificados quando toda a fase
+     de grupos for concluída (GROUP_THEN_PLAYOFFS).
+  4. Encerrar o campeonato e registrar o grande campeão quando a grande
      final for concluída.
 """
 
@@ -360,6 +362,103 @@ def _maybe_finish_championship(match):
     championship.save(update_fields=["champion", "status"])
 
 
+def _all_group_matches_finished(championship):
+    """Retorna True se todas as partidas de fase de grupos estão encerradas."""
+    return not Match.objects.filter(
+        championship=championship,
+        phase=Phase.GROUP,
+    ).exclude(status=GameStatus.FINISHED).exists()
+
+
+def _seed_bracket_from_groups(championship):
+    """
+    Popula as partidas da fase de playoffs com os classificados dos grupos.
+
+    Convenção esperada (criada em services._create_group_then_playoffs):
+      - As partidas de playoffs têm phase=PLAYOFF (ou GRAND_FINAL) e
+        team_a / team_b ainda NULL (TBD).
+      - Os slots são preenchidos em ordem: classificados ordenados por
+        posição dentro de cada grupo, intercalando grupos para evitar que
+        times do mesmo grupo se encontrem na primeira rodada.
+
+    Exemplo com 2 grupos (A e B) e 2 classificados cada:
+      Slot 1 → 1º do grupo A
+      Slot 2 → 1º do grupo B
+      Slot 3 → 2º do grupo A
+      Slot 4 → 2º do grupo B
+    """
+    from apps.matches.models import Group  # import local p/ evitar circular
+
+    groups = list(
+        Group.objects.filter(championship=championship).order_by('name')
+    )
+    if not groups:
+        return
+
+    qualifiers_per_group = championship.teams_advancing_per_group or 1
+
+    # Monta lista de classificados: [[1ºA, 1ºB, ...], [2ºA, 2ºB, ...], ...]
+    classified_by_position = []
+    for pos in range(1, qualifiers_per_group + 1):
+        row = []
+        for group in groups:
+            standing = (
+                GroupStanding.objects
+                .filter(group=group, position=pos)
+                .select_related('team')
+                .first()
+            )
+            if standing and standing.team:
+                row.append(standing.team)
+        classified_by_position.append(row)
+
+    # Achata intercalando por grupo: 1ºA, 1ºB, 2ºA, 2ºB, ...
+    seeds = [team for row in classified_by_position for team in row]
+
+    if not seeds:
+        return
+
+    # Partidas de playoff na primeira rodada (menor playoff_round > 0),
+    # ordenadas por round_number para garantir ordem determinística.
+    first_round = (
+        Match.objects
+        .filter(
+            championship=championship,
+            phase=Phase.PLAYOFF,
+            playoff_round=1,
+        )
+        .order_by('round_number')
+    )
+
+    # Fallback: se não há playoff_round=1 (estrutura sem numeração),
+    # pega todas as partidas de PLAYOFF sem times definidos.
+    if not first_round.exists():
+        first_round = (
+            Match.objects
+            .filter(
+                championship=championship,
+                phase=Phase.PLAYOFF,
+                team_a__isnull=True,
+                team_b__isnull=True,
+            )
+            .order_by('round_number')
+        )
+
+    slot = 0
+    for match in first_round:
+        changed = False
+        if match.team_a is None and slot < len(seeds):
+            match.team_a = seeds[slot]
+            slot += 1
+            changed = True
+        if match.team_b is None and slot < len(seeds):
+            match.team_b = seeds[slot]
+            slot += 1
+            changed = True
+        if changed:
+            match.save(update_fields=['team_a', 'team_b'])
+
+
 # ── 5. Entry point ────────────────────────────────────────────────────────────
 
 @transaction.atomic
@@ -370,6 +469,7 @@ def on_match_finished(match):
 
     Executa em ordem:
       1. Atualiza GroupStanding (se fase de grupos).
+      1b. Semeia o bracket de playoffs (se toda a fase de grupos encerrou).
       2. Propaga o vencedor no bracket (se fase eliminatória).
       3. Finaliza o campeonato (se Grande Final).
     """
@@ -379,14 +479,20 @@ def on_match_finished(match):
     from apps.championships.models import StageFormat, PlayoffFormat  # import local
 
     championship = match.championship
+    fmt = championship.stage_format
 
     # 1. Tabela de grupos
     if match.phase == Phase.GROUP:
         _update_group_standing(match)
-        return  # partidas de grupo não propagam no bracket
+        # Quando a última partida de grupos encerra, semeia o bracket de playoffs.
+        if (
+            fmt == StageFormat.GROUP_THEN_PLAYOFFS
+            and _all_group_matches_finished(championship)
+        ):
+            _seed_bracket_from_groups(championship)
+        return  # partidas de grupo não propagam no bracket de eliminação
 
     # 2. Propagação no bracket
-    fmt = championship.stage_format
     is_double = (
         fmt == StageFormat.DOUBLE_ELIMINATION
         or (
@@ -401,4 +507,3 @@ def on_match_finished(match):
         _propagate_single_elim(match)
 
     # 3. Finalização do campeonato
-    _maybe_finish_championship(match)
