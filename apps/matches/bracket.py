@@ -22,21 +22,13 @@ def _get_scores(match):
     return score_a, score_b
 
 
-_ROUND_LABELS = {
-    1:  'Final',
-    2:  'Semifinal',
-    4:  'Quartas de Final',
-    8:  'Oitavas de Final',
-    16: 'Décimos de Final',
-}
-
 _TIER_CLASSES = ['round-qf', 'round-sf', 'round-fin']  # últimas 3 rodadas, de trás pra frente
 
 
-def _label_for_round(match_count, is_final):
-    if is_final:
-        return 'Final'
-    return _ROUND_LABELS.get(match_count, f'Rodada ({match_count} partidas)')
+def _label_for_round(round_index, has_grand_final=False):
+    if has_grand_final:
+        return 'Grande Final'
+    return f'Rodada {round_index}'
 
 
 def _tier_class(index_from_end):
@@ -93,10 +85,12 @@ def get_bracket_rounds(championship):
         .order_by('playoff_round', 'round_number')
     )
 
-    max_round = max([m.playoff_round or 0 for m in playoff_matches] or [0])
+    max_round = max(
+        [m.playoff_round or 0 for m in playoff_matches if m.phase != Phase.GRAND_FINAL] or [0]
+    )
     rounds_map = defaultdict(list)
     for m in playoff_matches:
-        key = max_round + 1 if m.phase == Phase.GRAND_FINAL else m.playoff_round
+        key = max_round + 1 if m.phase == Phase.GRAND_FINAL else (m.playoff_round or 0)
         rounds_map[key].append(m)
 
     if not rounds_map:
@@ -109,18 +103,19 @@ def get_bracket_rounds(championship):
     for i, key in enumerate(sorted_keys):
         matches = rounds_map[key]
         index_from_end = total - 1 - i
-        is_final = (index_from_end == 0)
+        is_last_round = (index_from_end == 0)
+        has_grand_final = any(m.phase == Phase.GRAND_FINAL for m in matches)
 
         formatted = [_format_match(m) for m in matches]
         rounds.append({
-            'label':           _label_for_round(len(formatted), is_final),
+            'label':           _label_for_round(i + 1, has_grand_final),
             'tier_class':      _tier_class(index_from_end),
             'matches':         formatted,
-            'pairs':           _chunk_pairs(formatted, is_final),
+            'pairs':           _chunk_pairs(formatted, is_last_round),
             'spacing':         2 ** i,
             # connector_pairs: cada par de partidas desta rodada gera 1 par de conectores
             # A última rodada não precisa de conector.
-            'connector_pairs': list(range(max(len(formatted) // 2, 1))) if not is_final else [],
+            'connector_pairs': list(range(max(len(formatted) // 2, 1))) if not is_last_round else [],
         })
 
     return rounds
@@ -169,15 +164,15 @@ def get_double_elim_bracket(championship):
         for i, k in enumerate(keys):
             matches = rounds_map[k]
             index_from_end = total - 1 - i
-            is_final = (index_from_end == 0)
+            is_last_round = (index_from_end == 0)
             formatted = [_format_match(m) for m in matches]
             result.append({
-                'label':           _label_for_round(len(formatted), is_final),
+                'label':           _label_for_round(i + 1),
                 'tier_class':      _tier_class(index_from_end),
                 'matches':         formatted,
-                'pairs':           _chunk_pairs(formatted, is_final),
+                'pairs':           _chunk_pairs(formatted, is_last_round),
                 'spacing':         2 ** i,
-                'connector_pairs': list(range(max(len(formatted) // 2, 1))) if not is_final else [],
+                'connector_pairs': list(range(max(len(formatted) // 2, 1))) if not is_last_round else [],
             })
         return result
 

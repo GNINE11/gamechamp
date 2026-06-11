@@ -242,6 +242,76 @@ class ChampionshipViewTest(ChampionshipTestCase):
             role=RoleStaff.OWNER,
         )
 
+    def test_available_championship_filters_use_get_params(self):
+        user = self.create_user("filter_user")
+        target = self.create_championship(
+            created_by=self.create_user("filter_owner_a"),
+            name="Valorant Masters",
+            game="Valorant",
+            status=StatusChampionship.OPEN,
+            start_date=date(2026, 6, 20),
+            stage_format=StageFormat.SINGLE_ELIMINATION,
+            group_count=None,
+            teams_per_group=None,
+            teams_advancing_per_group=None,
+            group_match_format=None,
+            playoff_format=PlayoffFormat.SINGLE_ELIMINATION,
+            playoff_match_format=MatchFormat.BO1,
+            final_match_format=MatchFormat.BO3,
+        )
+        self.create_championship(
+            created_by=self.create_user("filter_owner_b"),
+            name="League Finals",
+            game="League of Legends",
+            status=StatusChampionship.FINISHED,
+            start_date=date(2026, 6, 21),
+            stage_format=StageFormat.DOUBLE_ELIMINATION,
+            group_count=None,
+            teams_per_group=None,
+            teams_advancing_per_group=None,
+            group_match_format=None,
+            playoff_format=PlayoffFormat.DOUBLE_ELIMINATION,
+            playoff_match_format=MatchFormat.BO1,
+            final_match_format=MatchFormat.BO3,
+        )
+        self.client.login(username=user.username, password="testpass123")
+
+        response = self.client.get(reverse("championship:available-championship-list"), {
+            "q": "masters",
+            "game": "Valorant",
+            "status": StatusChampionship.OPEN,
+            "stage_format": StageFormat.SINGLE_ELIMINATION,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["page_obj"].object_list), [target])
+        self.assertIn("q=masters", response.context["filter_query"])
+        self.assertEqual(response.context["filters"]["status"], StatusChampionship.OPEN)
+
+    def test_available_championship_ignores_draft_status_filter(self):
+        user = self.create_user("draft_filter_user")
+        visible = self.create_championship(
+            created_by=self.create_user("draft_filter_owner_a"),
+            name="Open Cup",
+            status=StatusChampionship.OPEN,
+            start_date=date(2026, 6, 20),
+        )
+        self.create_championship(
+            created_by=self.create_user("draft_filter_owner_b"),
+            name="Draft Cup",
+            status=StatusChampionship.DRAFT,
+        )
+        self.client.login(username=user.username, password="testpass123")
+
+        response = self.client.get(
+            reverse("championship:available-championship-list"),
+            {"status": StatusChampionship.DRAFT},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["page_obj"].object_list), [visible])
+        self.assertEqual(response.context["filters"]["status"], "")
+
     def test_create_championship_starts_as_draft_and_adds_owner(self):
         owner = self.create_user("create_owner")
         self.client.login(username=owner.username, password="testpass123")

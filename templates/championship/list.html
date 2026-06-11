@@ -835,11 +835,11 @@
 
 <!-- ── Filter Modal ──────────────────────────────────────────────────────── -->
 <div class="filter-modal-backdrop" id="filterBackdrop">
-    <div class="filter-modal glass-panel">
+    <form method="get" class="filter-modal glass-panel" id="filterForm">
 
         <div class="filter-modal-header">
             <h2 class="filter-modal-title">Filtros</h2>
-            <button class="filter-modal-close" id="filterClose" aria-label="Fechar">
+            <button type="button" class="filter-modal-close" id="filterClose" aria-label="Fechar">
                 <span class="material-symbols-outlined">close</span>
             </button>
         </div>
@@ -848,7 +848,7 @@
         <div class="filter-search-wrap">
             <span class="material-symbols-outlined filter-search-icon">search</span>
             <input class="filter-search" type="search" name="q" placeholder="Digite o nome do campeonato..."
-                   value="{{ request.GET.q }}">
+                   value="{{ filters.q }}">
         </div>
 
         <div class="row g-4">
@@ -857,6 +857,9 @@
                 <label class="filter-label">Jogo</label>
                 <select class="filter-select" name="game">
                     <option value="">Todos os Jogos</option>
+                    {% for game in game_options %}
+                    <option value="{{ game }}" {% if filters.game == game %}selected{% endif %}>{{ game }}</option>
+                    {% endfor %}
                 </select>
             </div>
 
@@ -864,34 +867,31 @@
                 <label class="filter-label">Formato</label>
                 <select class="filter-select" name="stage_format">
                     <option value="">Todos os Formatos</option>
-                    <option value="SINGLE_ELIMINATION">Eliminação Simples</option>
-                    <option value="DOUBLE_ELIMINATION">Eliminação Dupla</option>
-                    <option value="ROUND_ROBIN">Pontos Corridos</option>
-                    <option value="GROUP_THEN_PLAYOFFS">Grupos + Playoffs</option>
+                    {% for option in stage_format_options %}
+                    <option value="{{ option.value }}" {% if filters.stage_format == option.value %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
                 </select>
             </div>
 
             <div class="col-12">
                 <label class="filter-label">Status</label>
+                <input type="hidden" name="status" id="filterStatusInput" value="{{ filters.status }}">
                 <div class="filter-status-group">
-                    <button class="btn-status active" data-status="">Todos</button>
-                    {% if mode == 'management' %}
-                    <button class="btn-status" data-status="DRAFT">Rascunho</button>
-                    {% endif %}
-                    <button class="btn-status" data-status="OPEN">Abertos</button>
-                    <button class="btn-status" data-status="IN_PROGRESS">Ao Vivo</button>
-                    <button class="btn-status" data-status="FINISHED">Finalizados</button>
+                    <button type="button" class="btn-status {% if not filters.status %}active{% endif %}" data-status="">Todos</button>
+                    {% for option in status_options %}
+                    <button type="button" class="btn-status {% if filters.status == option.value %}active{% endif %}" data-status="{{ option.value }}">{{ option.label }}</button>
+                    {% endfor %}
                 </div>
             </div>
 
         </div>
 
         <div class="filter-modal-footer">
-            <button class="btn-filter-clear" id="filterClear">Limpar</button>
-            <button class="btn-filter-apply" id="filterApply">Aplicar Filtros</button>
+            <button type="button" class="btn-filter-clear" id="filterClear">Limpar</button>
+            <button type="submit" class="btn-filter-apply" id="filterApply">Aplicar Filtros</button>
         </div>
 
-    </div>
+    </form>
 </div>
 
 <!-- ── Tournament Grid ───────────────────────────────────────────────────── -->
@@ -1081,7 +1081,7 @@
 <div class="pagination-wrap">
 
     {% if page_obj.has_previous %}
-        <a class="page-btn" href="?page={{ page_obj.previous_page_number }}">
+        <a class="page-btn" href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ page_obj.previous_page_number }}">
             <span class="material-symbols-outlined">chevron_left</span>
         </a>
     {% else %}
@@ -1096,14 +1096,14 @@
             <button class="page-btn active">{{ num }}</button>
 
         {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
-            <a class="page-btn" href="?page={{ num }}">{{ num }}</a>
+            <a class="page-btn" href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ num }}">{{ num }}</a>
 
         {% endif %}
 
     {% endfor %}
 
     {% if page_obj.has_next %}
-        <a class="page-btn" href="?page={{ page_obj.next_page_number }}">
+        <a class="page-btn" href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ page_obj.next_page_number }}">
             <span class="material-symbols-outlined">chevron_right</span>
         </a>
     {% else %}
@@ -1128,6 +1128,7 @@
 {% block extra_js %}
 <script>
     const backdrop = document.getElementById('filterBackdrop');
+    const statusInput = document.getElementById('filterStatusInput');
 
     function openFilter()  { backdrop.classList.add('is-open');    document.body.style.overflow = 'hidden'; }
     function closeFilter() { backdrop.classList.remove('is-open'); document.body.style.overflow = ''; }
@@ -1143,14 +1144,8 @@
 
     // Limpar filtros
     document.getElementById('filterClear').addEventListener('click', () => {
-        backdrop.querySelectorAll('.filter-select').forEach(s => s.value = '');
-        backdrop.querySelector('.filter-search').value = '';
-        backdrop.querySelectorAll('.btn-status').forEach(b => b.classList.remove('active'));
-        backdrop.querySelector('.btn-status[data-status=""]').classList.add('active');
+        window.location.href = window.location.pathname;
     });
-
-    // Aplicar fecha o modal (conectar à URL query se precisar)
-    document.getElementById('filterApply').addEventListener('click', closeFilter);
 
     // Status filter buttons
     document.querySelectorAll('.btn-status').forEach(btn => {
@@ -1159,6 +1154,7 @@
                 .querySelectorAll('.btn-status')
                 .forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
+            statusInput.value = btn.dataset.status;
         });
     });
 </script>

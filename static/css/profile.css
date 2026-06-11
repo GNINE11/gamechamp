@@ -144,6 +144,11 @@
     gap: .6rem;
 }
 
+.profile-stats-card {
+    display: flex;
+    flex-direction: column;
+}
+
 .match-item {
     display: flex;
     align-items: center;
@@ -276,16 +281,20 @@
 /* ─── Trophy Room ────────────────────────────────────────────────────────── */
 .trophy-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
     gap: .875rem;
+    flex: 1;
 }
 
 .trophy-card {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: .5rem;
     padding: 1.25rem .75rem 1rem;
+    min-height: 7.75rem;
     background: rgba(255, 255, 255, .025);
     border-radius: .625rem;
     text-align: center;
@@ -469,7 +478,7 @@
 /* ─── Responsividade ─────────────────────────────────────────────────────── */
 @media (max-width: 1200.98px) {
     .trophy-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -483,7 +492,7 @@
     }
 
     .trophy-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -647,4 +656,3 @@
         padding: 1rem 0.75rem;
     }
 }
-

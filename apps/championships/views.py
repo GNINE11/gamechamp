@@ -1,4 +1,5 @@
 from collections import defaultdict
+from urllib.parse import urlencode
 
 from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse
@@ -25,6 +26,14 @@ from .models import (
     MatchFormat,
 )
 from .services import ensure_championship_structure
+
+
+_FILTER_STATUS_LABELS = {
+    StatusChampionship.DRAFT: 'Rascunho',
+    StatusChampionship.OPEN: 'Abertos',
+    StatusChampionship.IN_PROGRESS: 'Ao Vivo',
+    StatusChampionship.FINISHED: 'Finalizados',
+}
 
 
 _MODE_CONFIG = {
@@ -168,17 +177,94 @@ def get_my_championships(user):
     )
  
  
-def build_championship_qs(*, user=None, mode='public'):
+def _base_championship_qs(*, user=None, mode='public'):
     qs = Championship.objects.all()
 
     if mode == 'public':
         qs = qs.exclude(status=StatusChampionship.DRAFT)
 
     elif mode == 'my':
-        qs = get_my_championships(user)
+        qs = get_my_championships(user).exclude(status=StatusChampionship.DRAFT)
 
     elif mode == 'management':
         qs = qs.filter(staff_members__user=user).distinct()
+
+    return qs
+
+
+def _clean_championship_filters(params, *, mode, game_options):
+    filters = {
+        'q': params.get('q', '').strip(),
+        'game': params.get('game', '').strip(),
+        'status': params.get('status', '').strip(),
+        'stage_format': params.get('stage_format', '').strip(),
+    }
+
+    if filters['game'] not in game_options:
+        filters['game'] = ''
+
+    valid_statuses = set(StatusChampionship.values)
+    if mode != 'management':
+        valid_statuses.discard(StatusChampionship.DRAFT)
+    if filters['status'] not in valid_statuses:
+        filters['status'] = ''
+
+    if filters['stage_format'] not in set(StageFormat.values):
+        filters['stage_format'] = ''
+
+    return filters
+
+
+def _filter_context(request, *, user=None, mode='public'):
+    base_qs = _base_championship_qs(user=user, mode=mode)
+    game_options = list(
+        base_qs
+        .exclude(game='')
+        .order_by('game')
+        .values_list('game', flat=True)
+        .distinct()
+    )
+    filters = _clean_championship_filters(request.GET, mode=mode, game_options=game_options)
+    active_filters = {key: value for key, value in filters.items() if value}
+
+    status_values = [
+        StatusChampionship.OPEN,
+        StatusChampionship.IN_PROGRESS,
+        StatusChampionship.FINISHED,
+    ]
+    if mode == 'management':
+        status_values.insert(0, StatusChampionship.DRAFT)
+
+    return {
+        'filters': filters,
+        'filter_query': urlencode(active_filters),
+        'game_options': game_options,
+        'status_options': [
+            {'value': value, 'label': _FILTER_STATUS_LABELS[value]}
+            for value in status_values
+        ],
+        'stage_format_options': [
+            {'value': value, 'label': label}
+            for value, label in StageFormat.choices
+        ],
+    }
+
+
+def build_championship_qs(*, user=None, mode='public', filters=None):
+    qs = _base_championship_qs(user=user, mode=mode)
+    filters = filters or {}
+
+    if filters.get('q'):
+        qs = qs.filter(Q(name__icontains=filters['q']) | Q(game__icontains=filters['q']))
+
+    if filters.get('game'):
+        qs = qs.filter(game=filters['game'])
+
+    if filters.get('status'):
+        qs = qs.filter(status=filters['status'])
+
+    if filters.get('stage_format'):
+        qs = qs.filter(stage_format=filters['stage_format'])
 
     approved_count_subquery = (
         Registration.objects
@@ -242,25 +328,28 @@ def _attach_card_data(page_obj, mode, user=None):
 @login_required
 def list_available_championships(request):
     mode = 'public'
-    page_obj = Paginator(build_championship_qs(mode=mode), 9).get_page(request.GET.get('page', 1))
+    filter_context = _filter_context(request, mode=mode)
+    page_obj = Paginator(build_championship_qs(mode=mode, filters=filter_context['filters']), 9).get_page(request.GET.get('page', 1))
     _attach_card_data(page_obj, mode, user=request.user)
-    return render(request, 'championship/list.html', {'page_obj': page_obj, 'mode': mode, **_MODE_CONFIG[mode]})
+    return render(request, 'championship/list.html', {'page_obj': page_obj, 'mode': mode, **filter_context, **_MODE_CONFIG[mode]})
  
  
 @login_required
 def list_my_championships(request):
     mode = 'my'
-    page_obj = Paginator(build_championship_qs(user=request.user, mode=mode), 9).get_page(request.GET.get('page', 1))
+    filter_context = _filter_context(request, user=request.user, mode=mode)
+    page_obj = Paginator(build_championship_qs(user=request.user, mode=mode, filters=filter_context['filters']), 9).get_page(request.GET.get('page', 1))
     _attach_card_data(page_obj, mode, user=request.user)
-    return render(request, 'championship/list.html', {'page_obj': page_obj, 'mode': mode, **_MODE_CONFIG[mode]})
+    return render(request, 'championship/list.html', {'page_obj': page_obj, 'mode': mode, **filter_context, **_MODE_CONFIG[mode]})
  
  
 @login_required
 def list_management_championships(request):
     mode = 'management'
-    page_obj = Paginator(build_championship_qs(user=request.user, mode=mode), 9).get_page(request.GET.get('page', 1))
+    filter_context = _filter_context(request, user=request.user, mode=mode)
+    page_obj = Paginator(build_championship_qs(user=request.user, mode=mode, filters=filter_context['filters']), 9).get_page(request.GET.get('page', 1))
     _attach_card_data(page_obj, mode, user=request.user)
-    return render(request, 'championship/list.html', {'page_obj': page_obj, 'mode': mode, **_MODE_CONFIG[mode]})
+    return render(request, 'championship/list.html', {'page_obj': page_obj, 'mode': mode, **filter_context, **_MODE_CONFIG[mode]})
  
 
 @login_required

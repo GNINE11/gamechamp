@@ -12,18 +12,70 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Hanken+Grotesk:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
-  <link rel="stylesheet" href="{% static 'css/auth.css' %}">
-  {% block extra_css %}{% endblock %}
+  <link rel="stylesheet" href="{% static 'css/landing.css' %}">
 </head>
 
-<body>
-  <main class="main-content">
-    <h1>Aqui vai ser a lading page</h1> <br>
+<body class="landing-body">
+  <main class="landing-main">
+    <section class="landing-hero">
+      <nav class="landing-nav" aria-label="Navegação principal">
+        <a href="{% url 'core:landing_page' %}" class="landing-brand">
+          <span class="material-symbols-outlined">emoji_events</span>
+          Gamechamp
+        </a>
 
-    <a href="{% url 'accounts:login' %}">Login</a><br>
-    <a href="{% url 'accounts:signup' %}">Cadastrar</a>
+        <div class="landing-nav-actions">
+          {% if request.user.is_authenticated %}
+          <a href="{% url 'championship:available-championship-list' %}" class="landing-nav-link">Campeonatos</a>
+          {% else %}
+          <a href="{% url 'accounts:login' %}" class="landing-nav-link">Login</a>
+          <a href="{% url 'accounts:signup' %}" class="landing-nav-button">Cadastrar</a>
+          {% endif %}
+        </div>
+      </nav>
+
+      <div class="landing-hero-content">
+        <p class="landing-kicker">Organize. Compita. Acompanhe.</p>
+        <h1>Gamechamp</h1>
+        <p class="landing-hero-copy">
+          Crie campeonatos, gerencie inscrições, monte equipes e acompanhe partidas em uma plataforma feita para jogos competitivos.
+        </p>
+
+        <div class="landing-actions">
+          {% if request.user.is_authenticated %}
+          <a href="{% url 'championship:available-championship-list' %}" class="landing-primary-cta">
+            Ir para campeonatos
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </a>
+          {% else %}
+          <a href="{% url 'accounts:signup' %}" class="landing-primary-cta">
+            Criar conta
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </a>
+          <a href="{% url 'accounts:login' %}" class="landing-secondary-cta">Entrar</a>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-highlights" aria-label="Recursos principais">
+      <article class="landing-highlight">
+        <span class="material-symbols-outlined">account_tree</span>
+        <h2>Chaveamentos claros</h2>
+        <p>Visualize estruturas de eliminação, grupos e playoffs em tempo real.</p>
+      </article>
+      <article class="landing-highlight">
+        <span class="material-symbols-outlined">groups</span>
+        <h2>Times e inscrições</h2>
+        <p>Gerencie equipes, aprovações e convites sem sair do fluxo do campeonato.</p>
+      </article>
+      <article class="landing-highlight">
+        <span class="material-symbols-outlined">scoreboard</span>
+        <h2>Resultados rápidos</h2>
+        <p>Registre partidas, mapas e vencedores com histórico para jogadores e staff.</p>
+      </article>
+    </section>
   </main>
-
 </body>
 
 </html>

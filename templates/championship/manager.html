@@ -754,30 +754,6 @@
 
     .btn-ghost-full:hover { background: rgba(255, 255, 255, 0.05); color: var(--color-on-surface); }
 
-    /* ─── Mensagens ──────────────────────────────────────────────── */
-    .messages-wrap {
-        margin-bottom: 1.5rem;
-        display: flex; flex-direction: column; gap: 0.625rem;
-    }
-
-    .message-item {
-        padding: 0.875rem 1.25rem;
-        border-radius: 0.625rem;
-        font-size: 0.875rem;
-    }
-
-    .message-item.error {
-        background: rgba(255, 180, 171, .08);
-        border: 1px solid rgba(255, 180, 171, .25);
-        color: var(--color-error);
-    }
-
-    .message-item.success {
-        background: rgba(6, 182, 212, .08);
-        border: 1px solid rgba(6, 182, 212, .25);
-        color: var(--color-secondary);
-    }
-
     /* ─── Responsividade geral ───────────────────────────────────── */
     @media (max-width: 600px) {
         .panel-header {
@@ -793,16 +769,6 @@
 {% endblock %}
 
 {% block content %}
-
-{% if messages %}
-  <div class="messages-wrap">
-    {% for message in messages %}
-      <div class="message-item {% if message.tags == 'error' %}error{% else %}success{% endif %}">
-        {{ message }}
-      </div>
-    {% endfor %}
-  </div>
-{% endif %}
 
 <!-- ─── Main content layout ─────────────────────────────────────────── -->
 <div class="manager-layout">
