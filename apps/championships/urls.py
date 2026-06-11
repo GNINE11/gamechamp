@@ -5,9 +5,7 @@ app_name = 'championship'
 
 urlpatterns = [
     path('inicio/', views.list_available_championships, name='available-championship-list'),
-    
     path('meus-campeonatos/', views.list_my_championships, name='my-championship-list'),
-
     path('campeonatos/gestao/', views.list_management_championships, name='management-championship-list'),
     path('campeonatos/gestao/criar/', views.create_championship, name='management-championship-create'),
     path('campeonatos/gestao/<int:championship_id>/dashboard/', views.manager_championship, name='management-championship-dashboard'),
