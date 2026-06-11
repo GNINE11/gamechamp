@@ -20,7 +20,7 @@
         <a href="#" class="auth-link">Campeonatos</a>
         <span class="mx-1">/</span>
         <a href="#" class="auth-link">
-            {{ match.tournament.name }}
+            {{ match.championship.name }}
         </a>
         <span class="mx-1">/</span>
         <span class="page-heading-label-current">Partida #{{ match.pk }}</span>
@@ -36,23 +36,20 @@
             <div class="hero-team home">
                 <div class="hero-team-glow">
                     <div class="hero-team-glow-bg primary"></div>
+                    {% if match.team_a.logo %}
                     <img class="hero-team-logo"
                          src="{{ match.team_a.logo.url }}"
-                         alt="{{ match.team_a.name }}"
-                         onerror="this.style.display='none'">
+                         alt="{{ match.team_a.name }}">
+                    {% else %}
+                    <span class="material-symbols-outlined" style="font-size:3rem;color:var(--color-primary)">shield</span>
+                    {% endif %}
                 </div>
-                <span class="hero-team-tag primary">Time da Casa</span>
+                <span class="hero-team-tag primary">Time A</span>
                 <h2 class="hero-team-name">{{ match.team_a.name }}</h2>
-                <p class="hero-team-rank">Rank Global #{{ match.team_a.rank|default:"—" }}</p>
             </div>
 
             <!-- Placar -->
             <div class="hero-score-block">
-                <span class="hero-score-badge">
-                    {% if match.status == 'finished' %}Partida Encerrada
-                    {% elif match.status == 'live' %}Ao Vivo
-                    {% else %}Aguardando{% endif %}
-                </span>
 
                 <div class="hero-score-numbers">
                     <span class="hero-score-num {% if match.score_a >= match.score_b %}winner{% else %}loser{% endif %}">
@@ -71,14 +68,16 @@
             <div class="hero-team away">
                 <div class="hero-team-glow">
                     <div class="hero-team-glow-bg secondary"></div>
+                    {% if match.team_b.logo %}
                     <img class="hero-team-logo"
                          src="{{ match.team_b.logo.url }}"
-                         alt="{{ match.team_b.name }}"
-                         onerror="this.style.display='none'">
+                         alt="{{ match.team_b.name }}">
+                    {% else %}
+                    <span class="material-symbols-outlined" style="font-size:3rem;color:var(--color-secondary)">shield</span>
+                    {% endif %}
                 </div>
-                <span class="hero-team-tag secondary">Time Visitante</span>
+                <span class="hero-team-tag secondary">Time B</span>
                 <h2 class="hero-team-name">{{ match.team_b.name }}</h2>
-                <p class="hero-team-rank">Rank Global #{{ match.team_b.rank|default:"—" }}</p>
             </div>
 
         </div>
@@ -156,36 +155,6 @@
                 </div>
             </div>
             <!-- /mapas -->
-
-            <!-- Linha do tempo de eventos -->
-            <div class="auth-glass-card">
-
-                <div class="section-header">
-                    <span class="material-symbols-outlined icon-primary">event_note</span>
-                    <h3 class="section-title">Eventos da Partida</h3>
-                </div>
-
-                <div class="event-timeline">
-
-                    {% for event in match.events.all %}
-                    <div class="event-item">
-                        <div class="event-dot {{ event.color|default:'neutral' }}">
-                            <span class="material-symbols-outlined">{{ event.icon|default:'radio_button_checked' }}</span>
-                        </div>
-                        <span class="event-round {{ event.color|default:'neutral' }}">
-                            Round {{ event.round }}
-                        </span>
-                        <p class="event-title">{{ event.title }}</p>
-                        <p class="event-desc">{{ event.description }}</p>
-                    </div>
-                    {% empty %}
-                    <p class="match-date text-center py-2">Nenhum evento registrado.</p>
-                    {% endfor %}
-
-                </div>
-            </div>
-            <!-- /eventos -->
-
         </div>
         <!-- /detail-col-wide -->
 

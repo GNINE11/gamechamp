@@ -42,11 +42,11 @@ Histórico de Partidas | Gamechamp
         <div class="history-stat-cards">
             <div class="history-stat-card">
                 <span class="history-stat-label">Total Jogadas</span>
-                <span class="history-stat-value primary">{{ total_matches|default:"—" }}</span>
+                <span class="history-stat-value primary">{{ total_matches|default:"0" }}</span>
             </div>
             <div class="history-stat-card">
                 <span class="history-stat-label">Win Rate</span>
-                <span class="history-stat-value secondary">{{ win_rate|default:"—" }}%</span>
+                <span class="history-stat-value secondary">{{ win_rate|default:"0" }}%</span>
             </div>
         </div>
 
@@ -135,10 +135,9 @@ Histórico de Partidas | Gamechamp
             <!-- Data + torneio -->
             <div class="history-meta">
                 <span class="history-date">
-                    {{ match.scheduled_at|date:"d M, Y" }} &bull;
-                    {{ match.scheduled_at|date:"H:i" }}
+                    {{ match.scheduled_at|date:"d M, Y"|default:"—" }}
                 </span>
-                <p class="history-tournament">{{ match.tournament.name }}</p>
+                <p class="history-tournament">{{ match.championship.name }}</p>
                 <div class="history-stage">
                     <span class="history-stage-dot {% if match.user_won %}win{% else %}loss{% endif %}"></span>
                     <span class="history-stage-text {% if match.user_won %}win{% else %}loss{% endif %}">
@@ -173,7 +172,7 @@ Histórico de Partidas | Gamechamp
                 <!-- Placar -->
                 <div class="history-scorebox">
                     <span class="history-score">
-                        {{ match.score_a|default:"–" }} : {{ match.score_b|default:"–" }}
+                        {{ match.score_a|default:"0" }} : {{ match.score_b|default:"0" }}
                     </span>
                     <span class="history-format">Melhor de {{ match.best_of|default:"3" }}</span>
                 </div>

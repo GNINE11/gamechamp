@@ -3,7 +3,7 @@ from django.contrib.auth import authenticate, login, logout, get_user_model
 from apps.championships.models import Championship, Registration, StatusChampionship
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Q, Sum
 
 from .forms import SignupForm, EditProfileForm, LoginForm
 
@@ -96,37 +96,34 @@ def logout_view(request):
 
 @login_required
 def profile_view(request):
-    """
-    Exibe o perfil do usuário logado.
-    Template espera: user (request.user), recent_matches
-    """
-    from apps.matches.models import Match, GameStatus, GameResult
+    from apps.matches.models import Match, GameStatus, GameResult, GroupStanding
     from apps.teams.models import Team
-
+ 
     user       = request.user
     user_teams = Team.objects.filter(members=user)
-    championships = Championship.objects.filter(registrations__team__in=user_teams).distinct().order_by("status","-created_at")
-
-    # Últimas 3 partidas encerradas dos times do usuário
+    user_team_ids = set(user_teams.values_list("pk", flat=True))
+ 
+    # ── Campeonatos do usuário ────────────────────────────────────────────
+    championships = (
+        Championship.objects
+        .filter(registrations__team__in=user_teams)
+        .distinct()
+        .order_by("status", "-created_at")
+    )
+ 
+    # ── Últimas 5 partidas encerradas ─────────────────────────────────────
     recent_matches_qs = Match.objects.filter(
         Q(team_a__in=user_teams) | Q(team_b__in=user_teams),
         status=GameStatus.FINISHED,
     ).select_related("team_a", "team_b", "winner", "championship").order_by("-scheduled_at")[:5]
-
-    user_team_ids = set(user_teams.values_list("pk", flat=True))
-
+ 
     recent_matches = []
     for m in recent_matches_qs:
         sa = GameResult.objects.filter(match_id=m, winner=m.team_a).count()
         sb = GameResult.objects.filter(match_id=m, winner=m.team_b).count()
         user_won = m.winner_id in user_team_ids if m.winner_id else False
-
-        # Determina o adversário (o time que NÃO é do usuário)
-        if m.team_a_id in user_team_ids:
-            opponent = m.team_b
-        else:
-            opponent = m.team_a
-
+        opponent = m.team_b if m.team_a_id in user_team_ids else m.team_a
+ 
         recent_matches.append({
             "match"    : m,
             "score_a"  : sa,
@@ -134,12 +131,47 @@ def profile_view(request):
             "user_won" : user_won,
             "opponent" : opponent,
         })
-
+ 
+    # ── Estatísticas / Troféus ────────────────────────────────────────────
+ 
+    # 1. Campeonatos vencidos (usuário estava em um time campeão)
+    championships_won = Championship.objects.filter(
+        champion__members=user,
+        champion__isnull=False,
+    ).distinct().count()
+ 
+    # 2. Total de partidas disputadas
+    total_matches = Match.objects.filter(
+        Q(team_a__in=user_teams) | Q(team_b__in=user_teams),
+        team_a__isnull=False,
+        team_b__isnull=False,
+    ).distinct().count()
+ 
+    # 3. Total de vitórias
+    total_wins = Match.objects.filter(
+        winner__members=user,
+        winner__isnull=False,
+    ).count()
+ 
+    # 4. Total de rounds vencidos via GroupStanding
+    total_rounds_won = (
+        GroupStanding.objects.filter(team__members=user)
+        .aggregate(total=Sum("rounds_won"))["total"] or 0
+    )
+ 
+    stats = {
+        "championships_won": championships_won,
+        "total_matches"    : total_matches,
+        "total_wins"       : total_wins,
+        "total_rounds_won" : total_rounds_won,
+    }
+ 
     return render(request, "accounts/pages/profile.html", {
         "recent_matches": recent_matches,
-        "championships": championships,
+        "championships" : championships,
+        "stats"         : stats,
     })
-
+ 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # EDIT PROFILE

@@ -12,7 +12,8 @@
 {% block content %}
 
 <section class="profile-hero">
-    <img class="profile-cover" src="https://t3.ftcdn.net/jpg/04/13/99/08/360_F_413990886_hChS8igRgaOC4IlkIFIxiQ2EeW5U8LKf.jpg"
+    <img class="profile-cover"
+        src="https://t3.ftcdn.net/jpg/04/13/99/08/360_F_413990886_hChS8igRgaOC4IlkIFIxiQ2EeW5U8LKf.jpg"
         alt="Foto de capa">
     <div class="profile-overlay"></div>
 
@@ -21,8 +22,7 @@
             {% if request.user.avatar %}
             <img src="{{ request.user.avatar.url }}" alt="Avatar">
             {% else %}
-            <img src="https://api.dicebear.com/7.x/thumbs/svg?seed={{ request.user.username }}"
-                alt="Avatar">
+            <img src="https://api.dicebear.com/7.x/thumbs/svg?seed={{ request.user.username }}" alt="Avatar">
             {% endif %}
         </div>
 
@@ -44,16 +44,17 @@
 <section class="profile-content-section">
     <div class="row g-4">
 
-        <!-- Partidas Recentes -->
         <div class="col-lg-4">
-            <div class="auth-glass-card h-100">
+            <div class="auth-glass-card h-100" style="display:flex; flex-direction:column;">
+
                 <div class="section-header">
                     <span class="material-symbols-outlined icon-secondary">history</span>
                     <h2 class="section-title">Partidas Recentes</h2>
                 </div>
-                <div class="match-list">
+
+                <div class="match-list" style="flex:1;">
                     {% for item in recent_matches %}
-                    <a href="#" style="text-decoration:none; color:inherit;">
+                    <a href="{% url 'matches:detail' item.match.pk %}" style="text-decoration:none; color:inherit;">
                         <div class="match-item">
                             <div class="match-result {% if item.user_won %}win{% else %}loss{% endif %}">
                                 {% if item.user_won %}W{% else %}L{% endif %}
@@ -82,46 +83,68 @@
                     <p class="match-date text-center py-3">Nenhuma partida ainda.</p>
                     {% endfor %}
                 </div>
+                <!-- Botão ver histórico completo -->
+                <div style="margin-top:1.25rem; padding-top:1rem; border-top:1px solid rgba(255,255,255,.07);">
+                    <a href="{% url 'matches:history' %}" class="btn-app-outline"
+                        style="display:flex; align-items:center; justify-content:center; gap:.4rem; width:100%; padding-block:.65rem;">
+                        <span class="material-symbols-outlined" style="font-size:1rem">open_in_full</span>
+                        Ver histórico completo
+                    </a>
+                </div>
             </div>
         </div>
 
-        <!-- Estatísticas do usuário -->
+        <!-- ── Troféus / Dados do Jogador ────────────────────────────────── -->
         <div class="col-lg-8">
             <div class="auth-glass-card h-100">
+
                 <div class="section-header">
-                    <span class="material-symbols-outlined icon-primary">leaderboard</span>
-                    <h2 class="section-title">Estatísticas</h2>
+                    <span class="material-symbols-outlined icon-primary">workspace_premium</span>
+                    <h2 class="section-title">Troféus & Dados do Jogador</h2>
                 </div>
+
                 <div class="trophy-grid">
+
+                    <!-- Campeonatos vencidos -->
                     <div class="trophy-card gold">
                         <div class="trophy-icon-wrap gold">
-                            <span class="material-symbols-outlined">military_tech</span>
+                            <span class="material-symbols-outlined"
+                                style="font-variation-settings:'FILL' 1">emoji_events</span>
                         </div>
-                        <div class="trophy-name">Pontuação</div>
-                        <p class="trophy-meta">{{ request.user.ranking_score }} pts</p>
+                        <div class="trophy-name">Campeonatos Vencidos</div>
+                        <p class="trophy-meta">{{ stats.championships_won }}</p>
                     </div>
-                    <div class="trophy-card special">
-                        <div class="trophy-icon-wrap special">
-                            <span class="material-symbols-outlined">person</span>
-                        </div>
-                        <div class="trophy-name">Membro desde</div>
-                        <p class="trophy-meta">{{ request.user.date_joined|date:"M Y" }}</p>
-                    </div>
+
+                    <!-- Total de partidas -->
                     <div class="trophy-card silver">
                         <div class="trophy-icon-wrap silver">
                             <span class="material-symbols-outlined">sports_esports</span>
                         </div>
-                        <div class="trophy-name">Partidas</div>
-                        <p class="trophy-meta">{{ recent_matches|length }} recentes</p>
+                        <div class="trophy-name">Partidas Disputadas</div>
+                        <p class="trophy-meta">{{ stats.total_matches }}</p>
                     </div>
+
+                    <!-- Total de vitórias -->
                     <div class="trophy-card bronze">
                         <div class="trophy-icon-wrap bronze">
-                            <span class="material-symbols-outlined">workspace_premium</span>
+                            <span class="material-symbols-outlined"
+                                style="font-variation-settings:'FILL' 1">military_tech</span>
                         </div>
-                        <div class="trophy-name">Nível</div>
-                        <p class="trophy-meta">Competidor</p>
+                        <div class="trophy-name">Vitórias</div>
+                        <p class="trophy-meta">{{ stats.total_wins }}</p>
                     </div>
+
+                    <!-- Rounds vencidos -->
+                    <div class="trophy-card special">
+                        <div class="trophy-icon-wrap special">
+                            <span class="material-symbols-outlined">bolt</span>
+                        </div>
+                        <div class="trophy-name">Rounds Vencidos</div>
+                        <p class="trophy-meta">{{ stats.total_rounds_won }}</p>
+                    </div>
+
                 </div>
+
             </div>
         </div>
 
@@ -134,9 +157,8 @@
                     <span class="material-symbols-outlined icon-primary">emoji_events</span>
                     <h2 class="section-title">Meus Campeonatos</h2>
                 </div>
-
-                {% for championship in championships %}
                 <div class="champ-grid">
+                    {% for championship in championships %}
 
 
 
@@ -154,27 +176,6 @@
                                     {{ championship.name }}
                                 </h3>
 
-                                {% if championship.status == "IN_PROGRESS" %}
-                                <span class="champ-badge active">
-                                    Em andamento
-                                </span>
-
-                                {% elif championship.status == "OPEN" %}
-                                <span class="champ-badge quarterfinals">
-                                    Inscrições abertas
-                                </span>
-
-                                {% elif championship.status == "FINISHED" %}
-                                <span class="champ-badge">
-                                    Finalizado
-                                </span>
-
-                                {% else %}
-                                <span class="champ-badge">
-                                    Rascunho
-                                </span>
-                                {% endif %}
-
                             </div>
 
                             <p class="champ-meta">
@@ -188,18 +189,14 @@
                         </div>
 
                     </div>
+                    {% empty %}
 
+                    <p class="text-center py-4">
+                        Você ainda não participa de nenhum campeonato.
+                    </p>
 
-
+                    {% endfor %}
                 </div>
-                {% empty %}
-
-                <p class="text-center py-4">
-                    Você ainda não participa de nenhum campeonato.
-                </p>
-
-                {% endfor %}
-
             </div>
 
         </div>
