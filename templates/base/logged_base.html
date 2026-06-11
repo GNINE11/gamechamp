@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
   <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
   <link rel="stylesheet" href="{% static 'css/header.css' %}">
+  <link rel="stylesheet" href="{% static 'css/auth.css' %}">
   {% block extra_css %}{% endblock %}
 </head>
 
@@ -36,6 +37,16 @@
         </div>
       </div>
       {% endblock %}
+
+      {% if messages %}
+      <div class="app-message-stack">
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags|default:'info' }}{% endif %} mb-2" role="alert">
+          {{ message }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
 
       {% block content %}{% endblock %}
     </section>

@@ -1,0 +1,880 @@
+{% extends "base/logged_base.html" %}
+{% load static %}
+
+{% block title %}Staff — {{ championship.name }}{% endblock %}
+
+{# ── Heading ──────────────────────────────────────────────────────────────── #}
+{% block page_label %}{{ championship.name }}{% endblock %}
+{% block page_title %}Gerenciar Staff{% endblock %}
+
+{% block page_actions %}
+  <a href="{% url 'championship:management-championship-dashboard' championship.pk %}" class="btn-app-outline">
+      <span class="material-symbols-outlined">arrow_back</span>
+      Voltar
+  </a>
+  {% if is_owner %}
+  <button class="btn-app-primary" onclick="openAddDrawer()">
+    <span class="material-symbols-outlined">person_add</span>
+    Adicionar Membro
+  </button>
+  {% endif %}
+{% endblock %}
+
+{# ── Extra CSS ─────────────────────────────────────────────────────────────── #}
+{% block extra_css %}
+<style>
+
+  /* ── Glass panel ──────────────────────────────────────────────────── */
+  .glass-panel {
+    background: rgba(23, 31, 51, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);
+  }
+
+  /* ── Staff table panel ────────────────────────────────────────────── */
+  .staff-panel {
+    border-radius: 0.875rem;
+    overflow: hidden;
+  }
+
+  .staff-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .staff-panel-title {
+    font-family: var(--font-headline);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-on-surface);
+    margin: 0;
+  }
+
+  /* ── Table ────────────────────────────────────────────────────────── */
+  .staff-table { width: 100%; border-collapse: collapse; }
+
+  .staff-table thead tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .staff-table th {
+    padding: 0.875rem 1.5rem;
+    font-family: var(--font-label);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-on-surface-variant);
+    text-align: left;
+  }
+
+  .staff-table th:last-child { text-align: right; }
+
+  .staff-table tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: background-color 0.15s ease;
+  }
+
+  .staff-table tbody tr:last-child { border-bottom: none; }
+  .staff-table tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
+
+  .staff-table td { padding: 1.125rem 1.5rem; vertical-align: middle; }
+  .staff-table td:last-child { text-align: right; }
+
+  /* ── Avatar (initials) ────────────────────────────────────────────── */
+  .avatar {
+    width: 44px; height: 44px;
+    border-radius: 0.625rem;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-headline);
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--color-primary);
+    background: rgba(139, 92, 246, 0.12);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    user-select: none;
+    text-transform: uppercase;
+  }
+
+  .avatar.avatar-owner {
+    color: var(--color-primary);
+    background: rgba(139, 92, 246, 0.12);
+    border-color: rgba(139, 92, 246, 0.25);
+  }
+
+  .avatar.avatar-mod {
+    color: var(--color-secondary);
+    background: rgba(6, 182, 212, 0.1);
+    border-color: rgba(6, 182, 212, 0.2);
+  }
+
+  .member-cell { display: flex; align-items: center; gap: 0.875rem; }
+
+  .member-name {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-on-surface);
+    margin: 0 0 2px;
+  }
+
+  .member-email {
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    color: var(--color-on-surface-variant);
+    margin: 0;
+  }
+
+  /* ── Role badge ───────────────────────────────────────────────────── */
+  .role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-family: var(--font-label);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .role-badge-owner {
+    background: rgba(139, 92, 246, 0.12);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: var(--color-primary);
+  }
+
+  .role-badge-owner .material-symbols-outlined {
+    font-size: 14px;
+    font-variation-settings: 'FILL' 1;
+  }
+
+  .role-badge-moderator {
+    background: rgba(6, 182, 212, 0.08);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+    color: var(--color-secondary);
+  }
+
+  /* ── Date cell ────────────────────────────────────────────────────── */
+  .date-cell {
+    font-family: var(--font-label);
+    font-size: 0.75rem;
+    color: var(--color-on-surface-variant);
+  }
+
+  /* ── Action buttons (reveal on hover) ────────────────────────────── */
+  .action-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .staff-table tbody tr:hover .action-group { opacity: 1; }
+
+  .action-btn {
+    width: 34px; height: 34px;
+    border-radius: 0.4rem;
+    display: flex; align-items: center; justify-content: center;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    font-size: 0;
+  }
+
+  .action-btn .material-symbols-outlined { font-size: 1.15rem; }
+
+  .action-btn-edit {
+    color: var(--color-primary);
+  }
+
+  .action-btn-edit:hover { background: rgba(139, 92, 246, 0.15); }
+
+  .action-btn-transfer {
+    color: var(--color-secondary);
+  }
+
+  .action-btn-transfer:hover { background: rgba(6, 182, 212, 0.12); }
+
+  .action-btn-remove {
+    color: var(--color-error);
+  }
+
+  .action-btn-remove:hover { background: rgba(255, 180, 171, 0.12); }
+
+  /* ── Empty state ──────────────────────────────────────────────────── */
+  .staff-empty {
+    padding: 3.5rem 2rem;
+    text-align: center;
+    color: var(--color-on-surface-variant);
+  }
+
+  .staff-empty .material-symbols-outlined { font-size: 2.5rem; opacity: .35; margin-bottom: 0.75rem; }
+  .staff-empty p { font-size: 0.875rem; margin: 0; }
+
+  /* ── Backdrop ─────────────────────────────────────────────────────── */
+  .backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .backdrop.open { opacity: 1; pointer-events: all; }
+
+  /* ── Right drawer ─────────────────────────────────────────────────── */
+  .drawer {
+    position: fixed;
+    top: 0; right: 0;
+    height: 100%;
+    width: min(420px, 100vw);
+    background: var(--color-surface-container-low);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: -24px 0 60px rgba(0, 0, 0, 0.45);
+    z-index: 300;
+    display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .drawer.open { transform: translateX(0); }
+
+  .drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 1.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    flex-shrink: 0;
+  }
+
+  .drawer-title {
+    font-family: var(--font-headline);
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--color-on-surface);
+    margin: 0;
+  }
+
+  .drawer-close {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--color-on-surface-variant);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background-color 0.15s ease;
+  }
+
+  .drawer-close:hover { background: rgba(255, 255, 255, 0.07); color: var(--color-on-surface); }
+  .drawer-close .material-symbols-outlined { font-size: 1.25rem; }
+
+  .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.75rem;
+  }
+
+  .drawer-footer {
+    padding: 1.25rem 1.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    flex-shrink: 0;
+  }
+
+  /* ── Drawer: member info card ─────────────────────────────────────── */
+  .member-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: 0.75rem;
+    background: rgba(139, 92, 246, 0.06);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    margin-bottom: 1.75rem;
+  }
+
+  .member-card .avatar { width: 52px; height: 52px; font-size: 1.2rem; }
+
+  .member-card-name {
+    font-family: var(--font-headline);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-on-surface);
+    margin: 0 0 4px;
+  }
+
+  /* ── Form fields ──────────────────────────────────────────────────── */
+  .field-label {
+    display: block;
+    font-family: var(--font-label);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-on-surface-variant);
+    margin-bottom: 0.5rem;
+  }
+
+  .field-input {
+    width: 100%;
+    background: var(--color-surface-container-lowest);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    color: var(--color-on-surface);
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+  }
+
+  .field-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+  }
+
+  .field-input::placeholder { color: rgba(203, 195, 215, 0.4); }
+  .field-input option { background: var(--color-surface-container); }
+
+  .field-group { margin-bottom: 1.25rem; }
+
+  /* ── Drawer action rows ───────────────────────────────────────────── */
+  .drawer-action-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .drawer-action-row:last-child { border-bottom: none; }
+
+  .drawer-action-icon {
+    width: 40px; height: 40px;
+    border-radius: 0.5rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .drawer-action-icon.icon-transfer {
+    background: rgba(6, 182, 212, 0.1);
+    color: var(--color-secondary);
+  }
+
+  .drawer-action-icon.icon-remove {
+    background: rgba(255, 180, 171, 0.1);
+    color: var(--color-error);
+  }
+
+  .drawer-action-icon .material-symbols-outlined { font-size: 1.25rem; }
+
+  .drawer-action-text { flex: 1; }
+
+  .drawer-action-title {
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-on-surface);
+    margin: 0 0 3px;
+  }
+
+  .drawer-action-desc {
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    color: var(--color-on-surface-variant);
+    margin: 0 0 0.625rem;
+    line-height: 1.5;
+  }
+
+  /* ── Owner info box (non-editable) ───────────────────────────────── */
+  .owner-info-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-radius: 0.625rem;
+    background: rgba(139, 92, 246, 0.06);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    margin-bottom: 0.875rem;
+  }
+
+  .owner-info-box .material-symbols-outlined {
+    font-size: 1.2rem;
+    color: var(--color-primary);
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+
+  .owner-info-box p { margin: 0; font-size: 0.8125rem; color: var(--color-on-surface-variant); line-height: 1.55; }
+
+  /* ── Buttons ──────────────────────────────────────────────────────── */
+  .btn-primary-full {
+    width: 100%;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-container));
+    border: none; border-radius: 0.5rem;
+    color: #fff;
+    font-family: var(--font-body); font-size: 0.875rem; font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+    display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  }
+
+  .btn-primary-full:hover { opacity: 0.9; }
+  .btn-primary-full:active { transform: scale(0.97); }
+  .btn-primary-full .material-symbols-outlined { font-size: 1.1rem; }
+
+  .btn-ghost-full {
+    width: 100%;
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.5rem;
+    color: var(--color-on-surface-variant);
+    font-family: var(--font-body); font-size: 0.875rem; font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .btn-ghost-full:hover { background: rgba(255, 255, 255, 0.05); color: var(--color-on-surface); }
+
+  .btn-danger {
+    padding: 0.5rem 1rem;
+    background: rgba(255, 180, 171, 0.08);
+    border: 1px solid rgba(255, 180, 171, 0.25); border-radius: 0.5rem;
+    color: var(--color-error);
+    font-family: var(--font-body); font-size: 0.8125rem; font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    display: inline-flex; align-items: center; gap: 0.375rem;
+  }
+
+  .btn-danger:hover { background: rgba(255, 180, 171, 0.14); }
+  .btn-danger .material-symbols-outlined { font-size: 1rem; }
+
+  .btn-transfer {
+    padding: 0.5rem 1rem;
+    background: rgba(6, 182, 212, 0.08);
+    border: 1px solid rgba(6, 182, 212, 0.25); border-radius: 0.5rem;
+    color: var(--color-secondary);
+    font-family: var(--font-body); font-size: 0.8125rem; font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    display: inline-flex; align-items: center; gap: 0.375rem;
+  }
+
+  .btn-transfer:hover { background: rgba(6, 182, 212, 0.14); }
+  .btn-transfer .material-symbols-outlined { font-size: 1rem; }
+
+  /* ── Confirmation modal ───────────────────────────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 400;
+    padding: 1.5rem;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal-box {
+    width: 100%; max-width: 420px;
+    background: var(--color-surface-container);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+    padding: 2rem;
+    transform: scale(0.94) translateY(8px);
+    transition: transform 0.25s ease;
+  }
+
+  .modal-overlay.open .modal-box { transform: scale(1) translateY(0); }
+
+  .modal-icon {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 1.25rem;
+  }
+
+  .modal-icon.icon-danger { background: rgba(255, 180, 171, 0.12); color: var(--color-error); }
+  .modal-icon.icon-transfer { background: rgba(6, 182, 212, 0.1); color: var(--color-secondary); }
+  .modal-icon .material-symbols-outlined { font-size: 1.6rem; }
+
+  .modal-title {
+    font-family: var(--font-headline);
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--color-on-surface);
+    margin: 0 0 0.5rem;
+  }
+
+  .modal-desc {
+    font-size: 0.875rem;
+    color: var(--color-on-surface-variant);
+    line-height: 1.6;
+    margin: 0 0 1.75rem;
+  }
+
+  .modal-desc strong { color: var(--color-on-surface); }
+
+  .modal-actions { display: flex; flex-direction: column; gap: 0.625rem; }
+
+  /* ── Scrollbar ────────────────────────────────────────────────────── */
+  ::-webkit-scrollbar       { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--color-surface-container-highest); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-outline); }
+
+  /* ── Mobile responsive ────────────────────────────────────────────── */
+  @media (max-width: 700px) {
+    .staff-table .col-date,
+    .staff-table .col-date-head { display: none; }
+  }
+
+  @media (max-width: 500px) {
+    .drawer { width: 100vw; }
+  }
+</style>
+{% endblock %}
+
+{# ── Content ───────────────────────────────────────────────────────────────── #}
+{% block content %}
+
+{% if messages %}
+  <div style="margin-bottom:1.5rem;display:flex;flex-direction:column;gap:0.625rem;">
+    {% for message in messages %}
+      <div style="padding:0.875rem 1.25rem;border-radius:0.625rem;font-size:0.875rem;
+                  {% if message.tags == 'error' %}
+                    background:rgba(255,180,171,.08);border:1px solid rgba(255,180,171,.25);color:var(--color-error);
+                  {% else %}
+                    background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.25);color:var(--color-secondary);
+                  {% endif %}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+
+<!-- ── Staff Table ───────────────────────────────────────────────────────── -->
+<div class="staff-panel glass-panel">
+
+  <div class="staff-panel-header">
+    <h3 class="staff-panel-title">Membros da Staff</h3>
+    <span style="font-family:var(--font-label);font-size:0.72rem;color:var(--color-on-surface-variant);">
+      {{ page_obj.paginator.count }} membro{{ page_obj.paginator.count|pluralize }}
+    </span>
+  </div>
+
+  <table class="staff-table">
+    <thead>
+      <tr>
+        <th>Membro</th>
+        <th>Função</th>
+        <th class="col-date-head">Adicionado em</th>
+        {% if is_owner %}<th>Ações</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+
+      {% for member in staff_members %}
+      <tr>
+
+        <!-- Membro -->
+        <td>
+          <div class="member-cell">
+            <div class="avatar {% if member.role == 'OWNER' %}avatar-owner{% else %}avatar-mod{% endif %}">
+              {{ member.user.username|slice:":1" }}
+            </div>
+            <div>
+              <p class="member-name">{{ member.user.username }}</p>
+              <p class="member-email">{{ member.user.email }}</p>
+            </div>
+          </div>
+        </td>
+
+        <!-- Função -->
+        <td>
+          {% if member.role == 'OWNER' %}
+            <span class="role-badge role-badge-owner">
+              <span class="material-symbols-outlined">shield_person</span>
+              Dono
+            </span>
+          {% else %}
+            <span class="role-badge role-badge-moderator">Moderador</span>
+          {% endif %}
+        </td>
+
+        <!-- Data -->
+        <td class="col-date">
+          <span class="date-cell">{{ member.added_at|date:"d M, Y" }}</span>
+        </td>
+
+        <!-- Ações (só se is_owner) -->
+        {% if is_owner %}
+        <td>
+          <div class="action-group">
+
+            {% if member.role == 'OWNER' %}
+              {# Dono: sem remoção, mas pode gerenciar #}
+              <button
+                class="action-btn action-btn-edit"
+                title="Você é o dono"
+                onclick="openManageOwner()">
+                <span class="material-symbols-outlined">manage_accounts</span>
+              </button>
+
+            {% else %}
+              {# Moderador: transferir + remover #}
+              <button
+                class="action-btn action-btn-transfer"
+                title="Transferir posse"
+                onclick="openTransferModal('{{ member.user.pk }}', '{{ member.user.username }}')">
+                <span class="material-symbols-outlined">swap_horiz</span>
+              </button>
+              <button
+                class="action-btn action-btn-remove"
+                title="Remover da staff"
+                onclick="openRemoveModal('{{ member.user.pk }}', '{{ member.user.username }}')">
+                <span class="material-symbols-outlined">person_remove</span>
+              </button>
+            {% endif %}
+
+          </div>
+        </td>
+        {% endif %}
+
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4">
+          <div class="staff-empty">
+            <div><span class="material-symbols-outlined">group_off</span></div>
+            <p>Nenhum membro na staff ainda.</p>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+
+    </tbody>
+  </table>
+</div>
+
+{# ── Backdrop ────────────────────────────────────────────────────────────── #}
+<div class="backdrop" id="backdrop" onclick="closeAll()"></div>
+
+{# ── Drawer: Adicionar Membro ─────────────────────────────────────────────── #}
+<div class="drawer" id="addDrawer">
+  <div class="drawer-header">
+    <h4 class="drawer-title">Adicionar Membro</h4>
+    <button class="drawer-close" onclick="closeAll()">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+  </div>
+
+  <div class="drawer-body">
+    <form method="POST" action="{% url 'championship:management-championship-staff' championship.pk %}" id="addMemberForm">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_member">
+
+      <div class="field-group">
+        <label class="field-label">Usuário (nome ou e-mail)</label>
+        <input
+          type="text"
+          name="username"
+          class="field-input"
+          placeholder="Ex: jogador123"
+          autocomplete="off">
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Função</label>
+        <select name="role" class="field-input">
+          <option value="MODERATOR">Moderador</option>
+        </select>
+        <p style="font-size:.75rem;color:var(--color-on-surface-variant);margin:.5rem 0 0;line-height:1.5;">
+          Novos membros entram como Moderadores. A posse pode ser transferida depois.
+        </p>
+      </div>
+    </form>
+  </div>
+
+  <div class="drawer-footer">
+    <button class="btn-primary-full" type="submit" form="addMemberForm">
+      <span class="material-symbols-outlined">person_add</span>
+      Confirmar Adição
+    </button>
+    <button class="btn-ghost-full" onclick="closeAll()">Cancelar</button>
+  </div>
+</div>
+
+{# ── Drawer: Gerenciar Dono ───────────────────────────────────────────────── #}
+<div class="drawer" id="ownerDrawer">
+  <div class="drawer-header">
+    <h4 class="drawer-title">Sua Conta</h4>
+    <button class="drawer-close" onclick="closeAll()">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+  </div>
+
+  <div class="drawer-body">
+    <div class="member-card">
+      <div class="avatar avatar-owner" id="ownerAvatar">—</div>
+      <div>
+        <p class="member-card-name">Você</p>
+        <span class="role-badge role-badge-owner" style="margin-top:4px;display:inline-flex;">
+          <span class="material-symbols-outlined">shield_person</span>
+          Dono
+        </span>
+      </div>
+    </div>
+
+    <div class="owner-info-box">
+      <span class="material-symbols-outlined">info</span>
+      <p>Como Dono, você pode adicionar e remover membros e transferir a posse do campeonato para qualquer Moderador.</p>
+    </div>
+
+    <div class="owner-info-box" style="background:rgba(255,180,171,.05);border-color:rgba(255,180,171,.15);">
+      <span class="material-symbols-outlined" style="color:var(--color-error);">warning</span>
+      <p>Ao transferir a posse, você se tornará Moderador e perderá acesso administrativo.</p>
+    </div>
+  </div>
+
+  <div class="drawer-footer">
+    <button class="btn-ghost-full" onclick="closeAll()">Fechar</button>
+  </div>
+</div>
+
+{# ── Modal: Transferir Posse ─────────────────────────────────────────────── #}
+<div class="modal-overlay" id="transferModal">
+  <div class="modal-box">
+    <div class="modal-icon icon-transfer">
+      <span class="material-symbols-outlined">swap_horiz</span>
+    </div>
+    <h4 class="modal-title">Transferir Posse?</h4>
+    <p class="modal-desc">
+      Você está prestes a transferir a posse do campeonato
+      <strong>"{{ championship.name }}"</strong> para
+      <strong id="transferTargetName">—</strong>.
+      <br><br>
+      Você continuará como <strong>Moderador</strong>, mas perderá acesso de Dono.
+    </p>
+
+    <form method="POST" action="{% url 'championship:management-championship-staff' championship.pk %}" class="modal-actions">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="transfer_ownership">
+      <input type="hidden" name="target_user_id" id="transferTargetId">
+
+      <button type="submit" class="btn-primary-full" style="background:linear-gradient(135deg,var(--color-secondary),var(--color-secondary-container));">
+        <span class="material-symbols-outlined">check</span>
+        Confirmar Transferência
+      </button>
+      <button type="button" class="btn-ghost-full" onclick="closeModal('transferModal')">Cancelar</button>
+    </form>
+  </div>
+</div>
+
+{# ── Modal: Remover Membro ───────────────────────────────────────────────── #}
+<div class="modal-overlay" id="removeModal">
+  <div class="modal-box">
+    <div class="modal-icon icon-danger">
+      <span class="material-symbols-outlined">person_remove</span>
+    </div>
+    <h4 class="modal-title">Remover Membro?</h4>
+    <p class="modal-desc">
+      Tem certeza que deseja remover
+      <strong id="removeTargetName">—</strong>
+      da staff de <strong>"{{ championship.name }}"</strong>?
+      <br><br>
+      Essa ação pode ser desfeita adicionando o membro novamente.
+    </p>
+
+    <form method="POST" action="{% url 'championship:management-championship-staff' championship.pk %}" class="modal-actions">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="remove_member">
+      <input type="hidden" name="target_user_id" id="removeTargetId">
+
+      <button type="submit" class="btn-primary-full" style="background:linear-gradient(135deg,var(--color-error-container),#7a0007);">
+        <span class="material-symbols-outlined">delete</span>
+        Confirmar Remoção
+      </button>
+      <button type="button" class="btn-ghost-full" onclick="closeModal('removeModal')">Cancelar</button>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{# ── Extra JS ──────────────────────────────────────────────────────────────── #}
+{% block extra_js %}
+<script>
+  const backdrop = document.getElementById('backdrop');
+
+  function openDrawer(id) {
+    closeAll(false);
+    document.getElementById(id).classList.add('open');
+    backdrop.classList.add('open');
+  }
+
+  function openModal(id) {
+    document.getElementById(id).classList.add('open');
+    backdrop.classList.add('open');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+    // Se nenhum modal/drawer aberto, fecha backdrop
+    const anyOpen = document.querySelector('.drawer.open, .modal-overlay.open');
+    if (!anyOpen) backdrop.classList.remove('open');
+  }
+
+  function closeAll(closeBackdrop = true) {
+    document.querySelectorAll('.drawer.open, .modal-overlay.open').forEach(el => el.classList.remove('open'));
+    if (closeBackdrop) backdrop.classList.remove('open');
+  }
+
+  /* Adicionar membro */
+  function openAddDrawer() { openDrawer('addDrawer'); }
+
+  /* Gerenciar dono */
+  function openManageOwner() { openDrawer('ownerDrawer'); }
+
+  /* Modal: transferir posse */
+  function openTransferModal(userId, username) {
+    document.getElementById('transferTargetId').value = userId;
+    document.getElementById('transferTargetName').textContent = username;
+    openModal('transferModal');
+  }
+
+  /* Modal: remover membro */
+  function openRemoveModal(userId, username) {
+    document.getElementById('removeTargetId').value = userId;
+    document.getElementById('removeTargetName').textContent = username;
+    openModal('removeModal');
+  }
+
+  /* Fechar com ESC */
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAll();
+  });
+</script>
+{% endblock %}

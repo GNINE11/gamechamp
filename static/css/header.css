@@ -1,6 +1,6 @@
 :root {
     --header-bg-color: #0b1326;
-    --header-primary-text-color: #001E40;
+    --header-primary-text-color: var(--color-on-surface);
     --header-primary-text-color-80-opacity: #001E40CC;
     --header-primary-text-color-60-opacity: #001E4099;
     --header-line-color: #E2E8F0;
@@ -23,6 +23,7 @@
     justify-content: space-between;
     padding-inline: 2rem;
     gap: 1rem;
+    z-index: 90;
 }
 
 .header-page-title {
@@ -143,7 +144,7 @@
     visibility: hidden;
     transform: translateY(-6px);
     transition: 0.2s ease;
-    z-index: 1060;
+    z-index: 999;
 }
 
 .header-user-menu.open .header-user-dropdown {
@@ -204,6 +205,8 @@
     cursor: pointer;
     transition: 0.2s ease;
     width: 100%;
+    text-decoration: none;
+    color: inherit;
 }
 
 .header-user-dropdown-item:hover {

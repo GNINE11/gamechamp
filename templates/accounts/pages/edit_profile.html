@@ -1,0 +1,158 @@
+{% extends "base/auth_base.html" %}
+
+{% load static %}
+
+{% block title %}Editar Perfil | Gamechamp{% endblock %}
+
+{% block auth_content %}
+
+<div class="auth-avatar-section">
+    <div class="auth-avatar-placeholder">
+        <span class="material-symbols-outlined">person</span>
+    </div>
+</div>
+
+<div class="auth-form-header">
+    <h2 class="auth-form-title">Editar perfil</h2>
+    <p class="auth-form-subtitle">Atualize suas informações de jogador.</p>
+</div>
+
+<form action="" method="POST" class="form-collum" novalidate>
+    {% csrf_token %}
+    <div class="form-content">
+
+        <div class="form-row">
+            <div class="auth-field">
+                <label for="{{ form.first_name.id_for_label }}" class="auth-label">
+                    {{ form.first_name.label }}
+                </label>
+                <div class="auth-input-wrapper">
+                    {{ form.first_name }}
+                </div>
+                {% for error in form.first_name.errors %}
+                    <small class="field-error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="auth-field">
+                <label for="{{ form.last_name.id_for_label }}" class="auth-label">
+                    {{ form.last_name.label }}
+                </label>
+                <div class="auth-input-wrapper">
+                    {{ form.last_name }}
+                </div>
+                {% for error in form.last_name.errors %}
+                    <small class="field-error">{{ error }}</small>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="auth-field">
+            <label for="{{ form.username.id_for_label }}" class="auth-label">
+                {{ form.username.label }}
+            </label>
+            <div class="auth-input-wrapper">
+                {{ form.username }}
+            </div>
+            {% for error in form.username.errors %}
+                <small class="field-error">{{ error }}</small>
+            {% endfor %}
+        </div>
+
+        <div class="auth-field">
+            <label for="{{ form.email.id_for_label }}" class="auth-label">
+                {{ form.email.label }}
+            </label>
+            <div class="auth-input-wrapper">
+                {{ form.email }}
+            </div>
+            {% for error in form.email.errors %}
+                <small class="field-error">{{ error }}</small>
+            {% endfor %}
+        </div>
+
+        {# ── Bio ── #}
+        <div class="auth-field">
+            <label for="{{ form.bio.id_for_label }}" class="auth-label">
+                {{ form.bio.label }}
+            </label>
+            <div class="auth-input-wrapper" style="height: auto; padding: .5rem .75rem;">
+                {{ form.bio }}
+            </div>
+            {% for error in form.bio.errors %}
+                <small class="field-error">{{ error }}</small>
+            {% endfor %}
+        </div>
+
+        {# ── Senha atual (obrigatória só se quiser trocar) ── #}
+        <div class="auth-field">
+            <label for="{{ form.current_password.id_for_label }}" class="auth-label">
+                {{ form.current_password.label }}
+            </label>
+            <div class="auth-input-wrapper">
+                {{ form.current_password }}
+                <button type="button" class="auth-password-toggle">
+                    <span class="material-symbols-outlined">visibility</span>
+                </button>
+            </div>
+            {% for error in form.current_password.errors %}
+                <small class="field-error">{{ error }}</small>
+            {% endfor %}
+        </div>
+
+        {# ── Nova senha + confirmação ── #}
+        <div class="form-row">
+            <div class="auth-field">
+                <label for="{{ form.password.id_for_label }}" class="auth-label">
+                    {{ form.password.label }}
+                </label>
+                <div class="auth-input-wrapper">
+                    {{ form.password }}
+                    <button type="button" class="auth-password-toggle">
+                        <span class="material-symbols-outlined">visibility</span>
+                    </button>
+                </div>
+                {% for error in form.password.errors %}
+                    <small class="field-error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="auth-field">
+                <label for="{{ form.confirm_password.id_for_label }}" class="auth-label">
+                    {{ form.confirm_password.label }}
+                </label>
+                <div class="auth-input-wrapper">
+                    {{ form.confirm_password }}
+                    <button type="button" class="auth-password-toggle">
+                        <span class="material-symbols-outlined">visibility</span>
+                    </button>
+                </div>
+                {% for error in form.confirm_password.errors %}
+                    <small class="field-error">{{ error }}</small>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+
+    <button type="submit" class="btn-app-primary auth-submit-btn">Salvar alterações</button>
+</form>
+
+<div class="auth-signup">
+    <span>Não quer alterar nada?</span>
+    <a href="{% url 'accounts:profile' %}" class="auth-link">Voltar ao perfil</a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.querySelectorAll('.auth-password-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = btn.parentElement.querySelector('input');
+            const icon  = btn.querySelector('.material-symbols-outlined');
+            if (input.type === 'password') { input.type = 'text'; icon.textContent = 'visibility_off'; }
+            else                           { input.type = 'password'; icon.textContent = 'visibility'; }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,215 @@
+{% extends "base/logged_base.html" %}
+{% load static %}
+
+{% block title %}Membros de {{ team.name }} | Gamechamp{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/teams.css' %}">
+{% endblock %}
+
+{% block page_label %}<a href="{% url 'teams:teams-detail' team.pk %}" class="text-decoration-none team-muted">{{ team.name }}</a>{% endblock %}
+{% block page_title %}Membros da Equipe{% endblock %}
+
+{% block page_actions %}
+<button type="button" class="btn-app-primary" data-bs-toggle="modal" data-bs-target="#invitePlayerModal">
+  <span class="material-symbols-outlined">person_add</span>
+  Convidar Jogador
+</button>
+{% endblock %}
+
+{% block content %}
+<section class="teams-page">
+  <div class="team-panel">
+    <div class="team-card-header">
+      <div>
+        <p class="team-kicker">Capitao</p>
+        <h2 class="team-section-title">{{ team.captain.username }}</h2>
+      </div>
+      <span class="team-badge primary">{{ memberships|length }} membros</span>
+    </div>
+
+    <div class="team-roster-grid">
+      {% for membership in memberships %}
+      <article class="team-member-manage-card">
+        <div class="d-flex align-items-start gap-3">
+          <div class="team-avatar round">
+            {% if membership.player.avatar %}
+            <img src="{{ membership.player.avatar.url }}" alt="{{ membership.player.username }}">
+            {% else %}
+            {{ membership.player.username|slice:":2"|upper }}
+            {% endif %}
+          </div>
+
+          <div class="flex-grow-1 min-w-0">
+            <div class="d-flex align-items-start justify-content-between gap-3">
+              <div>
+                <h3 class="team-member-name">{{ membership.player.username }}</h3>
+                <p class="team-member-role">
+                  {% if membership.player_id == team.captain_id %}Capitao{% else %}{{ membership.role|default:"Jogador" }}{% endif %}
+                </p>
+              </div>
+              {% if membership.player_id == team.captain_id %}
+              <span class="team-badge primary">Lider</span>
+              {% endif %}
+            </div>
+
+            <p class="team-muted mt-2 mb-3">Entrou em {{ membership.joined_at|date:"d/m/Y" }}</p>
+
+            <form method="post" action="{% url 'teams:teams-member-role' team.pk membership.pk %}" class="team-action-row">
+              {% csrf_token %}
+              <input class="team-input flex-grow-1" type="text" name="role" value="{{ membership.role }}" placeholder="Funcao no time">
+              <button type="submit" class="btn-app-outline">
+                <span class="material-symbols-outlined">save</span>
+                Cargo
+              </button>
+            </form>
+
+            {% if membership.player_id != team.captain_id %}
+            <div class="team-action-row mt-3">
+              <button type="button" class="btn-app-outline" data-bs-toggle="modal" data-bs-target="#promoteMemberModal{{ membership.pk }}">
+                <span class="material-symbols-outlined">star</span>
+                Promover
+              </button>
+              <button type="button" class="btn-app-outline" data-bs-toggle="modal" data-bs-target="#removeMemberModal{{ membership.pk }}">
+                <span class="material-symbols-outlined">delete</span>
+                Remover
+              </button>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+      {% empty %}
+      <div class="team-empty">
+        <span class="material-symbols-outlined fs-1">group_off</span>
+        <p class="mb-0">Nenhum membro encontrado.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="team-panel">
+    <div class="team-card-header">
+      <h2 class="team-section-title">Convites pendentes</h2>
+      <span class="team-badge neutral">{{ pending_invites|length }}</span>
+    </div>
+
+    {% if pending_invites %}
+    <div class="team-invite-grid">
+      {% for invite in pending_invites %}
+      <article class="team-invite-card">
+        <div class="d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <h3 class="team-member-name">{{ invite.invited_player.username }}</h3>
+            <p class="team-member-role">{{ invite.proposed_role|default:"Jogador" }}</p>
+          </div>
+          <span class="team-badge">Pendente</span>
+        </div>
+        {% if invite.message %}<blockquote>{{ invite.message }}</blockquote>{% endif %}
+        <form method="post" action="{% url 'teams:teams-invite-cancel' invite.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button type="submit" class="btn-app-outline">
+            <span class="material-symbols-outlined">close</span>
+            Cancelar convite
+          </button>
+        </form>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="team-empty">
+      <span class="material-symbols-outlined fs-1">outbox</span>
+      <p class="mb-0">Nenhum convite pendente para esta equipe.</p>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<div class="modal fade" id="invitePlayerModal" tabindex="-1" aria-labelledby="invitePlayerModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content team-panel">
+      <div class="modal-header border-0">
+        <h2 class="modal-title team-section-title" id="invitePlayerModalLabel">Convidar jogador</h2>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <form method="post" action="{% url 'teams:teams-invite-send' team.pk %}">
+        {% csrf_token %}
+        <div class="modal-body team-stack">
+          <div class="team-field">
+            <label class="team-label" for="id_player">Username ou e-mail</label>
+            <input class="team-input" type="text" name="player" id="id_player" placeholder="jogador ou jogador@email.com" required>
+          </div>
+          <div class="team-field">
+            <label class="team-label" for="id_proposed_role">Funcao proposta</label>
+            <input class="team-input" type="text" name="proposed_role" id="id_proposed_role" placeholder="Entry Fragger, Suporte...">
+          </div>
+          <div class="team-field">
+            <label class="team-label" for="id_message">Mensagem</label>
+            <textarea class="team-textarea" name="message" id="id_message" placeholder="Explique o convite em poucas linhas."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn-app-outline" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn-app-primary">
+            <span class="material-symbols-outlined">send</span>
+            Enviar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% for membership in memberships %}
+{% if membership.player_id != team.captain_id %}
+<div class="modal fade" id="removeMemberModal{{ membership.pk }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content team-panel">
+      <div class="modal-header border-0">
+        <h2 class="modal-title team-section-title">Remover membro</h2>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body team-muted">
+        Remover {{ membership.player.username }} de {{ team.name }}?
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn-app-outline" data-bs-dismiss="modal">Cancelar</button>
+        <form method="post" action="{% url 'teams:teams-member-remove' team.pk membership.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn-app-primary">
+            <span class="material-symbols-outlined">delete</span>
+            Remover
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="promoteMemberModal{{ membership.pk }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content team-panel">
+      <div class="modal-header border-0">
+        <h2 class="modal-title team-section-title">Transferir capitania</h2>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body team-muted">
+        {{ membership.player.username }} passara a gerenciar a equipe. Voce deixara de ter acesso a esta tela de gestao.
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn-app-outline" data-bs-dismiss="modal">Cancelar</button>
+        <form method="post" action="{% url 'teams:teams-member-promote' team.pk membership.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn-app-primary">
+            <span class="material-symbols-outlined">star</span>
+            Promover
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}

@@ -150,6 +150,15 @@ body {
   flex-shrink: 0;
 }
 
+.app-message-stack {
+  margin-bottom: 1.25rem;
+}
+
+.app-message-stack .alert {
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
 .btn-app-outline {
   display: inline-flex;
   align-items: center;

@@ -1,0 +1,596 @@
+{% extends "base/logged_base.html" %}
+
+{% block title %}{{ championship.name }} — Chaveamento{% endblock %}
+{% block page_label %}{{ page_label }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block page_actions %}
+{% if has_groups and has_bracket %}
+<div class="structure-toggle" role="group" aria-label="Alternar visualização">
+    <button type="button" class="structure-toggle-btn {% if default_view == 'grupos' %}active{% endif %}" data-view-target="groups">
+        <span class="material-symbols-outlined">table_chart</span>
+        Grupos
+    </button>
+    <button type="button" class="structure-toggle-btn {% if default_view == 'chaveamento' %}active{% endif %}" data-view-target="bracket">
+        <span class="material-symbols-outlined">account_tree</span>
+        Chaveamento
+    </button>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .structure-toggle {
+        display: inline-flex;
+        gap: 0.25rem;
+        padding: 0.25rem;
+        border: 1px solid var(--color-outline-variant);
+        border-radius: 0.6rem;
+        background: var(--color-surface-container-lowest);
+    }
+
+    .structure-toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.5rem 0.9rem;
+        border: 0;
+        border-radius: 0.45rem;
+        background: transparent;
+        color: var(--color-on-surface-variant);
+        font-weight: 700;
+        font-size: 0.82rem;
+    }
+
+    .structure-toggle-btn.active {
+        background: var(--color-primary);
+        color: var(--color-on-primary);
+    }
+
+    .structure-panel {
+        display: none;
+    }
+
+    .structure-panel.visible {
+        display: block;
+    }
+
+    .structure-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1rem;
+    }
+
+    .structure-card {
+        background: rgba(23, 31, 51, 0.88);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 0.75rem;
+        overflow: hidden;
+    }
+
+    .structure-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem 1.15rem;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .structure-card-title {
+        margin: 0;
+        color: var(--color-on-surface);
+        font-family: var(--font-headline);
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .structure-card-kicker {
+        color: var(--color-on-surface-variant);
+        font-family: var(--font-label);
+        font-size: 0.66rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .standings-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .standings-table th,
+    .standings-table td {
+        padding: 0.75rem 0.9rem;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        color: var(--color-on-surface);
+        font-size: 0.84rem;
+    }
+
+    .standings-table th {
+        color: var(--color-on-surface-variant);
+        font-family: var(--font-label);
+        font-size: 0.64rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+
+    .team-cell,
+    .match-team {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        min-width: 0;
+    }
+
+    .team-logo,
+    .team-fallback {
+        width: 34px;
+        height: 34px;
+        border-radius: 0.5rem;
+        flex: 0 0 34px;
+        object-fit: cover;
+    }
+
+    .team-fallback {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+        color: #fff;
+        font-family: var(--font-headline);
+        font-weight: 800;
+    }
+
+    .team-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 700;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.18rem 0.45rem;
+        border-radius: 999px;
+        font-family: var(--font-label);
+        font-size: 0.58rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid rgba(255,255,255,0.08);
+        color: var(--color-on-surface-variant);
+        white-space: nowrap;
+    }
+
+    .status-pill.classified {
+        color: var(--color-secondary);
+        background: rgba(76, 215, 246, 0.08);
+        border-color: rgba(76, 215, 246, 0.25);
+    }
+
+    .status-pill.eliminated {
+        color: var(--color-error);
+        background: rgba(255, 84, 84, 0.08);
+        border-color: rgba(255, 84, 84, 0.25);
+    }
+
+    .bracket-scroll {
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+    }
+
+    .bracket-board {
+        display: flex;
+        align-items: stretch;
+        gap: 1rem;
+        min-width: min-content;
+    }
+
+    .bracket-round {
+        width: 260px;
+        flex: 0 0 260px;
+    }
+
+    .round-header {
+        margin-bottom: 0.75rem;
+        padding: 0.75rem 0.9rem;
+        border-radius: 0.6rem;
+        background: rgba(255,255,255,0.05);
+        color: var(--color-on-surface);
+        font-family: var(--font-headline);
+        font-weight: 800;
+        font-size: 0.9rem;
+    }
+
+    .round-matches {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+
+    .match-card {
+        padding: 0.75rem;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 0.7rem;
+        background: rgba(15, 23, 42, 0.72);
+    }
+
+    .match-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        min-height: 38px;
+    }
+
+    .match-row + .match-row {
+        margin-top: 0.45rem;
+        padding-top: 0.45rem;
+        border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .match-score {
+        color: var(--color-on-surface);
+        font-family: var(--font-label);
+        font-weight: 800;
+    }
+
+    .match-row.winner .match-score,
+    .match-row.winner .team-name {
+        color: var(--color-secondary);
+    }
+
+    .match-meta {
+        margin-top: 0.55rem;
+        color: var(--color-on-surface-variant);
+        font-size: 0.72rem;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .empty-structure {
+        padding: 2.5rem 1.25rem;
+        text-align: center;
+        color: var(--color-on-surface-variant);
+    }
+
+    .empty-structure .material-symbols-outlined {
+        display: block;
+        margin: 0 auto 0.6rem;
+        opacity: 0.4;
+        font-size: 2.2rem;
+    }
+
+    /* ── Bracket — column layout ─────────────────────────────────────────── */
+
+    .bracket-board {
+        --col-gap: 2.25rem;
+    }
+
+    .round-matches {
+        height: 100%;
+        justify-content: space-around;
+        gap: 1.25rem;
+    }
+
+    .round-header {
+        text-align: center;
+        border-left: 3px solid var(--color-on-surface-variant);
+    }
+
+    .bracket-round.round-qf .round-header {
+        border-left-color: var(--color-secondary);
+    }
+
+    .bracket-round.round-sf .round-header {
+        border-left-color: var(--color-primary);
+    }
+
+    .bracket-round.round-fin .round-header,
+    .round-header--champion {
+        border-left-color: #ffc857;
+        color: #ffc857 !important;
+    }
+
+    .bracket-arrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        align-self: stretch;
+        color: var(--color-on-surface-variant);
+        opacity: 0.35;
+        padding-top: 2.5rem;
+    }
+
+    .match-card--final {
+        border-color: rgba(255, 200, 87, 0.4);
+        background: linear-gradient(180deg, rgba(255, 200, 87, 0.08), rgba(15, 23, 42, 0.72));
+    }
+
+    .match-card--pending {
+        opacity: 0.55;
+    }
+
+    .match-row.winner {
+        position: relative;
+    }
+
+    .match-row.winner::after {
+        content: "";
+        position: absolute;
+        left: -0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 4px;
+        height: 60%;
+        border-radius: 999px;
+        background: var(--color-secondary);
+    }
+
+    .match-card--final .match-row.winner::after {
+        background: #ffc857;
+    }
+
+    .match-card--final .match-row.winner .team-name,
+    .match-card--final .match-row.winner .match-score {
+        color: #ffc857;
+    }
+
+    .match-score {
+        min-width: 1.6rem;
+        text-align: center;
+        padding: 0.1rem 0.4rem;
+        border-radius: 0.35rem;
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .team-fallback--tbd {
+        background: rgba(255, 255, 255, 0.06);
+        background-image: none;
+        color: var(--color-on-surface-variant);
+    }
+
+    .team-name--tbd {
+        color: var(--color-on-surface-variant);
+        font-weight: 600;
+        font-style: italic;
+    }
+
+    /* champion box */
+    .champion-round {
+        flex: 0 0 190px;
+        width: 190px;
+        align-self: center;
+    }
+
+    .champion-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 1.1rem 0.9rem;
+        border: 1px solid rgba(255, 200, 87, 0.4);
+        border-radius: 0.85rem;
+        background: linear-gradient(180deg, rgba(255, 200, 87, 0.14), rgba(15, 23, 42, 0.72));
+        text-align: center;
+    }
+
+    .champion-logo {
+        width: 48px;
+        height: 48px;
+        border-radius: 0.6rem;
+        font-size: 1.1rem;
+    }
+
+    .champion-name {
+        font-family: var(--font-headline);
+        font-weight: 800;
+        font-size: 0.95rem;
+        color: #ffc857;
+    }
+
+    /* ── Double elimination — single board, upper/lower stacked ────────── */
+
+    .bracket-board--double {
+        align-items: stretch;
+        gap: 0;
+    }
+
+    .de-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 2.5rem;
+        flex: 1;
+        min-width: min-content;
+    }
+
+    .de-row-label {
+        display: block;
+        margin-bottom: 0.75rem;
+        color: var(--color-on-surface-variant);
+        font-family: var(--font-label);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .de-row--lower .de-row-label {
+        color: var(--color-error);
+    }
+
+    .de-row-rounds {
+        display: flex;
+        align-items: stretch;
+        gap: var(--col-gap);
+    }
+
+    .de-connector {
+        flex: 0 0 var(--col-gap);
+        width: var(--col-gap);
+        margin: 0 0.75rem;
+        position: relative;
+        border-left: 2px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .champion-round-host {
+        flex: 0 0 230px;
+        width: 230px;
+        align-self: center;
+        position: relative;
+    }
+
+    .champion-round-host::before {
+        content: "";
+        position: absolute;
+        left: calc(-1.5rem - var(--col-gap));
+        top: calc(1.6rem + var(--bm-h, 7.75rem) / 2);
+        width: calc(0.75rem + var(--col-gap));
+        height: 2px;
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .champion-round-host .round-matches {
+        height: auto;
+        gap: 1rem;
+    }
+
+    @media (max-width: 640px) {
+        .structure-toggle {
+            width: 100%;
+        }
+
+        .structure-toggle-btn {
+            flex: 1;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% with initial_panel=default_view %}
+<section id="structure-groups" class="structure-panel {% if initial_panel == 'grupos' or not has_bracket %}visible{% endif %}">
+    {% if has_groups and groups %}
+    <div class="structure-grid">
+        {% for group_data in groups %}
+        <article class="structure-card">
+            <div class="structure-card-header">
+                <h2 class="structure-card-title">Grupo {{ group_data.group.name }}</h2>
+                <span class="structure-card-kicker">{{ group_data.advancing_count }} classifica{{ group_data.advancing_count|pluralize:"m" }}</span>
+            </div>
+            <div class="table-responsive">
+                <table class="standings-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Equipe</th>
+                            <th class="text-center">V</th>
+                            <th class="text-center">D</th>
+                            <th class="text-center">Saldo</th>
+                            <th class="text-end">Pts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for standing in group_data.standings %}
+                        <tr>
+                            <td>{{ standing.position|default:forloop.counter|stringformat:"02d" }}</td>
+                            <td>
+                                <div class="team-cell">
+                                    {% if standing.team.logo %}
+                                    <img src="{{ standing.team.logo.url }}" alt="" class="team-logo">
+                                    {% else %}
+                                    <span class="team-fallback">{{ standing.team.name|slice:":2"|upper }}</span>
+                                    {% endif %}
+                                    <span class="team-name">{{ standing.team.name }}</span>
+                                    {% if standing.classification_status %}
+                                    <span class="status-pill {{ standing.classification_status }}">
+                                        {% if standing.classification_status == 'classified' %}Classificado{% elif standing.classification_status == 'disputed' %}Em disputa{% else %}Eliminado{% endif %}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="text-center">{{ standing.wins }}</td>
+                            <td class="text-center">{{ standing.losses }}</td>
+                            <td class="text-center">{{ standing.round_diff }}</td>
+                            <td class="text-end">{{ standing.points }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6">
+                                <div class="empty-structure">
+                                    <span class="material-symbols-outlined">groups</span>
+                                    Nenhuma equipe definida neste grupo.
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="structure-card">
+        <div class="empty-structure">
+            <span class="material-symbols-outlined">table_chart</span>
+            Este campeonato nao possui fase de grupos.
+        </div>
+    </div>
+    {% endif %}
+</section>
+
+<section id="structure-bracket" class="structure-panel {% if initial_panel == 'chaveamento' or not has_groups %}visible{% endif %}">
+    {% if has_bracket %}
+        {% if is_double_elim %}
+        <article class="structure-card">
+            <div class="structure-card-header">
+                <h2 class="structure-card-title">Chaveamento — Dupla Eliminação</h2>
+                <span class="structure-card-kicker">{{ championship.final_match_format|default:"Grande Final" }}</span>
+            </div>
+            {% include "championship/partials/bracket_double.html" with upper=double_elim.upper lower=double_elim.lower grand_final=double_elim.grand_final %}
+        </article>
+        {% else %}
+        <article class="structure-card">
+            <div class="structure-card-header">
+                <h2 class="structure-card-title">Chaveamento</h2>
+                <span class="structure-card-kicker">{{ championship.get_stage_format_display }}</span>
+            </div>
+            {% include "championship/partials/bracket_rounds.html" with rounds=bracket_rounds %}
+        </article>
+        {% endif %}
+    {% else %}
+    <div class="structure-card">
+        <div class="empty-structure">
+            <span class="material-symbols-outlined">account_tree</span>
+            Este campeonato nao possui playoffs.
+        </div>
+    </div>
+    {% endif %}
+</section>
+{% endwith %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const buttons = document.querySelectorAll('[data-view-target]');
+    const panels = {
+        groups: document.getElementById('structure-groups'),
+        bracket: document.getElementById('structure-bracket'),
+    };
+
+    buttons.forEach((button) => {
+        button.addEventListener('click', () => {
+            buttons.forEach((item) => item.classList.remove('active'));
+            Object.values(panels).forEach((panel) => panel && panel.classList.remove('visible'));
+            button.classList.add('active');
+            panels[button.dataset.viewTarget].classList.add('visible');
+        });
+    });
+</script>
+{% endblock %}
