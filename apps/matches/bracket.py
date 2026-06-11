@@ -44,6 +44,17 @@ def _tier_class(index_from_end):
     return _TIER_CLASSES[min(index_from_end, len(_TIER_CLASSES) - 1)]
 
 
+def _chunk_pairs(matches, is_final):
+    """
+    Agrupa as partidas de uma rodada em pares, para que o template possa
+    desenhar os conectores do chaveamento entre uma rodada e a próxima.
+    A rodada final (ou rodadas com 1 partida) não precisa de pares.
+    """
+    if is_final or len(matches) < 2:
+        return [[m] for m in matches]
+    return [matches[j:j + 2] for j in range(0, len(matches), 2)]
+
+
 # ── Bracket principal ─────────────────────────────────────────────────────────
 
 def _format_match(match):
@@ -105,6 +116,8 @@ def get_bracket_rounds(championship):
             'label':           _label_for_round(len(formatted), is_final),
             'tier_class':      _tier_class(index_from_end),
             'matches':         formatted,
+            'pairs':           _chunk_pairs(formatted, is_final),
+            'spacing':         2 ** i,
             # connector_pairs: cada par de partidas desta rodada gera 1 par de conectores
             # A última rodada não precisa de conector.
             'connector_pairs': list(range(max(len(formatted) // 2, 1))) if not is_final else [],
@@ -162,6 +175,8 @@ def get_double_elim_bracket(championship):
                 'label':           _label_for_round(len(formatted), is_final),
                 'tier_class':      _tier_class(index_from_end),
                 'matches':         formatted,
+                'pairs':           _chunk_pairs(formatted, is_final),
+                'spacing':         2 ** i,
                 'connector_pairs': list(range(max(len(formatted) // 2, 1))) if not is_final else [],
             })
         return result

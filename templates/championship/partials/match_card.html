@@ -1,4 +1,4 @@
-<div class="match-card">
+<div class="match-card {% if match.is_final %}match-card--final{% endif %}{% if not match.team_a or not match.team_b %} match-card--pending{% endif %}">
     <div class="match-row {% if match.winner and match.team_a and match.winner.pk == match.team_a.pk %}winner{% endif %}">
         <div class="match-team">
             {% if match.team_a %}
@@ -9,8 +9,8 @@
                 {% endif %}
                 <span class="team-name">{{ match.team_a.name }}</span>
             {% else %}
-                <span class="team-fallback">?</span>
-                <span class="team-name">A definir</span>
+                <span class="team-fallback team-fallback--tbd">?</span>
+                <span class="team-name team-name--tbd">A definir</span>
             {% endif %}
         </div>
         <span class="match-score">{{ match.score_a }}</span>
@@ -25,8 +25,8 @@
                 {% endif %}
                 <span class="team-name">{{ match.team_b.name }}</span>
             {% else %}
-                <span class="team-fallback">?</span>
-                <span class="team-name">A definir</span>
+                <span class="team-fallback team-fallback--tbd">?</span>
+                <span class="team-name team-name--tbd">A definir</span>
             {% endif %}
         </div>
         <span class="match-score">{{ match.score_b }}</span>
@@ -36,4 +36,3 @@
         <span>{% if match.scheduled_at %}{{ match.scheduled_at|date:"d/m/Y" }}{% else %}Sem data{% endif %}</span>
     </div>
 </div>
-

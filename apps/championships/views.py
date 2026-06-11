@@ -517,6 +517,16 @@ def manager_championship(request, championship_id):
                 match.status = new_status
                 match.save(update_fields=['status'])
                 messages.success(request, f"Status da partida #{match.pk} atualizado.")
+
+        # Reabrir uma partida encerrada (volta para ONGOING e limpa o vencedor)
+        elif action == 'reopen_match':
+            match = get_object_or_404(
+                Match, pk=request.POST.get('match_id'), championship=championship,
+            )
+            match.status = GameStatus.ONGOING
+            match.winner = None
+            match.save(update_fields=['status', 'winner'])
+            messages.success(request, f"Partida #{match.pk} reaberta. Edite o placar normalmente.")
  
         # Atualizar placar (games) de uma partida
         elif action == 'update_match_scores':
@@ -587,8 +597,8 @@ def manager_championship(request, championship_id):
     )
  
     live_matches = [_build_match_card(m) for m in matches_qs.filter(status=GameStatus.ONGOING)]
-    upcoming_matches = [_build_match_card(m) for m in matches_qs.filter(status=GameStatus.SCHEDULED).order_by('scheduled_at')[:6]]
-    finished_matches = [_build_match_card(m) for m in matches_qs.filter(status=GameStatus.FINISHED).order_by('-scheduled_at')[:6]]
+    upcoming_matches = [_build_match_card(m) for m in matches_qs.filter(status=GameStatus.SCHEDULED).order_by('scheduled_at')]
+    finished_matches = [_build_match_card(m) for m in matches_qs.filter(status=GameStatus.FINISHED).order_by('-scheduled_at')]
  
     total_matches = matches_qs.count()
     finished_count = matches_qs.filter(status=GameStatus.FINISHED).count()

@@ -5,7 +5,7 @@ from .models import User
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ("username", "email", "ranking_score", "created_at", "is_staff", "is_active")
+    list_display = ("id", "username", "email", "ranking_score", "created_at", "is_staff", "is_active")
     search_fields = ("username", "email")
     list_filter = ("is_staff", "is_active")
     readonly_fields = ("created_at",)

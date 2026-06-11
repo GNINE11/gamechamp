@@ -265,6 +265,200 @@
         font-size: 2.2rem;
     }
 
+    /* ── Bracket — column layout ─────────────────────────────────────────── */
+
+    .bracket-board {
+        --col-gap: 2.25rem;
+    }
+
+    .round-matches {
+        height: 100%;
+        justify-content: space-around;
+        gap: 1.25rem;
+    }
+
+    .round-header {
+        text-align: center;
+        border-left: 3px solid var(--color-on-surface-variant);
+    }
+
+    .bracket-round.round-qf .round-header {
+        border-left-color: var(--color-secondary);
+    }
+
+    .bracket-round.round-sf .round-header {
+        border-left-color: var(--color-primary);
+    }
+
+    .bracket-round.round-fin .round-header,
+    .round-header--champion {
+        border-left-color: #ffc857;
+        color: #ffc857 !important;
+    }
+
+    .bracket-arrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        align-self: stretch;
+        color: var(--color-on-surface-variant);
+        opacity: 0.35;
+        padding-top: 2.5rem;
+    }
+
+    .match-card--final {
+        border-color: rgba(255, 200, 87, 0.4);
+        background: linear-gradient(180deg, rgba(255, 200, 87, 0.08), rgba(15, 23, 42, 0.72));
+    }
+
+    .match-card--pending {
+        opacity: 0.55;
+    }
+
+    .match-row.winner {
+        position: relative;
+    }
+
+    .match-row.winner::after {
+        content: "";
+        position: absolute;
+        left: -0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 4px;
+        height: 60%;
+        border-radius: 999px;
+        background: var(--color-secondary);
+    }
+
+    .match-card--final .match-row.winner::after {
+        background: #ffc857;
+    }
+
+    .match-card--final .match-row.winner .team-name,
+    .match-card--final .match-row.winner .match-score {
+        color: #ffc857;
+    }
+
+    .match-score {
+        min-width: 1.6rem;
+        text-align: center;
+        padding: 0.1rem 0.4rem;
+        border-radius: 0.35rem;
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .team-fallback--tbd {
+        background: rgba(255, 255, 255, 0.06);
+        background-image: none;
+        color: var(--color-on-surface-variant);
+    }
+
+    .team-name--tbd {
+        color: var(--color-on-surface-variant);
+        font-weight: 600;
+        font-style: italic;
+    }
+
+    /* champion box */
+    .champion-round {
+        flex: 0 0 190px;
+        width: 190px;
+        align-self: center;
+    }
+
+    .champion-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 1.1rem 0.9rem;
+        border: 1px solid rgba(255, 200, 87, 0.4);
+        border-radius: 0.85rem;
+        background: linear-gradient(180deg, rgba(255, 200, 87, 0.14), rgba(15, 23, 42, 0.72));
+        text-align: center;
+    }
+
+    .champion-logo {
+        width: 48px;
+        height: 48px;
+        border-radius: 0.6rem;
+        font-size: 1.1rem;
+    }
+
+    .champion-name {
+        font-family: var(--font-headline);
+        font-weight: 800;
+        font-size: 0.95rem;
+        color: #ffc857;
+    }
+
+    /* ── Double elimination — single board, upper/lower stacked ────────── */
+
+    .bracket-board--double {
+        align-items: stretch;
+        gap: 0;
+    }
+
+    .de-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 2.5rem;
+        flex: 1;
+        min-width: min-content;
+    }
+
+    .de-row-label {
+        display: block;
+        margin-bottom: 0.75rem;
+        color: var(--color-on-surface-variant);
+        font-family: var(--font-label);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .de-row--lower .de-row-label {
+        color: var(--color-error);
+    }
+
+    .de-row-rounds {
+        display: flex;
+        align-items: stretch;
+        gap: var(--col-gap);
+    }
+
+    .de-connector {
+        flex: 0 0 var(--col-gap);
+        width: var(--col-gap);
+        margin: 0 0.75rem;
+        position: relative;
+        border-left: 2px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .champion-round-host {
+        flex: 0 0 230px;
+        width: 230px;
+        align-self: center;
+        position: relative;
+    }
+
+    .champion-round-host::before {
+        content: "";
+        position: absolute;
+        left: calc(-1.5rem - var(--col-gap));
+        top: calc(1.6rem + var(--bm-h, 7.75rem) / 2);
+        width: calc(0.75rem + var(--col-gap));
+        height: 2px;
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .champion-round-host .round-matches {
+        height: auto;
+        gap: 1rem;
+    }
+
     @media (max-width: 640px) {
         .structure-toggle {
             width: 100%;
@@ -354,44 +548,13 @@
 <section id="structure-bracket" class="structure-panel {% if initial_panel == 'chaveamento' or not has_groups %}visible{% endif %}">
     {% if has_bracket %}
         {% if is_double_elim %}
-        <div style="display:flex; flex-direction:column; gap:1.25rem;">
-            <article class="structure-card">
-                <div class="structure-card-header">
-                    <h2 class="structure-card-title">Upper Bracket</h2>
-                    <span class="structure-card-kicker">Dupla eliminação</span>
-                </div>
-                {% include "championship/partials/bracket_rounds.html" with rounds=double_elim.upper %}
-            </article>
-            <article class="structure-card">
-                <div class="structure-card-header">
-                    <h2 class="structure-card-title">Lower Bracket</h2>
-                    <span class="structure-card-kicker">Repescagem</span>
-                </div>
-                {% include "championship/partials/bracket_rounds.html" with rounds=double_elim.lower %}
-            </article>
-            <article class="structure-card">
-                <div class="structure-card-header">
-                    <h2 class="structure-card-title">Grande Final</h2>
-                    <span class="structure-card-kicker">{{ championship.final_match_format|default:"Final" }}</span>
-                </div>
-                {% if double_elim.grand_final %}
-                <div class="bracket-scroll">
-                    <div class="bracket-board" style="padding:1rem;">
-                        <div class="bracket-round">
-                            <div class="round-matches">
-                                {% include "championship/partials/match_card.html" with match=double_elim.grand_final %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% else %}
-                <div class="empty-structure">
-                    <span class="material-symbols-outlined">emoji_events</span>
-                    Grande final ainda nao gerada.
-                </div>
-                {% endif %}
-            </article>
-        </div>
+        <article class="structure-card">
+            <div class="structure-card-header">
+                <h2 class="structure-card-title">Chaveamento — Dupla Eliminação</h2>
+                <span class="structure-card-kicker">{{ championship.final_match_format|default:"Grande Final" }}</span>
+            </div>
+            {% include "championship/partials/bracket_double.html" with upper=double_elim.upper lower=double_elim.lower grand_final=double_elim.grand_final %}
+        </article>
         {% else %}
         <article class="structure-card">
             <div class="structure-card-header">
@@ -431,4 +594,3 @@
     });
 </script>
 {% endblock %}
-

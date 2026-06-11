@@ -1,8 +1,8 @@
 {% if rounds %}
 <div class="bracket-scroll">
-    <div class="bracket-board" style="padding:1rem;">
+    <div class="bracket-board">
         {% for round in rounds %}
-        <div class="bracket-round">
+        <div class="bracket-round {{ round.tier_class }}">
             <div class="round-header">{{ round.label }}</div>
             <div class="round-matches">
                 {% for match in round.matches %}
@@ -10,7 +10,36 @@
                 {% endfor %}
             </div>
         </div>
+        {% if not forloop.last %}
+        <div class="bracket-arrow">
+            <span class="material-symbols-outlined">chevron_right</span>
+        </div>
+        {% endif %}
         {% endfor %}
+
+        {% with final_match=rounds|last %}
+        {% with fm=final_match.matches|first %}
+        {% if fm.winner %}
+        <div class="bracket-arrow">
+            <span class="material-symbols-outlined">chevron_right</span>
+        </div>
+        <div class="bracket-round champion-round">
+            <div class="round-header round-header--champion">
+                <span class="material-symbols-outlined">emoji_events</span>
+                Campeão
+            </div>
+            <div class="champion-card">
+                {% if fm.winner.logo %}
+                <img src="{{ fm.winner.logo.url }}" alt="" class="team-logo champion-logo">
+                {% else %}
+                <span class="team-fallback champion-logo">{{ fm.winner.name|slice:":2"|upper }}</span>
+                {% endif %}
+                <span class="champion-name">{{ fm.winner.name }}</span>
+            </div>
+        </div>
+        {% endif %}
+        {% endwith %}
+        {% endwith %}
     </div>
 </div>
 {% else %}
@@ -19,4 +48,3 @@
     Nenhuma partida de chaveamento foi gerada.
 </div>
 {% endif %}
-

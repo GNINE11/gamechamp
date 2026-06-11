@@ -89,7 +89,6 @@
     .table-scroll {
         overflow-x: auto;
         overflow-y: auto;
-        max-height: 420px;
         scrollbar-width: thin;
         scrollbar-color: var(--color-outline-variant) transparent;
     }
@@ -106,7 +105,7 @@
 
     .insc-table {
         width: 100%;
-        min-width: 480px;
+        min-width: 400px;
         border-collapse: separate;
         border-spacing: 0 4px;
         padding: 0.5rem;
@@ -391,6 +390,16 @@
         background: rgba(255, 180, 171, 0.16);
     }
 
+    .match-btn.reopen {
+        background: rgba(245, 158, 11, 0.10);
+        color: #f59e0b;
+        border: 1px solid rgba(245, 158, 11, 0.25);
+    }
+
+    .match-btn.reopen:hover {
+        background: rgba(245, 158, 11, 0.20);
+    }
+
     .live-pulse {
         display: inline-flex;
         align-items: center;
@@ -531,16 +540,64 @@
     .summary-value.gold   { color: #f59e0b; font-family: var(--font-headline); font-size: 0.9rem; font-weight: 800; }
 
     /* ─── Layout grid ────────────────────────────────────────────── */
-    .manager-grid {
-        display: grid;
-        grid-template-columns: 1fr;
+    .manager-layout {
+        display: flex;
+        flex-direction: column;
         gap: 1.25rem;
     }
 
-    @media (min-width: 1100px) {
-        .manager-grid {
-            grid-template-columns: 1fr 320px;
+    /* Linha 1: Inscrições | Staff | Resumo */
+    .top-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+        align-items: start;
+    }
+
+    @media (min-width: 1400px) {
+        .top-row {
+            grid-template-columns: repeat(3, 1fr);;
+            align-items: stretch;
         }
+    }
+
+    /* Painéis da top-row devem ocupar 100% da altura da célula */
+    .top-row .glass-panel {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    /* Área rolável dos cards de Inscrições e Staff (sem max-height fixo) */
+    .top-row .panel-scroll-body {
+        flex: 1;
+        min-height: 0;
+        max-height: 350px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-outline-variant) transparent;
+    }
+
+    .top-row .panel-scroll-body::-webkit-scrollbar { width: 4px; }
+    .top-row .panel-scroll-body::-webkit-scrollbar-thumb {
+        background: var(--color-outline-variant);
+        border-radius: 4px;
+    }
+
+    /* Resumo: nunca rola, cresce com o conteúdo */
+    .top-row .resumo-body {
+        padding: 1.1rem;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Linha 2: Em Andamento | Próximas Partidas */
+    .matches-split-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+        max-height: 900px;
+        overflow: auto;
     }
 
     .matches-grid {
@@ -549,16 +606,16 @@
         gap: 0.85rem;
     }
 
-    @media (min-width: 600px) {
+    @media (min-width: 800px) {
         .matches-grid {
             grid-template-columns: repeat(2, 1fr);
         }
     }
 
-    .sidebar-col {
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
+    @media (min-width: 1400px) {
+        .matches-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
     }
 
     /* ─── Score-edit drawer ──────────────────────────────────────── */
@@ -747,11 +804,11 @@
   </div>
 {% endif %}
 
-<!-- ─── Main content grid ──────────────────────────────────────────── -->
-<div class="manager-grid">
+<!-- ─── Main content layout ─────────────────────────────────────────── -->
+<div class="manager-layout">
 
-    <!-- Left column -->
-    <div style="display:flex; flex-direction:column; gap:1.25rem; min-width:0;">
+    <!-- ── Linha 1: Inscrições | Staff | Resumo ─────────────────────── -->
+    <div class="top-row">
 
         <!-- Inscrições Pendentes -->
         <div class="glass-panel">
@@ -766,50 +823,52 @@
             </div>
 
             {% if pending_registrations %}
-            <div class="table-scroll">
-                <table class="insc-table">
-                    <thead>
-                        <tr>
-                            <th>Equipe</th>
-                            <th class="text-end" style="padding-right:1.2rem;">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for reg in pending_registrations %}
-                        <tr>
-                            <td>
-                                <div style="display:flex; align-items:center; gap:0.7rem;">
-                                    <div class="team-avatar">{{ reg.team.name|slice:":1"|upper }}</div>
-                                    <div>
-                                        <div class="team-avatar-name">{{ reg.team.name }}</div>
-                                        <div class="team-avatar-time">{{ reg.registered_at|timesince }} atrás</div>
+            <div class="panel-scroll-body">
+                <div class="table-scroll">
+                    <table class="insc-table">
+                        <thead>
+                            <tr>
+                                <th>Equipe</th>
+                                <th class="text-end" style="padding-right:1.2rem;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reg in pending_registrations %}
+                            <tr>
+                                <td>
+                                    <div style="display:flex; align-items:center; gap:0.7rem;">
+                                        <div class="team-avatar">{{ reg.team.name|slice:":1"|upper }}</div>
+                                        <div>
+                                            <div class="team-avatar-name">{{ reg.team.name }}</div>
+                                            <div class="team-avatar-time">{{ reg.registered_at|timesince }} atrás</div>
+                                        </div>
                                     </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="row-actions">
-                                    <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="action" value="reject_registration">
-                                        <input type="hidden" name="registration_id" value="{{ reg.pk }}">
-                                        <button type="submit" class="action-btn action-reject" title="Rejeitar">
-                                            <span class="material-symbols-outlined">close</span>
-                                        </button>
-                                    </form>
-                                    <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="action" value="approve_registration">
-                                        <input type="hidden" name="registration_id" value="{{ reg.pk }}">
-                                        <button type="submit" class="action-btn action-approve" title="Aprovar">
-                                            <span class="material-symbols-outlined">check</span>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                </td>
+                                <td>
+                                    <div class="row-actions">
+                                        <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="reject_registration">
+                                            <input type="hidden" name="registration_id" value="{{ reg.pk }}">
+                                            <button type="submit" class="action-btn action-reject" title="Rejeitar">
+                                                <span class="material-symbols-outlined">close</span>
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="approve_registration">
+                                            <input type="hidden" name="registration_id" value="{{ reg.pk }}">
+                                            <button type="submit" class="action-btn action-approve" title="Aprovar">
+                                                <span class="material-symbols-outlined">check</span>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
             {% else %}
             <div class="panel-empty">
@@ -819,130 +878,12 @@
             {% endif %}
         </div>
 
-        <!-- Partidas -->
-        <div class="glass-panel">
-            <div class="panel-header">
-                <h3 class="panel-title" style="display:flex; align-items:center; gap:0.6rem;">
-                    {% if live_matches %}
-                    <span class="live-pulse"><span class="live-dot"></span></span>
-                    {% endif %}
-                    Partidas
-                </h3>
-            </div>
-            <div style="padding:1.1rem;">
-
-                {% if live_matches or upcoming_matches or finished_matches %}
-                <div class="matches-grid">
-
-                    {# ── Partidas ao vivo ─────────────────────────────────── #}
-                    {% for match in live_matches %}
-                    <div class="match-card is-live">
-                        <div class="match-meta-row">
-                            <span class="match-id">PARTIDA #{{ match.pk }} — {{ match.get_match_format_display }}</span>
-                            <span class="match-meta-info">{{ match.get_phase_display }}</span>
-                        </div>
-                        <div class="match-teams">
-                            <div class="match-team-side">
-                                <div class="match-team-tag">{{ match.team_a.name|default:"A definir" }}</div>
-                                <span class="match-score {% if match.score_a > match.score_b %}leader{% endif %}">{{ match.score_a }}</span>
-                            </div>
-                            <div class="match-vs">VS</div>
-                            <div class="match-team-side">
-                                <div class="match-team-tag">{{ match.team_b.name|default:"A definir" }}</div>
-                                <span class="match-score {% if match.score_b > match.score_a %}leader{% endif %}">{{ match.score_b }}</span>
-                            </div>
-                        </div>
-                        <div class="match-actions">
-                            <button type="button" class="match-btn cta" onclick="openScoreDrawer({{ match.pk }})">Ajustar Placar</button>
-                            <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}" style="flex:1;">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="set_match_status">
-                                <input type="hidden" name="match_id" value="{{ match.pk }}">
-                                <input type="hidden" name="new_status" value="FINISHED">
-                                <button type="submit" class="match-btn danger" style="width:100%;">Encerrar</button>
-                            </form>
-                        </div>
-                    </div>
-                    {% endfor %}
-
-                    {# ── Partidas agendadas ───────────────────────────────── #}
-                    {% for match in upcoming_matches %}
-                    <div class="match-card">
-                        <div class="match-meta-row">
-                            <span class="match-id upcoming">PARTIDA #{{ match.pk }} — {{ match.get_match_format_display }}</span>
-                            <span class="match-meta-info">
-                                {% if match.scheduled_at %}{{ match.scheduled_at|date:"d M, Y" }}{% else %}Sem data{% endif %}
-                            </span>
-                        </div>
-                        <div class="match-teams" style="opacity:0.7;">
-                            <div class="match-team-side">
-                                <div class="match-team-tag">{{ match.team_a.name|default:"A definir" }}</div>
-                                <span class="match-score">0</span>
-                            </div>
-                            <div class="match-vs">VS</div>
-                            <div class="match-team-side">
-                                <div class="match-team-tag">{{ match.team_b.name|default:"A definir" }}</div>
-                                <span class="match-score">0</span>
-                            </div>
-                        </div>
-                        <div class="match-actions">
-                            <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}" style="flex:1;">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="set_match_status">
-                                <input type="hidden" name="match_id" value="{{ match.pk }}">
-                                <input type="hidden" name="new_status" value="ONGOING">
-                                <button type="submit" class="match-btn cta" style="width:100%;">Forçar Início</button>
-                            </form>
-                        </div>
-                    </div>
-                    {% endfor %}
-
-                    {# ── Partidas encerradas ──────────────────────────────── #}
-                    {% for match in finished_matches %}
-                    <div class="match-card is-finished">
-                        <div class="match-meta-row">
-                            <span class="match-id finished">PARTIDA #{{ match.pk }} — {{ match.get_match_format_display }}</span>
-                            <span class="match-meta-info" style="color:#4ade80;">ENCERRADA</span>
-                        </div>
-                        <div class="match-teams">
-                            <div class="match-team-side">
-                                <div class="match-team-tag">{{ match.team_a.name|default:"A definir" }}</div>
-                                <span class="match-score {% if match.winner_id == match.team_a_id %}leader{% endif %}">{{ match.score_a }}</span>
-                            </div>
-                            <div class="match-vs">VS</div>
-                            <div class="match-team-side">
-                                <div class="match-team-tag">{{ match.team_b.name|default:"A definir" }}</div>
-                                <span class="match-score {% if match.winner_id == match.team_b_id %}leader{% endif %}">{{ match.score_b }}</span>
-                            </div>
-                        </div>
-                        <div class="match-actions">
-                            <button type="button" class="match-btn" style="flex:1;" onclick="openScoreDrawer({{ match.pk }})">Editar Placar</button>
-                        </div>
-                    </div>
-                    {% endfor %}
-
-                </div>
-                {% else %}
-                <div class="panel-empty">
-                    <span class="material-symbols-outlined">sports_esports</span>
-                    Nenhuma partida cadastrada ainda.
-                </div>
-                {% endif %}
-
-            </div>
-        </div>
-
-    </div><!-- /left col -->
-
-    <!-- Right sidebar -->
-    <div class="sidebar-col">
-
         <!-- Staff Management -->
         <div class="glass-panel">
             <div class="panel-header">
                 <h3 class="panel-title">Membros da Staff</h3>
             </div>
-            <div style="padding:1.1rem; display:flex; flex-direction:column; gap:0.6rem;">
+            <div class="panel-scroll-body" style="padding:1.1rem; display:flex; flex-direction:column; gap:0.6rem;">
 
                 {% for member in staff_members %}
                 <div class="staff-item">
@@ -972,7 +913,7 @@
             <div class="panel-header">
                 <h3 class="panel-title">Resumo do Torneio</h3>
             </div>
-            <div style="padding:1.1rem; display:flex; flex-direction:column;">
+            <div class="resumo-body">
 
                 <div class="summary-row">
                     <span class="summary-label">Jogo</span>
@@ -1028,15 +969,181 @@
             </div>
         </div>
 
+    </div><!-- /top-row -->
 
-    </div><!-- /sidebar -->
+    <!-- ── Linha 2: Em Andamento | Próximas Partidas ─────────────────── -->
+    <div class="matches-split-row">
 
-</div><!-- /manager-grid -->
+        <!-- Partidas Em Andamento -->
+        <div class="glass-panel">
+            <div class="panel-header">
+                <h3 class="panel-title" style="display:flex; align-items:center; gap:0.6rem;">
+                    {% if live_matches %}
+                    <span class="live-pulse"><span class="live-dot"></span></span>
+                    {% endif %}
+                    Partidas em Andamento
+                </h3>
+                {% if live_matches %}
+                <span class="panel-link" style="color:var(--color-on-surface-variant); cursor:default;">
+                    {{ live_matches|length }} ao vivo
+                </span>
+                {% endif %}
+            </div>
+            <div style="padding:1.1rem; max-height: 400px; overflow: auto;">
+                {% if live_matches %}
+                <div class="matches-grid">
+                    {% for match in live_matches %}
+                    <div class="match-card is-live">
+                        <div class="match-meta-row">
+                            <span class="match-id">PARTIDA #{{ match.pk }} — {{ match.get_match_format_display }}</span>
+                            <span class="match-meta-info">{{ match.get_phase_display }}</span>
+                        </div>
+                        <div class="match-teams">
+                            <div class="match-team-side">
+                                <div class="match-team-tag">{{ match.team_a.name|default:"A definir" }}</div>
+                                <span class="match-score {% if match.score_a > match.score_b %}leader{% endif %}">{{ match.score_a }}</span>
+                            </div>
+                            <div class="match-vs">VS</div>
+                            <div class="match-team-side">
+                                <div class="match-team-tag">{{ match.team_b.name|default:"A definir" }}</div>
+                                <span class="match-score {% if match.score_b > match.score_a %}leader{% endif %}">{{ match.score_b }}</span>
+                            </div>
+                        </div>
+                        <div class="match-actions">
+                            <button type="button" class="match-btn cta" onclick="openScoreDrawer({{ match.pk }})">Ajustar Placar</button>
+                            <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}" style="flex:1;">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="set_match_status">
+                                <input type="hidden" name="match_id" value="{{ match.pk }}">
+                                <input type="hidden" name="new_status" value="FINISHED">
+                                <button type="submit" class="match-btn danger" style="width:100%;">Encerrar</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="panel-empty">
+                    <span class="material-symbols-outlined">sports_esports</span>
+                    Nenhuma partida ao vivo.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Próximas Partidas -->
+        <div class="glass-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">Próximas Partidas</h3>
+                {% if upcoming_matches %}
+                <span class="panel-link" style="color:var(--color-on-surface-variant); cursor:default;">
+                    {{ upcoming_matches|length }} agendada{{ upcoming_matches|length|pluralize }}
+                </span>
+                {% endif %}
+            </div>
+            <div style="padding:1.1rem; max-height: 400px; overflow: auto;">
+                {% if upcoming_matches %}
+                <div class="matches-grid">
+                    {% for match in upcoming_matches %}
+                    <div class="match-card">
+                        <div class="match-meta-row">
+                            <span class="match-id upcoming">PARTIDA #{{ match.pk }} — {{ match.get_match_format_display }}</span>
+                            <span class="match-meta-info">
+                                {% if match.scheduled_at %}{{ match.scheduled_at|date:"d M, Y" }}{% else %}Sem data{% endif %}
+                            </span>
+                        </div>
+                        <div class="match-teams" style="opacity:0.7;">
+                            <div class="match-team-side">
+                                <div class="match-team-tag">{{ match.team_a.name|default:"A definir" }}</div>
+                                <span class="match-score">0</span>
+                            </div>
+                            <div class="match-vs">VS</div>
+                            <div class="match-team-side">
+                                <div class="match-team-tag">{{ match.team_b.name|default:"A definir" }}</div>
+                                <span class="match-score">0</span>
+                            </div>
+                        </div>
+                        <div class="match-actions">
+                            <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}" style="flex:1;">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="set_match_status">
+                                <input type="hidden" name="match_id" value="{{ match.pk }}">
+                                <input type="hidden" name="new_status" value="ONGOING">
+                                <button type="submit" class="match-btn cta" style="width:100%;">Forçar Início</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="panel-empty">
+                    <span class="material-symbols-outlined">event</span>
+                    Nenhuma partida agendada.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div><!-- /matches-split-row -->
+
+    <!-- ── Linha 3: Partidas Concluídas (largura total) ───────────────── -->
+    <div class="glass-panel">
+        <div class="panel-header">
+            <h3 class="panel-title">Partidas Concluídas</h3>
+            {% if finished_matches %}
+            <span class="panel-link" style="color:var(--color-on-surface-variant); cursor:default;">
+                {{ finished_count }} encerrada{{ finished_count|pluralize }}
+            </span>
+            {% endif %}
+        </div>
+        <div style="padding:1.1rem; max-height: 400px; overflow: auto;">
+            {% if finished_matches %}
+            <div class="matches-grid">
+                {% for match in finished_matches %}
+                <div class="match-card is-finished">
+                    <div class="match-meta-row">
+                        <span class="match-id finished">PARTIDA #{{ match.pk }} — {{ match.get_match_format_display }}</span>
+                        <span class="match-meta-info" style="color:#4ade80;">ENCERRADA</span>
+                    </div>
+                    <div class="match-teams">
+                        <div class="match-team-side">
+                            <div class="match-team-tag">{{ match.team_a.name|default:"A definir" }}</div>
+                            <span class="match-score {% if match.winner_id == match.team_a_id %}leader{% endif %}">{{ match.score_a }}</span>
+                        </div>
+                        <div class="match-vs">VS</div>
+                        <div class="match-team-side">
+                            <div class="match-team-tag">{{ match.team_b.name|default:"A definir" }}</div>
+                            <span class="match-score {% if match.winner_id == match.team_b_id %}leader{% endif %}">{{ match.score_b }}</span>
+                        </div>
+                    </div>
+                    <div class="match-actions">
+                        <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}" style="flex:1;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="reopen_match">
+                            <input type="hidden" name="match_id" value="{{ match.pk }}">
+                            <button type="submit" class="match-btn reopen" style="width:100%;">
+                                Reabrir Partida
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="panel-empty">
+                <span class="material-symbols-outlined">check_circle</span>
+                Nenhuma partida encerrada ainda.
+            </div>
+            {% endif %}
+        </div>
+    </div><!-- /partidas concluídas -->
+
+</div><!-- /manager-layout -->
 
 <!-- ─── Backdrop + Drawers de placar ───────────────────────────────── -->
 <div class="backdrop" id="backdrop" onclick="closeAllDrawers()"></div>
 
-{% for match in live_matches|add:upcoming_matches|add:finished_matches %}
+{% for match in live_matches|add:upcoming_matches %}
 <div class="drawer" id="scoreDrawer{{ match.pk }}">
     <div class="drawer-header">
         <h4 class="drawer-title">Placar — Partida #{{ match.pk }}</h4>
