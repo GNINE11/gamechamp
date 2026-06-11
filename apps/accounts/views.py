@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q, Sum
 
+
 from .forms import SignupForm, EditProfileForm, LoginForm
 
 User = get_user_model()
@@ -106,7 +107,13 @@ def profile_view(request):
     # ── Campeonatos do usuário ────────────────────────────────────────────
     championships = (
         Championship.objects
-        .filter(registrations__team__in=user_teams)
+        .filter(
+            registrations__team__in=user_teams
+        )
+        .filter(
+            Q(status=StatusChampionship.IN_PROGRESS) |
+            Q(status=StatusChampionship.FINISHED)
+        )
         .distinct()
         .order_by("status", "-created_at")
     )

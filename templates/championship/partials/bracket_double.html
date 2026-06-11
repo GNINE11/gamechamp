@@ -1,6 +1,6 @@
 {% if upper or lower or grand_final %}
 <div class="bracket-scroll">
-    <div class="bracket-board bracket-board--double">
+    <div class="bracket-board bracket-board--double p-5">
         <div class="de-rows">
             {% if upper %}
             <div class="de-row">
@@ -27,7 +27,7 @@
 
             {% if lower %}
             <div class="de-row de-row--lower">
-                <span class="de-row-label">Chave inferior</span>
+                <span class="de-row-label mt-5">Chave inferior</span>
                 <div class="de-row-rounds">
                     {% for round in lower %}
                     <div class="bracket-round {{ round.tier_class }}">

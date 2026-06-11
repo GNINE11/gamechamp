@@ -63,28 +63,44 @@ def _create_match(
 def _create_group_structure(championship, teams, start_round, scheduled_at):
     group_count = championship.group_count or 1
     teams_per_group = championship.teams_per_group or championship.max_teams
-    slots = _fill_slots(teams, group_count * teams_per_group)
+
     round_number = start_round
     matches_created = 0
+
+    # Distribui os times de forma equilibrada entre os grupos
+    groups_slots = [[] for _ in range(group_count)]
+
+    for index, team in enumerate(teams):
+        groups_slots[index % group_count].append(team)
+
+    # Completa os grupos com None até o tamanho configurado
+    for group_slots in groups_slots:
+        while len(group_slots) < teams_per_group:
+            group_slots.append(None)
 
     for index in range(group_count):
         group, _ = Group.objects.get_or_create(
             championship=championship,
             name=_group_name(index),
         )
-        group_slots = slots[index * teams_per_group:(index + 1) * teams_per_group]
+
+        group_slots = groups_slots[index]
 
         for position, team in enumerate(group_slots, start=1):
             if team is None:
                 continue
+
             GroupStanding.objects.get_or_create(
                 group=group,
                 team=team,
                 defaults={"position": position},
             )
 
-        for first in range(teams_per_group):
-            for second in range(first + 1, teams_per_group):
+        # Cria partidas apenas entre times existentes
+        valid_teams = [team for team in group_slots if team is not None]
+
+        for first in range(len(valid_teams)):
+            for second in range(first + 1, len(valid_teams)):
                 _create_match(
                     championship=championship,
                     match_format=championship.group_match_format,
@@ -92,14 +108,13 @@ def _create_group_structure(championship, teams, start_round, scheduled_at):
                     group=group,
                     round_number=round_number,
                     scheduled_at=scheduled_at,
-                    team_a=group_slots[first],
-                    team_b=group_slots[second],
+                    team_a=valid_teams[first],
+                    team_b=valid_teams[second],
                 )
                 round_number += 1
                 matches_created += 1
 
     return round_number, matches_created
-
 
 def _create_single_elimination(championship, teams, slot_count, start_round, scheduled_at):
     slots = _fill_slots(teams, slot_count)
