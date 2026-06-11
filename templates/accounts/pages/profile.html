@@ -80,7 +80,7 @@
                         </div>
                     </a>
                     {% empty %}
-                    <p class="match-date text-center py-3">Nenhuma partida ainda.</p>
+                    <p class="match-date text-center py-5 fs-6">Nenhuma partida ainda.</p>
                     {% endfor %}
                 </div>
                 <!-- Botão ver histórico completo -->
@@ -157,6 +157,8 @@
                     <span class="material-symbols-outlined icon-primary">emoji_events</span>
                     <h2 class="section-title">Meus Campeonatos</h2>
                 </div>
+
+                {% if championships %}
                 <div class="champ-grid">
                     {% for championship in championships %}
 
@@ -188,15 +190,15 @@
 
                         </div>
 
-                    </div>
-                    {% empty %}
-
-                    <p class="text-center py-4">
-                        Você ainda não participa de nenhum campeonato.
-                    </p>
+                    </div>                    
 
                     {% endfor %}
                 </div>
+                {% else %}
+                <p class="text-center py-4">
+                    Você ainda não participa de nenhum campeonato.
+                </p>
+                {% endif %}
             </div>
 
         </div>
