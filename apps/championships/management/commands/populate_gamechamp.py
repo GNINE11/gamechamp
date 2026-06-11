@@ -313,34 +313,6 @@ class Command(BaseCommand):
         champ8.save(update_fields=["status", "champion"])
         championships.append(champ8)
 
-        # 9. Campeonato EM ANDAMENTO - 8 times, fase de grupos (finalizada) + eliminação dupla (playoff em andamento)
-        champ9 = self.create_basic_championship(
-            name="Seed Groups + Double Elim Live",
-            owner=owner,
-            start_date=today - timedelta(days=3),
-            stage_format=StageFormat.GROUP_THEN_PLAYOFFS,
-            max_teams=8,
-            group_count=2,
-            teams_per_group=4,
-            teams_advancing_per_group=2,
-            group_match_format=MatchFormat.BO1,
-            playoff_format=PlayoffFormat.DOUBLE_ELIMINATION,
-            playoff_match_format=MatchFormat.BO3,
-            final_match_format=MatchFormat.BO5,
-            third_place_match=True,
-            final_status=StatusChampionship.IN_PROGRESS,
-        )
-        self.create_staff(champ9, owner)
-        self.create_tiebreakers(champ9)
-        self.create_registrations_full(champ9, teams[:8])
-        # Fase de grupos finalizada
-        advancing_teams = self.create_group_stage_finished(champ9, teams[:8], today - timedelta(days=2))
-        # Playoff de dupla eliminação em andamento (quartas da upper finalizadas, resto agendado)
-        self.create_double_elim_playoff_in_progress(champ9, advancing_teams, today - timedelta(days=1))
-        champ9.status = StatusChampionship.IN_PROGRESS
-        champ9.save(update_fields=["status"])
-        championships.append(champ9)
-
         for championship in championships:
             if championship.status in (StatusChampionship.IN_PROGRESS, StatusChampionship.FINISHED):
                 ensure_championship_structure(championship)
