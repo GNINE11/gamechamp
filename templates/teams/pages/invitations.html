@@ -1,0 +1,140 @@
+{% extends "base/logged_base.html" %}
+{% load static %}
+
+{% block title %}Convites | Gamechamp{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/teams.css' %}">
+{% endblock %}
+
+{% block page_label %}Equipes{% endblock %}
+{% block page_title %}Convites{% endblock %}
+
+{% block page_actions %}
+<div class="team-segment">
+  <button type="button" class="active" data-invite-tab="received">Recebidos ({{ received_pending_count }})</button>
+  <button type="button" data-invite-tab="sent">Enviados ({{ sent_pending_count }})</button>
+</div>
+{% endblock %}
+
+{% block content %}
+<section class="teams-page">
+  <div id="invite-panel-received" class="team-tab-panel active p-0">
+    {% if received_invites %}
+    <div class="team-invite-grid">
+      {% for invite in received_invites %}
+      <article class="team-invite-card">
+        <div class="d-flex align-items-start justify-content-between gap-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="team-logo-box small">
+              {% if invite.team.logo %}
+              <img src="{{ invite.team.logo.url }}" alt="Logo de {{ invite.team.name }}">
+              {% else %}
+              <span class="team-logo-initials">{{ invite.team.name|slice:":2"|upper }}</span>
+              {% endif %}
+            </div>
+            <div>
+              <h2 class="team-section-title">{{ invite.team.name }}</h2>
+              <p class="team-member-role">{{ invite.proposed_role|default:"Jogador" }} • {{ invite.created_at|timesince }} atras</p>
+            </div>
+          </div>
+          <span class="team-badge {% if invite.status == pending_status %}primary{% else %}neutral{% endif %}">{{ invite.get_status_display }}</span>
+        </div>
+
+        <blockquote>
+          {% if invite.message %}{{ invite.message }}{% else %}{{ invite.team.captain.username }} convidou voce para entrar nesta equipe.{% endif %}
+        </blockquote>
+
+        {% if invite.status == pending_status %}
+        <div class="team-action-row">
+          <form method="post" action="{% url 'teams:teams-invite-accept' invite.pk %}" class="flex-grow-1">
+            {% csrf_token %}
+            <button type="submit" class="btn-app-primary w-100 justify-content-center">
+              <span class="material-symbols-outlined">check_circle</span>
+              Aceitar Convite
+            </button>
+          </form>
+          <form method="post" action="{% url 'teams:teams-invite-decline' invite.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn-app-outline">
+              <span class="material-symbols-outlined">close</span>
+              Recusar
+            </button>
+          </form>
+        </div>
+        {% else %}
+        <a href="{% url 'teams:teams-detail' invite.team.pk %}" class="btn-app-outline">
+          <span class="material-symbols-outlined">groups</span>
+          Ver equipe
+        </a>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="team-empty">
+      <span class="material-symbols-outlined fs-1">mail_outline</span>
+      <h2 class="team-section-title">Nenhum convite recebido</h2>
+      <p class="mb-0">Quando um capitao convidar voce para uma equipe, o convite aparecera aqui.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div id="invite-panel-sent" class="team-tab-panel p-0">
+    {% if sent_invites %}
+    <div class="team-invite-grid">
+      {% for invite in sent_invites %}
+      <article class="team-invite-card">
+        <div class="d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <h2 class="team-section-title">{{ invite.invited_player.username }}</h2>
+            <p class="team-member-role">{{ invite.team.name }} • {{ invite.proposed_role|default:"Jogador" }}</p>
+          </div>
+          <span class="team-badge {% if invite.status == pending_status %}primary{% else %}neutral{% endif %}">{{ invite.get_status_display }}</span>
+        </div>
+
+        {% if invite.message %}<blockquote>{{ invite.message }}</blockquote>{% endif %}
+
+        <div class="team-action-row">
+          <a href="{% url 'teams:teams-members' invite.team.pk %}" class="btn-app-outline">
+            <span class="material-symbols-outlined">groups</span>
+            Gerenciar equipe
+          </a>
+          {% if invite.status == pending_status %}
+          <form method="post" action="{% url 'teams:teams-invite-cancel' invite.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button type="submit" class="btn-app-outline">
+              <span class="material-symbols-outlined">close</span>
+              Cancelar
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="team-empty">
+      <span class="material-symbols-outlined fs-1">outbox</span>
+      <h2 class="team-section-title">Nenhum convite enviado</h2>
+      <p class="mb-0">Convites enviados pelos times que voce lidera ficarao listados aqui.</p>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.querySelectorAll('[data-invite-tab]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const tab = button.dataset.inviteTab;
+      document.querySelectorAll('[data-invite-tab]').forEach((item) => item.classList.remove('active'));
+      document.querySelectorAll('#invite-panel-received, #invite-panel-sent').forEach((panel) => panel.classList.remove('active'));
+      button.classList.add('active');
+      document.getElementById(`invite-panel-${tab}`).classList.add('active');
+    });
+  });
+</script>
+{% endblock %}

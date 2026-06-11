@@ -1,0 +1,55 @@
+<div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
+<aside id="sidebar" class="sidebar d-flex flex-column position-fixed top-0 start-0 vh-100 shadow overflow-auto">
+  <script>
+    if (localStorage.getItem("sidebar_collapsed") === "true") {
+      document.currentScript.closest("aside").classList.add("collapsed");
+    }
+  </script>
+
+  <div class="sidebar-header">
+
+    <div class="sidebar-header-text">
+      <span class="sidebar-title">Gamechamp</span>
+      <p class="sidebar-subtitle">Plataforma</p>
+    </div>
+
+    <button class="sidebar-toggle" id="toggleSidebar" data-bs-toggle="tooltip">
+      <span class="material-symbols-outlined">left_panel_close</span>
+    </button>
+
+  </div>
+
+  <nav class="flex-grow-1 px-3">
+
+    <a href="{% url 'championship:available-championship-list' %}"
+      class="sidebar-link {% if request.resolver_match.url_name|slice:':23' == 'available-championship-' %}active{% endif %}">
+        <span class="material-symbols-outlined">home</span>
+        <span>Início</span>
+    </a>
+
+    <a href="{% url 'teams:teams-home' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':6' == 'teams-' and request.resolver_match.url_name != 'teams-invitations' and request.resolver_match.url_name|slice:':13' != 'teams-invite-' %}active{% endif %}">
+      <span class="material-symbols-outlined">groups</span>
+      <span>Meu Time</span>
+    </a>
+
+    <a href="{% url 'teams:teams-invitations' %}" class="sidebar-link {% if request.resolver_match.url_name == 'teams-invitations' or request.resolver_match.url_name|slice:':13' == 'teams-invite-' %}active{% endif %}">
+      <span class="material-symbols-outlined">mail</span>
+      <span>Convites</span>
+    </a>
+
+    <a href="{% url 'championship:my-championship-list' %}"
+      class="sidebar-link {% if request.resolver_match.url_name|slice:':16' == 'my-championship-' %}active{% endif %}">
+      <span class="material-symbols-outlined">emoji_events</span>
+      <span>Meus Campeonatos</span>
+    </a>
+
+    <a href="{% url 'championship:management-championship-list' %}"
+      class="sidebar-link {% if request.resolver_match.url_name|slice:':24' == 'management-championship-' %}active{% endif %}">
+      <span class="material-symbols-outlined">edit_note</span>
+      <span>Campeonatos que Gerencio</span>
+    </a>
+
+  </nav>
+
+</aside>

@@ -1,0 +1,79 @@
+{% if upper or lower or grand_final %}
+<div class="bracket-scroll">
+    <div class="bracket-board bracket-board--double p-5">
+        <div class="de-rows">
+            {% if upper %}
+            <div class="de-row">
+                <span class="de-row-label">Chave superior</span>
+                <div class="de-row-rounds">
+                    {% for round in upper %}
+                    <div class="bracket-round {{ round.tier_class }}">
+                        <div class="round-header">{{ round.label }}</div>
+                        <div class="round-matches">
+                            {% for match in round.matches %}
+                                {% include "championship/partials/match_card.html" with match=match %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% if not forloop.last %}
+                    <div class="bracket-arrow">
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if lower %}
+            <div class="de-row de-row--lower">
+                <span class="de-row-label mt-5">Chave inferior</span>
+                <div class="de-row-rounds">
+                    {% for round in lower %}
+                    <div class="bracket-round {{ round.tier_class }}">
+                        <div class="round-header">{{ round.label }}</div>
+                        <div class="round-matches">
+                            {% for match in round.matches %}
+                                {% include "championship/partials/match_card.html" with match=match %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% if not forloop.last %}
+                    <div class="bracket-arrow">
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if grand_final %}
+        <div class="de-connector"></div>
+        <div class="bracket-round champion-round-host">
+            <div class="round-header round-header--champion">Grande Final</div>
+            <div class="round-matches">
+                {% include "championship/partials/match_card.html" with match=grand_final %}
+
+                {% if grand_final.winner %}
+                <div class="champion-card">
+                    {% if grand_final.winner.logo %}
+                    <img src="{{ grand_final.winner.logo.url }}" alt="" class="team-logo champion-logo">
+                    {% else %}
+                    <span class="team-fallback champion-logo">{{ grand_final.winner.name|slice:":2"|upper }}</span>
+                    {% endif %}
+                    <span class="champion-name">{{ grand_final.winner.name }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="empty-structure">
+    <span class="material-symbols-outlined">account_tree</span>
+    Nenhuma partida de chaveamento foi gerada.
+</div>
+{% endif %}

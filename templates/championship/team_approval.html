@@ -1,0 +1,651 @@
+{% extends "base/logged_base.html" %}
+{% load static %}
+
+{% block title %}Aprovações de Times{% endblock %}
+
+{% block page_label %}Campeonatos / Spring Major 2024{% endblock %}
+{% block page_title %}Aprovações de Times{% endblock %}
+
+{% block page_actions %}
+<a href="#" class="btn-app-outline">
+  <span class="material-symbols-outlined">filter_list</span>
+  Filtrar
+</a>
+<a href="#" class="btn-app-primary">
+  <span class="material-symbols-outlined">add_circle</span>
+  Exportar
+</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── Glass panel ───────────────────────────────────────────── */
+  .glass-panel {
+    background: rgba(23, 31, 51, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255,255,255,0.07);
+  }
+
+  /* ── Stat Cards ────────────────────────────────────────────── */
+  .stat-card {
+    border-radius: 1rem;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: border-color 0.2s ease, transform 0.15s ease;
+  }
+  .stat-card:hover { transform: translateY(-2px); }
+  .stat-card:hover.stat-pending  { border-color: rgba(139, 92, 246, 0.5) !important; }
+  .stat-card:hover.stat-fill     { border-color: rgba(6, 182, 212, 0.5) !important; }
+  .stat-card:hover.stat-rejected { border-color: rgba(255, 180, 171, 0.5) !important; }
+
+  .stat-label {
+    font-family: var(--font-label);
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-on-surface-variant);
+    margin-bottom: 0.35rem;
+  }
+
+  .stat-value {
+    font-family: var(--font-headline);
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-sub {
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .stat-sub .material-symbols-outlined { font-size: 1rem; }
+
+  .stat-icon-wrap {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+  }
+  .stat-card:hover .stat-icon-wrap { transform: scale(1.1); }
+  .stat-icon-wrap .material-symbols-outlined { font-size: 2rem; }
+
+  /* Fill progress bar */
+  .fill-bar-track {
+    height: 6px;
+    background: rgba(6, 182, 212, 0.15);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+    width: 100%;
+    max-width: 120px;
+  }
+  .fill-bar-fill {
+    height: 100%;
+    background: var(--color-secondary);
+    border-radius: 99px;
+    transition: width 0.6s ease;
+  }
+
+  /* ── Table Section ─────────────────────────────────────────── */
+  .table-section {
+    border-radius: 1rem;
+    overflow: hidden;
+  }
+
+  .table-toolbar {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.03);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .tab-group { display: flex; align-items: center; gap: 0.375rem; flex-wrap: wrap; }
+
+  .tab-btn {
+    font-family: var(--font-label);
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    padding: 0.45rem 1rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    background: transparent;
+    color: var(--color-on-surface-variant);
+  }
+  .tab-btn:hover { background: rgba(255,255,255,0.05); color: var(--color-on-surface); }
+  .tab-btn.active {
+    background: var(--color-primary);
+    color: #ffffff;
+  }
+
+  .toolbar-actions { display: flex; align-items: center; gap: 0.5rem; }
+
+  .icon-btn {
+    font-family: var(--font-label);
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    color: var(--color-on-surface-variant);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .icon-btn:hover { background: rgba(255,255,255,0.08); color: var(--color-on-surface); }
+  .icon-btn .material-symbols-outlined { font-size: 1rem; }
+
+  /* Table */
+  .approvals-table { width: 100%; border-collapse: collapse; }
+
+  .approvals-table thead tr {
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .approvals-table thead th {
+    padding: 1rem 1.5rem;
+    font-family: var(--font-label);
+    font-size: 0.68rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-on-surface-variant);
+    white-space: nowrap;
+  }
+  .approvals-table thead th:last-child { text-align: right; }
+
+  .approvals-table tbody tr {
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+  .approvals-table tbody tr:hover { background: rgba(255,255,255,0.025); }
+  .approvals-table tbody tr.row-selected { background: rgba(255,255,255,0.06); }
+  .approvals-table tbody tr.row-processed { opacity: 0.55; }
+
+  .approvals-table td { padding: 1.1rem 1.5rem; vertical-align: middle; }
+
+  /* Team cell */
+  .team-avatar {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.625rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 0.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .team-avatar img { width: 100%; height: 100%; object-fit: contain; }
+  .team-name {
+    font-family: var(--font-headline);
+    font-size: 0.975rem;
+    font-weight: 600;
+    color: var(--color-on-surface);
+    line-height: 1.2;
+    margin: 0;
+  }
+  .team-region {
+    font-family: var(--font-label);
+    font-size: 0.72rem;
+    color: var(--color-on-surface-variant);
+    margin: 0;
+  }
+
+  /* Ranking cell */
+  .rank-value {
+    font-family: var(--font-label);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .rank-tier {
+    font-family: var(--font-label);
+    font-size: 0.7rem;
+    color: var(--color-on-surface-variant);
+  }
+
+  /* Date cell */
+  .date-main { font-family: var(--font-body); font-size: 0.875rem; color: var(--color-on-surface); }
+  .date-sub  { font-family: var(--font-label); font-size: 0.7rem; color: var(--color-on-surface-variant); }
+
+  /* Status badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 99px;
+    font-family: var(--font-label);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .badge-pending  { background: rgba(139,92,246,0.12); color: var(--color-primary); }
+  .badge-pending .badge-dot { background: var(--color-primary); animation: pulse 1.5s ease infinite; }
+  .badge-approved { background: rgba(6,182,212,0.12); color: var(--color-secondary); }
+  .badge-rejected { background: rgba(255,180,171,0.12); color: var(--color-error); }
+  .badge .material-symbols-outlined { font-size: 0.875rem; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.35; }
+  }
+
+  /* Action buttons */
+  .actions-cell { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; }
+
+  .btn-approve, .btn-reject, .btn-view, .btn-processed {
+    font-family: var(--font-label);
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    height: 2.375rem;
+    border-radius: 0.5rem;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .btn-approve, .btn-reject { padding: 0 1rem; }
+  .btn-view, .btn-processed { padding: 0 0.75rem; }
+  .btn-view { width: 2.375rem; padding: 0; justify-content: center; }
+
+  .btn-approve {
+    background: rgba(6,182,212,0.1);
+    border-color: rgba(6,182,212,0.3);
+    color: var(--color-secondary);
+  }
+  .btn-approve:hover { background: rgba(6,182,212,0.2); }
+
+  .btn-reject {
+    background: rgba(255,180,171,0.1);
+    border-color: rgba(255,180,171,0.3);
+    color: var(--color-error);
+  }
+  .btn-reject:hover { background: rgba(255,180,171,0.2); }
+
+  .btn-view {
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.08);
+    color: var(--color-on-surface-variant);
+  }
+  .btn-view:hover { color: var(--color-primary); background: rgba(139,92,246,0.08); }
+  .btn-view .material-symbols-outlined { font-size: 1.1rem; }
+
+  .btn-processed {
+    background: transparent;
+    border-color: rgba(255,255,255,0.1);
+    color: var(--color-on-surface-variant);
+    cursor: not-allowed;
+  }
+
+  /* ── Pagination ────────────────────────────────────────────── */
+  .table-footer {
+    padding: 0.875rem 1.5rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.02);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .pagination-info {
+    font-family: var(--font-label);
+    font-size: 0.72rem;
+    color: var(--color-on-surface-variant);
+  }
+  .pagination { display: flex; align-items: center; gap: 0.375rem; }
+  .page-btn {
+    width: 2.375rem;
+    height: 2.375rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    color: var(--color-on-surface-variant);
+    font-family: var(--font-label);
+    font-size: 0.8rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .page-btn:hover { background: rgba(255,255,255,0.08); color: var(--color-on-surface); }
+  .page-btn.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #ffffff;
+  }
+  .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .page-btn .material-symbols-outlined { font-size: 1.1rem; }
+
+  /* ── Responsive ────────────────────────────────────────────── */
+  @media (max-width: 767.98px) {
+    .stat-value { font-size: 2.4rem; }
+    .stat-icon-wrap { width: 3rem; height: 3rem; }
+    .stat-icon-wrap .material-symbols-outlined { font-size: 1.6rem; }
+    .approvals-table thead th:nth-child(3),
+    .approvals-table td:nth-child(3) { display: none; }
+  }
+  @media (max-width: 575.98px) {
+    .approvals-table thead th:nth-child(2),
+    .approvals-table td:nth-child(2) { display: none; }
+    .btn-approve span, .btn-reject span { display: none; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ── Stats Grid ─────────────────────────────────────────────────────────── #}
+<div class="row g-3 mb-4">
+
+  {# Pendentes #}
+  <div class="col-12 col-md-4">
+    <div class="glass-panel stat-card stat-pending">
+      <div>
+        <p class="stat-label">Pendentes</p>
+        <h3 class="stat-value" style="color: var(--color-primary);">14</h3>
+        <p class="stat-sub" style="color: rgba(139,92,246,0.65);">
+          <span class="material-symbols-outlined">schedule</span>
+          Tempo médio: 4h
+        </p>
+      </div>
+      <div class="stat-icon-wrap" style="background: rgba(139,92,246,0.1); color: var(--color-primary);">
+        <span class="material-symbols-outlined">hourglass_empty</span>
+      </div>
+    </div>
+  </div>
+
+  {# Preenchimento do campeonato #}
+  <div class="col-12 col-md-4">
+    <div class="glass-panel stat-card stat-fill">
+      <div style="min-width: 0;">
+        <p class="stat-label">Preenchimento</p>
+        <h3 class="stat-value" style="color: var(--color-secondary);">
+          30<span style="font-size:1.5rem; opacity:0.6;">/32</span>
+        </h3>
+        <p class="stat-sub" style="color: rgba(6,182,212,0.65);">
+          <span class="material-symbols-outlined">groups</span>
+          2 vagas restantes
+        </p>
+        <div class="fill-bar-track">
+          <div class="fill-bar-fill" style="width: 93.75%;"></div>
+        </div>
+      </div>
+      <div class="stat-icon-wrap" style="background: rgba(6,182,212,0.1); color: var(--color-secondary); align-self: flex-start;">
+        <span class="material-symbols-outlined">emoji_events</span>
+      </div>
+    </div>
+  </div>
+
+  {# Rejeitados #}
+  <div class="col-12 col-md-4">
+    <div class="glass-panel stat-card stat-rejected">
+      <div>
+        <p class="stat-label">Rejeitados</p>
+        <h3 class="stat-value" style="color: var(--color-error);">08</h3>
+        <p class="stat-sub" style="color: rgba(255,180,171,0.65);">
+          <span class="material-symbols-outlined">info</span>
+          Ver motivos
+        </p>
+      </div>
+      <div class="stat-icon-wrap" style="background: rgba(255,180,171,0.1); color: var(--color-error);">
+        <span class="material-symbols-outlined">block</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{# ── Table Section ──────────────────────────────────────────────────────── #}
+<div class="glass-panel table-section">
+
+  {# Toolbar #}
+  <div class="table-toolbar">
+    <div class="tab-group">
+      <button class="tab-btn active" onclick="switchTab(this)">Todas</button>
+      <button class="tab-btn" onclick="switchTab(this)">Pendentes</button>
+      <button class="tab-btn" onclick="switchTab(this)">Sinalizadas</button>
+    </div>
+    <div class="toolbar-actions">
+      <button class="icon-btn">
+        <span class="material-symbols-outlined">filter_list</span> Filtrar
+      </button>
+      <button class="icon-btn">
+        <span class="material-symbols-outlined">download</span> Exportar
+      </button>
+    </div>
+  </div>
+
+  {# Table #}
+  <div class="table-responsive">
+    <table class="approvals-table">
+      <thead>
+        <tr>
+          <th>Perfil do Time</th>
+          <th>Ranking Global</th>
+          <th>Data de Inscrição</th>
+          <th>Status</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        {# Row 1 – Pending #}
+        <tr>
+          <td>
+            <div class="d-flex align-items-center gap-3">
+              <div class="glass-panel team-avatar">
+                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlIlncdijRj-KwWkM9Wuabfv4htHRSc9bFxa7tzPszNiIkDQikpOs-Kw0nTu8B5YX1FWueF5h7FOHAlcK01eqgxqT37GFwkfGt5dST4Ld4P2O_JHmGzqgER7nvLGcKEhFrJOWfEf4VgcWPzcYSmtzNdc--LIeJom3RJhSFGbkvFVZ4b5QtNp4MP0bCsMuVbhM_cUhnW30KX93Y49a67w7CZWfotI7FMK1KMLgPZfYv1MbqE5xtnuanifs12CFLz6XEfyZkA_aR3hVQ" alt="Apex Predators">
+              </div>
+              <div>
+                <p class="team-name">Apex Predators</p>
+                <p class="team-region">Região: NA East</p>
+              </div>
+            </div>
+          </td>
+          <td>
+            <p class="rank-value" style="color: var(--color-secondary);">#04</p>
+            <p class="rank-tier">Elite Tier</p>
+          </td>
+          <td>
+            <p class="date-main">24 Out 2023</p>
+            <p class="date-sub">14:22 GMT</p>
+          </td>
+          <td>
+            <span class="badge badge-pending">
+              <span class="badge-dot"></span>
+              Pendente
+            </span>
+          </td>
+          <td>
+            <div class="actions-cell">
+              <button class="btn-approve">
+                <span class="material-symbols-outlined" style="font-size:0.95rem;">check</span>
+                <span>Aprovar</span>
+              </button>
+              <button class="btn-reject">
+                <span class="material-symbols-outlined" style="font-size:0.95rem;">close</span>
+                <span>Rejeitar</span>
+              </button>
+              <button class="btn-view">
+                <span class="material-symbols-outlined">visibility</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+
+        {# Row 2 – Pending #}
+        <tr>
+          <td>
+            <div class="d-flex align-items-center gap-3">
+              <div class="glass-panel team-avatar">
+                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNXcIJHveS60aA2YSdihN5vHxbHblXHUqMzdiMNsMLp0GbWH377H45YtKx5DUA3sbUQRE6gk6pJcizxzkKxhrWtyiA1AbaxcIihQBLAGAUHI3fPFkYsi7PXCOtRlDFXciLGWRpDaPhfrNvUvwiN8NZY8ECGYvfVrYibSFJJ3WjShzACtzs7OiUiO-xeDxyrlgLB5nQj16rvKCHhkfofTmjy70iDp89AGhBGPGM3C5XjI2cJhG6-FZL9kX-CRnVCSn3GaOIQUW_vjIp" alt="Void Walkers">
+              </div>
+              <div>
+                <p class="team-name">Void Walkers</p>
+                <p class="team-region">Região: EU West</p>
+              </div>
+            </div>
+          </td>
+          <td>
+            <p class="rank-value" style="color: var(--color-on-surface);">#12</p>
+            <p class="rank-tier">Diamond Tier</p>
+          </td>
+          <td>
+            <p class="date-main">25 Out 2023</p>
+            <p class="date-sub">09:15 GMT</p>
+          </td>
+          <td>
+            <span class="badge badge-pending">
+              <span class="badge-dot"></span>
+              Pendente
+            </span>
+          </td>
+          <td>
+            <div class="actions-cell">
+              <button class="btn-approve">
+                <span class="material-symbols-outlined" style="font-size:0.95rem;">check</span>
+                <span>Aprovar</span>
+              </button>
+              <button class="btn-reject">
+                <span class="material-symbols-outlined" style="font-size:0.95rem;">close</span>
+                <span>Rejeitar</span>
+              </button>
+              <button class="btn-view">
+                <span class="material-symbols-outlined">visibility</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+
+        {# Row 3 – Approved (processed) #}
+        <tr class="row-processed">
+          <td>
+            <div class="d-flex align-items-center gap-3">
+              <div class="glass-panel team-avatar">
+                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7-unsYd6x2bIQ6xlVGUJepsHRDps_u0cWwjjnDv7QW6cmR2LmAhS8wMvXENcDS4Q_FqX6Gw8cCYSO4E4y5vcqh2ZM9-bBAv5ZlnxOt6CfRFA3rt_dpQS7kOYi5Z17ZxUTOzvzyQjfDiDeEduK3XJc4RpuJCYZ14P8VjLdF6CJMOQJ2zHsyAjpV140pkXkrhyNYfWwwQfnkZmbufjU_tL3qxJW6eurJ4x6L1TCySGqEYGm9QktCigac1A0ebMCspOw9yE9_CvpoinG" alt="Solaris Collective">
+              </div>
+              <div>
+                <p class="team-name">Solaris Collective</p>
+                <p class="team-region">Região: KR</p>
+              </div>
+            </div>
+          </td>
+          <td>
+            <p class="rank-value" style="color: var(--color-on-surface);">#01</p>
+            <p class="rank-tier">World Class</p>
+          </td>
+          <td>
+            <p class="date-main">20 Out 2023</p>
+            <p class="date-sub">18:40 GMT</p>
+          </td>
+          <td>
+            <span class="badge badge-approved">
+              <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">check_circle</span>
+              Aprovado
+            </span>
+          </td>
+          <td>
+            <div class="actions-cell">
+              <button class="btn-processed">Processado</button>
+              <button class="btn-view">
+                <span class="material-symbols-outlined">visibility</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  {# Pagination #}
+  <div class="table-footer">
+    <p class="pagination-info">Exibindo 1–10 de 64 inscrições</p>
+    <div class="pagination">
+      <button class="page-btn" disabled>
+        <span class="material-symbols-outlined">chevron_left</span>
+      </button>
+      <button class="page-btn active">1</button>
+      <button class="page-btn">2</button>
+      <button class="page-btn">3</button>
+      <button class="page-btn">
+        <span class="material-symbols-outlined">chevron_right</span>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Tab switching
+  function switchTab(btn) {
+    btn.closest('.tab-group').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  // Row highlight on click
+  document.querySelectorAll('.approvals-table tbody tr').forEach(row => {
+    row.addEventListener('click', e => {
+      if (e.target.closest('button')) return;
+      document.querySelectorAll('.approvals-table tbody tr').forEach(r => r.classList.remove('row-selected'));
+      row.classList.add('row-selected');
+    });
+  });
+
+  // Button press micro-interaction
+  document.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('mousedown', () => { if (!btn.disabled) btn.style.transform = 'scale(0.95)'; });
+    btn.addEventListener('mouseup',   () => { btn.style.transform = ''; });
+    btn.addEventListener('mouseleave',() => { btn.style.transform = ''; });
+  });
+
+  // Pagination
+  document.querySelectorAll('.page-btn:not([disabled])').forEach(btn => {
+    if (!btn.querySelector('.material-symbols-outlined')) {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.page-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    }
+  });
+</script>
+{% endblock %}

@@ -4,10 +4,12 @@ from io import StringIO
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.test import TestCase
+from django.urls import reverse
 
 from apps.accounts.models import User
 from apps.matches.models import GameResult, Group, GroupStanding, Match, Phase
 from apps.teams.models import Team
+from apps.championships.services import ensure_championship_structure
 
 from .models import (
     Championship,
@@ -212,48 +214,299 @@ class RegistrationModelTest(ChampionshipTestCase):
             extra_registration.full_clean()
 
 
+class ChampionshipViewTest(ChampionshipTestCase):
+    def championship_payload(self, **overrides):
+        data = {
+            "name": "Premier Cup",
+            "game": "Valorant",
+            "status": StatusChampionship.OPEN,
+            "max_teams": 8,
+            "start_date": "2026-06-20",
+            "stage_format": StageFormat.SINGLE_ELIMINATION,
+            "group_count": "",
+            "teams_per_group": "",
+            "teams_advancing_per_group": "",
+            "group_match_format": "",
+            "playoff_format": PlayoffFormat.SINGLE_ELIMINATION,
+            "playoff_match_format": MatchFormat.BO1,
+            "final_match_format": MatchFormat.BO3,
+            "seeding_method": SeedingMethodChampionship.RANDOM,
+        }
+        data.update(overrides)
+        return data
+
+    def add_owner(self, championship, user=None):
+        return ChampionshipStaff.objects.create(
+            championship=championship,
+            user=user or championship.created_by,
+            role=RoleStaff.OWNER,
+        )
+
+    def test_available_championship_filters_use_get_params(self):
+        user = self.create_user("filter_user")
+        target = self.create_championship(
+            created_by=self.create_user("filter_owner_a"),
+            name="Valorant Masters",
+            game="Valorant",
+            status=StatusChampionship.OPEN,
+            start_date=date(2026, 6, 20),
+            stage_format=StageFormat.SINGLE_ELIMINATION,
+            group_count=None,
+            teams_per_group=None,
+            teams_advancing_per_group=None,
+            group_match_format=None,
+            playoff_format=PlayoffFormat.SINGLE_ELIMINATION,
+            playoff_match_format=MatchFormat.BO1,
+            final_match_format=MatchFormat.BO3,
+        )
+        self.create_championship(
+            created_by=self.create_user("filter_owner_b"),
+            name="League Finals",
+            game="League of Legends",
+            status=StatusChampionship.FINISHED,
+            start_date=date(2026, 6, 21),
+            stage_format=StageFormat.DOUBLE_ELIMINATION,
+            group_count=None,
+            teams_per_group=None,
+            teams_advancing_per_group=None,
+            group_match_format=None,
+            playoff_format=PlayoffFormat.DOUBLE_ELIMINATION,
+            playoff_match_format=MatchFormat.BO1,
+            final_match_format=MatchFormat.BO3,
+        )
+        self.client.login(username=user.username, password="testpass123")
+
+        response = self.client.get(reverse("championship:available-championship-list"), {
+            "q": "masters",
+            "game": "Valorant",
+            "status": StatusChampionship.OPEN,
+            "stage_format": StageFormat.SINGLE_ELIMINATION,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["page_obj"].object_list), [target])
+        self.assertIn("q=masters", response.context["filter_query"])
+        self.assertEqual(response.context["filters"]["status"], StatusChampionship.OPEN)
+
+    def test_available_championship_ignores_draft_status_filter(self):
+        user = self.create_user("draft_filter_user")
+        visible = self.create_championship(
+            created_by=self.create_user("draft_filter_owner_a"),
+            name="Open Cup",
+            status=StatusChampionship.OPEN,
+            start_date=date(2026, 6, 20),
+        )
+        self.create_championship(
+            created_by=self.create_user("draft_filter_owner_b"),
+            name="Draft Cup",
+            status=StatusChampionship.DRAFT,
+        )
+        self.client.login(username=user.username, password="testpass123")
+
+        response = self.client.get(
+            reverse("championship:available-championship-list"),
+            {"status": StatusChampionship.DRAFT},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["page_obj"].object_list), [visible])
+        self.assertEqual(response.context["filters"]["status"], "")
+
+    def test_create_championship_starts_as_draft_and_adds_owner(self):
+        owner = self.create_user("create_owner")
+        self.client.login(username=owner.username, password="testpass123")
+
+        response = self.client.post(
+            reverse("championship:management-championship-create"),
+            self.championship_payload(status=StatusChampionship.IN_PROGRESS, start_date=""),
+        )
+
+        championship = Championship.objects.get(name="Premier Cup")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(championship.status, StatusChampionship.DRAFT)
+        self.assertEqual(championship.created_by, owner)
+        self.assertTrue(
+            ChampionshipStaff.objects.filter(
+                championship=championship,
+                user=owner,
+                role=RoleStaff.OWNER,
+            ).exists()
+        )
+
+    def test_only_owner_can_edit_championship(self):
+        owner = self.create_user("edit_owner")
+        moderator = self.create_user("edit_mod")
+        championship = self.create_championship(created_by=owner)
+        self.add_owner(championship, owner)
+        ChampionshipStaff.objects.create(
+            championship=championship,
+            user=moderator,
+            role=RoleStaff.MODERATOR,
+        )
+        self.client.login(username=moderator.username, password="testpass123")
+
+        response = self.client.get(reverse("championship:management-championship-edit", args=[championship.pk]))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_edit_to_in_progress_generates_matches(self):
+        owner = self.create_user("transition_owner")
+        championship = self.create_championship(
+            created_by=owner,
+            status=StatusChampionship.OPEN,
+            start_date=date(2026, 6, 20),
+            stage_format=StageFormat.SINGLE_ELIMINATION,
+            max_teams=8,
+            group_count=None,
+            teams_per_group=None,
+            teams_advancing_per_group=None,
+            group_match_format=None,
+            playoff_format=PlayoffFormat.SINGLE_ELIMINATION,
+            playoff_match_format=MatchFormat.BO1,
+            final_match_format=MatchFormat.BO3,
+        )
+        self.add_owner(championship, owner)
+        self.client.login(username=owner.username, password="testpass123")
+
+        response = self.client.post(
+            reverse("championship:management-championship-edit", args=[championship.pk]),
+            self.championship_payload(name=championship.name, status=StatusChampionship.IN_PROGRESS),
+        )
+
+        championship.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(championship.status, StatusChampionship.IN_PROGRESS)
+        self.assertEqual(Match.objects.filter(championship=championship).count(), 7)
+
+    def test_registration_and_cancel_use_selected_captained_team(self):
+        captain = self.create_user("multi_captain")
+        championship = self.create_championship(
+            created_by=self.create_user("reg_owner"),
+            status=StatusChampionship.OPEN,
+            start_date=date(2026, 6, 20),
+        )
+        team_a = self.create_team("Team A", captain=captain)
+        team_b = self.create_team("Team B", captain=captain)
+        self.client.login(username=captain.username, password="testpass123")
+
+        register_response = self.client.post(
+            reverse("championship:championship-register", args=[championship.pk]),
+            {"team_id": team_b.pk},
+        )
+
+        self.assertEqual(register_response.status_code, 302)
+        registration = Registration.objects.get(championship=championship)
+        self.assertEqual(registration.team, team_b)
+        self.assertEqual(registration.status, StatusRegistration.PENDING)
+
+        cancel_response = self.client.post(
+            reverse("championship:championship-cancel-registration", args=[championship.pk]),
+            {"team_id": team_b.pk},
+        )
+
+        self.assertEqual(cancel_response.status_code, 302)
+        self.assertFalse(Registration.objects.filter(championship=championship, team__in=[team_a, team_b]).exists())
+
+    def test_structure_requires_running_or_finished_championship(self):
+        user = self.create_user("structure_user")
+        championship = self.create_championship(created_by=user, status=StatusChampionship.DRAFT)
+        self.client.login(username=user.username, password="testpass123")
+
+        response = self.client.get(reverse("championship:championship-structure", args=[championship.pk]))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_structure_view_renders_generated_matches(self):
+        user = self.create_user("structure_owner")
+        championship = self.create_championship(
+            created_by=user,
+            status=StatusChampionship.IN_PROGRESS,
+            start_date=date(2026, 6, 20),
+            stage_format=StageFormat.SINGLE_ELIMINATION,
+            max_teams=4,
+            group_count=None,
+            teams_per_group=None,
+            teams_advancing_per_group=None,
+            group_match_format=None,
+            playoff_format=PlayoffFormat.SINGLE_ELIMINATION,
+            playoff_match_format=MatchFormat.BO1,
+            final_match_format=MatchFormat.BO3,
+        )
+        ensure_championship_structure(championship)
+        self.client.login(username=user.username, password="testpass123")
+
+        response = self.client.get(reverse("championship:championship-structure", args=[championship.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Chaveamento")
+        self.assertContains(response, "A definir")
+
+    def test_generation_without_registered_teams_creates_placeholder_matches(self):
+        championship = self.create_championship(
+            status=StatusChampionship.IN_PROGRESS,
+            start_date=date(2026, 6, 20),
+            stage_format=StageFormat.SINGLE_ELIMINATION,
+            max_teams=4,
+            group_count=None,
+            teams_per_group=None,
+            teams_advancing_per_group=None,
+            group_match_format=None,
+            playoff_format=PlayoffFormat.SINGLE_ELIMINATION,
+            playoff_match_format=MatchFormat.BO1,
+            final_match_format=MatchFormat.BO3,
+        )
+
+        result = ensure_championship_structure(championship)
+
+        self.assertEqual(result["created"], 3)
+        self.assertEqual(Match.objects.filter(championship=championship, team_a__isnull=True, team_b__isnull=True).count(), 3)
+
+
 class PopulateGameChampCommandTest(TestCase):
     def run_command(self):
         out = StringIO()
         call_command("populate_gamechamp", stdout=out)
         return out.getvalue()
 
-    def test_populate_gamechamp_creates_complete_16_team_finished_championship(self):
+    def test_populate_gamechamp_creates_seed_championships_with_matches_when_needed(self):
         output = self.run_command()
 
-        championship = Championship.objects.get(name="Seed Major Completo")
+        championship = Championship.objects.get(name="Seed Double Elim Finished")
 
-        self.assertIn("Campeonato completo criado com sucesso.", output)
+        self.assertIn("Todos os campeonatos foram criados com sucesso.", output)
         self.assertEqual(championship.status, StatusChampionship.FINISHED)
-        self.assertEqual(championship.stage_format, StageFormat.GROUP_THEN_PLAYOFFS)
+        self.assertEqual(championship.stage_format, StageFormat.DOUBLE_ELIMINATION)
         self.assertEqual(championship.playoff_format, PlayoffFormat.DOUBLE_ELIMINATION)
         self.assertIsNotNone(championship.champion)
-        self.assertEqual(Team.objects.filter(name__startswith="Seed ").count(), 16)
-        self.assertEqual(User.objects.filter(username__startswith="seed_").count(), 18)
+        self.assertEqual(Championship.objects.filter(name__startswith="Seed ").count(), 9)
+        self.assertEqual(Team.objects.filter(name__startswith="Seed ").count(), 20)
+        self.assertEqual(User.objects.filter(username__startswith="seed_").count(), 62)
         self.assertEqual(
             Registration.objects.filter(
                 championship=championship,
                 status=StatusRegistration.APPROVED,
             ).count(),
-            16,
+            8,
         )
-        self.assertEqual(Group.objects.filter(championship=championship).count(), 4)
-        self.assertEqual(GroupStanding.objects.filter(group__championship=championship).count(), 16)
-        self.assertEqual(Match.objects.filter(championship=championship, phase=Phase.GROUP).count(), 24)
+        self.assertEqual(Group.objects.filter(championship=championship).count(), 0)
+        self.assertEqual(GroupStanding.objects.filter(group__championship=championship).count(), 0)
         self.assertEqual(Match.objects.filter(championship=championship, phase=Phase.PLAYOFF).count(), 13)
         self.assertEqual(Match.objects.filter(championship=championship, phase=Phase.GRAND_FINAL).count(), 1)
-        self.assertEqual(Match.objects.filter(championship=championship).count(), 38)
-        self.assertEqual(GameResult.objects.filter(match_id__championship=championship).count(), 53)
+        self.assertTrue(Match.objects.filter(championship=championship, playoff_round__lt=0).exists())
+        for seeded in Championship.objects.filter(
+            name__startswith="Seed ",
+            status__in=[StatusChampionship.IN_PROGRESS, StatusChampionship.FINISHED],
+        ):
+            self.assertTrue(Match.objects.filter(championship=seeded).exists(), seeded.name)
 
     def test_populate_gamechamp_can_be_run_again_without_duplicating_seed_data(self):
         self.run_command()
         self.run_command()
 
-        championship = Championship.objects.get(name="Seed Major Completo")
+        championship = Championship.objects.get(name="Seed Double Elim Finished")
 
-        self.assertEqual(Championship.objects.filter(name__startswith="Seed ").count(), 1)
-        self.assertEqual(Team.objects.filter(name__startswith="Seed ").count(), 16)
-        self.assertEqual(User.objects.filter(username__startswith="seed_").count(), 18)
-        self.assertEqual(Registration.objects.filter(championship=championship).count(), 16)
-        self.assertEqual(Match.objects.filter(championship=championship).count(), 38)
-        self.assertEqual(GameResult.objects.filter(match_id__championship=championship).count(), 53)
+        self.assertEqual(Championship.objects.filter(name__startswith="Seed ").count(), 9)
+        self.assertEqual(Team.objects.filter(name__startswith="Seed ").count(), 20)
+        self.assertEqual(User.objects.filter(username__startswith="seed_").count(), 62)
+        self.assertEqual(Registration.objects.filter(championship=championship).count(), 8)
+        self.assertEqual(Match.objects.filter(championship=championship).count(), 14)

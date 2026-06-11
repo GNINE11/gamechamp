@@ -1,0 +1,210 @@
+{% extends "base/logged_base.html" %}
+{% load static %}
+
+{% block title %}{{ request.user.username }} - Perfil | Gamechamp{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+{% endblock %}
+
+{% block page_heading %}{% endblock %}
+
+{% block content %}
+
+<section class="profile-hero">
+    <img class="profile-cover"
+        src="https://t3.ftcdn.net/jpg/04/13/99/08/360_F_413990886_hChS8igRgaOC4IlkIFIxiQ2EeW5U8LKf.jpg"
+        alt="Foto de capa">
+    <div class="profile-overlay"></div>
+
+    <div class="profile-content">
+        <div class="profile-avatar">
+            {% if request.user.avatar %}
+            <img src="{{ request.user.avatar.url }}" alt="Avatar">
+            {% else %}
+            <img src="https://api.dicebear.com/7.x/thumbs/svg?seed={{ request.user.username }}" alt="Avatar">
+            {% endif %}
+        </div>
+
+        <div class="profile-info">
+            <h1 class="profile-name">{{ request.user.username }}</h1>
+            <p class="profile-bio">
+                {% if request.user.bio %}{{ request.user.bio }}
+                {% else %}Sem bio ainda.{% endif %}
+            </p>
+        </div>
+
+        <a href="{% url 'accounts:edit-profile' %}" class="btn-app-outline profile-edit-btn">
+            <span class="material-symbols-outlined">edit</span>
+            Editar Perfil
+        </a>
+    </div>
+</section>
+
+<section class="profile-content-section">
+    <div class="row g-4">
+
+        <div class="col-lg-8">
+            <div class="auth-glass-card h-100 profile-matches-card" style="display:flex; flex-direction:column;">
+
+                <div class="section-header">
+                    <span class="material-symbols-outlined icon-secondary">history</span>
+                    <h2 class="section-title">Partidas Recentes</h2>
+                </div>
+
+                <div class="match-list" style="flex:1;">
+                    {% for item in recent_matches %}
+                    <a href="{% url 'matches:detail' item.match.pk %}" style="text-decoration:none; color:inherit;">
+                        <div class="match-item">
+                            <div class="match-result {% if item.user_won %}win{% else %}loss{% endif %}">
+                                {% if item.user_won %}W{% else %}L{% endif %}
+                            </div>
+                            <div class="match-info">
+                                <div class="match-opponent-row">
+                                    <span class="match-opponent">
+                                        vs. {{ item.opponent.name|default:"?" }}
+                                    </span>
+                                    <span class="match-tag tournament">{{ item.match.get_phase_display }}</span>
+                                </div>
+                                <div class="match-date">
+                                    {% if item.match.scheduled_at %}
+                                    {{ item.match.scheduled_at|date:"d M, Y" }}
+                                    {% else %}Data não definida{% endif %}
+                                </div>
+                            </div>
+                            <div class="match-score-area">
+                                <div class="match-score {% if item.user_won %}win{% endif %}">
+                                    {{ item.score_a }} – {{ item.score_b }}
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                    {% empty %}
+                    <p class="match-date text-center py-5 fs-6">Nenhuma partida ainda.</p>
+                    {% endfor %}
+                </div>
+                <!-- Botão ver histórico completo -->
+                <div style="margin-top:1.25rem; padding-top:1rem; border-top:1px solid rgba(255,255,255,.07);">
+                    <a href="{% url 'matches:history' %}" class="btn-app-outline"
+                        style="display:flex; align-items:center; justify-content:center; gap:.4rem; width:100%; padding-block:.65rem;">
+                        <span class="material-symbols-outlined" style="font-size:1rem">open_in_full</span>
+                        Ver histórico completo
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Troféus / Dados do Jogador ────────────────────────────────── -->
+        <div class="col-lg-4">
+            <div class="auth-glass-card h-100 profile-stats-card">
+
+                <div class="section-header">
+                    <span class="material-symbols-outlined icon-primary">workspace_premium</span>
+                    <h2 class="section-title">Troféus & Dados do Jogador</h2>
+                </div>
+
+                <div class="trophy-grid">
+
+                    <!-- Campeonatos vencidos -->
+                    <div class="trophy-card gold">
+                        <div class="trophy-icon-wrap gold">
+                            <span class="material-symbols-outlined"
+                                style="font-variation-settings:'FILL' 1">emoji_events</span>
+                        </div>
+                        <div class="trophy-name">Campeonatos Vencidos</div>
+                        <p class="trophy-meta">{{ stats.championships_won }}</p>
+                    </div>
+
+                    <!-- Total de partidas -->
+                    <div class="trophy-card silver">
+                        <div class="trophy-icon-wrap silver">
+                            <span class="material-symbols-outlined">sports_esports</span>
+                        </div>
+                        <div class="trophy-name">Partidas Disputadas</div>
+                        <p class="trophy-meta">{{ stats.total_matches }}</p>
+                    </div>
+
+                    <!-- Total de vitórias -->
+                    <div class="trophy-card bronze">
+                        <div class="trophy-icon-wrap bronze">
+                            <span class="material-symbols-outlined"
+                                style="font-variation-settings:'FILL' 1">military_tech</span>
+                        </div>
+                        <div class="trophy-name">Vitórias</div>
+                        <p class="trophy-meta">{{ stats.total_wins }}</p>
+                    </div>
+
+                    <!-- Rounds vencidos -->
+                    <div class="trophy-card special">
+                        <div class="trophy-icon-wrap special">
+                            <span class="material-symbols-outlined">bolt</span>
+                        </div>
+                        <div class="trophy-name">Rounds Vencidos</div>
+                        <p class="trophy-meta">{{ stats.total_rounds_won }}</p>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── Card Inferior: Campeonatos Ativos ──────────────────────────── -->
+        <div class="col-lg-12">
+
+            <div class="auth-glass-card">
+
+                <div class="section-header">
+                    <span class="material-symbols-outlined icon-primary">emoji_events</span>
+                    <h2 class="section-title">Meus Campeonatos</h2>
+                </div>
+
+                {% if championships %}
+                <div class="champ-grid">
+                    {% for championship in championships %}
+
+
+
+                    <div class="champ-card">
+
+                        <img class="champ-image"
+                            src="https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80"
+                            alt="{{ championship.name }}">
+
+                        <div class="champ-body">
+
+                            <div class="champ-header-row">
+
+                                <h3 class="champ-name">
+                                    {{ championship.name }}
+                                </h3>
+
+                            </div>
+
+                            <p class="champ-meta">
+                                {{ championship.game }}
+                            </p>
+
+                            <a href="{% url 'championship:championship-structure' championship.id %}" class="btn-app-outline champ-btn">
+                                Ver Campeonato
+                            </a>
+
+                        </div>
+
+                    </div>                    
+
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-center py-4">
+                    Você ainda não participa de nenhum campeonato.
+                </p>
+                {% endif %}
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+{% endblock %}

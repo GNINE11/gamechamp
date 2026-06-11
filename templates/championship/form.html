@@ -1,0 +1,337 @@
+{% extends "base/logged_base.html" %}
+
+{% block title %}{{ page_title }} — Gamechamp{% endblock %}
+{% block page_label %}{{ page_label }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block page_actions %}
+<a href="{% if championship %}{% url 'championship:management-championship-dashboard' championship.pk %}{% else %}{% url 'championship:management-championship-list' %}{% endif %}" class="btn-app-outline">
+    <span class="material-symbols-outlined">arrow_back</span>
+    Voltar
+</a>
+<button type="submit" form="championshipForm" class="btn-app-primary">
+    <span class="material-symbols-outlined">save</span>
+    Salvar
+</button>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .champ-form-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 1.25rem;
+        align-items: start;
+    }
+
+    .champ-panel {
+        background: rgba(23, 31, 51, 0.88);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 0.75rem;
+        overflow: hidden;
+    }
+
+    .champ-panel-header {
+        padding: 1.1rem 1.25rem;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .champ-panel-title {
+        margin: 0;
+        color: var(--color-on-surface);
+        font-family: var(--font-headline);
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .champ-panel-subtitle {
+        margin: 0.25rem 0 0;
+        color: var(--color-on-surface-variant);
+        font-size: 0.8rem;
+    }
+
+    .champ-panel-body {
+        padding: 1.25rem;
+    }
+
+    .champ-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .champ-field.span-2 {
+        grid-column: span 2;
+    }
+
+    .champ-label {
+        display: block;
+        margin-bottom: 0.35rem;
+        color: var(--color-on-surface-variant);
+        font-family: var(--font-label);
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .champ-form-control {
+        width: 100%;
+        min-height: 42px;
+        background: var(--color-surface-container-lowest);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 0.5rem;
+        color: var(--color-on-surface);
+        padding: 0.65rem 0.75rem;
+        font: inherit;
+    }
+
+    .champ-form-control:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.18);
+    }
+
+    .champ-check-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        min-height: 42px;
+        padding: 0.75rem;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 0.5rem;
+        background: rgba(255,255,255,0.03);
+    }
+
+    .champ-form-check {
+        width: 20px;
+        height: 20px;
+        accent-color: var(--color-primary);
+    }
+
+    .champ-error {
+        margin: 0.35rem 0 0;
+        color: var(--color-error);
+        font-size: 0.78rem;
+    }
+
+    .champ-non-field-errors {
+        margin-bottom: 1rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid rgba(255, 84, 84, 0.35);
+        border-radius: 0.5rem;
+        background: rgba(255, 84, 84, 0.08);
+        color: var(--color-error);
+        font-size: 0.85rem;
+    }
+
+    .champ-side-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        color: var(--color-on-surface-variant);
+        font-size: 0.84rem;
+        line-height: 1.45;
+    }
+
+    .champ-side-item {
+        display: flex;
+        gap: 0.6rem;
+        align-items: flex-start;
+    }
+
+    .champ-side-item .material-symbols-outlined {
+        color: var(--color-primary);
+        font-size: 1.1rem;
+        margin-top: 0.05rem;
+    }
+
+    .js-stage-block.is-hidden {
+        display: none;
+    }
+
+    @media (max-width: 980px) {
+        .champ-form-shell {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .champ-form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .champ-field.span-2 {
+            grid-column: span 1;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<form id="championshipForm" method="post" class="champ-form-shell" novalidate>
+    {% csrf_token %}
+
+    <div style="display:flex; flex-direction:column; gap:1.25rem; min-width:0;">
+        {% if form.non_field_errors %}
+        <div class="champ-non-field-errors">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <section class="champ-panel">
+            <div class="champ-panel-header">
+                <h2 class="champ-panel-title">Informações gerais</h2>
+                <p class="champ-panel-subtitle">Defina nome, jogo, status e capacidade do campeonato.</p>
+            </div>
+            <div class="champ-panel-body">
+                <div class="champ-form-grid">
+                    <div class="champ-field">
+                        <label class="champ-label" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                        {{ form.name }}
+                        {% for error in form.name.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div class="champ-field">
+                        <label class="champ-label" for="{{ form.game.id_for_label }}">{{ form.game.label }}</label>
+                        {{ form.game }}
+                        {% for error in form.game.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+                    {% if form.status %}
+                    <div class="champ-field">
+                        <label class="champ-label" for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
+                        {{ form.status }}
+                        {% for error in form.status.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+                    {% endif %}
+                    <div class="champ-field">
+                        <label class="champ-label" for="{{ form.max_teams.id_for_label }}">{{ form.max_teams.label }}</label>
+                        {{ form.max_teams }}
+                        {% for error in form.max_teams.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div class="champ-field">
+                        <label class="champ-label" for="{{ form.start_date.id_for_label }}">{{ form.start_date.label }}</label>
+                        {{ form.start_date }}
+                        {% for error in form.start_date.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div class="champ-field">
+                        <label class="champ-label" for="{{ form.seeding_method.id_for_label }}">{{ form.seeding_method.label }}</label>
+                        {{ form.seeding_method }}
+                        {% for error in form.seeding_method.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="champ-panel">
+            <div class="champ-panel-header">
+                <h2 class="champ-panel-title">Formato</h2>
+                <p class="champ-panel-subtitle">Escolha a estrutura competitiva e os formatos de partidas.</p>
+            </div>
+            <div class="champ-panel-body">
+                <div class="champ-form-grid">
+                    <div class="champ-field span-2">
+                        <label class="champ-label" for="{{ form.stage_format.id_for_label }}">{{ form.stage_format.label }}</label>
+                        {{ form.stage_format }}
+                        {% for error in form.stage_format.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+
+                    <div class="champ-field js-stage-block" data-stage-block="groups">
+                        <label class="champ-label" for="{{ form.group_count.id_for_label }}">{{ form.group_count.label }}</label>
+                        {{ form.group_count }}
+                        {% for error in form.group_count.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div class="champ-field js-stage-block" data-stage-block="groups">
+                        <label class="champ-label" for="{{ form.teams_per_group.id_for_label }}">{{ form.teams_per_group.label }}</label>
+                        {{ form.teams_per_group }}
+                        {% for error in form.teams_per_group.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div class="champ-field js-stage-block" data-stage-block="groups">
+                        <label class="champ-label" for="{{ form.teams_advancing_per_group.id_for_label }}">{{ form.teams_advancing_per_group.label }}</label>
+                        {{ form.teams_advancing_per_group }}
+                        {% for error in form.teams_advancing_per_group.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div class="champ-field js-stage-block" data-stage-block="groups">
+                        <label class="champ-label" for="{{ form.group_match_format.id_for_label }}">{{ form.group_match_format.label }}</label>
+                        {{ form.group_match_format }}
+                        {% for error in form.group_match_format.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+
+                    <div class="champ-field js-stage-block" data-stage-block="playoffs">
+                        <label class="champ-label" for="{{ form.playoff_format.id_for_label }}">{{ form.playoff_format.label }}</label>
+                        {{ form.playoff_format }}
+                        {% for error in form.playoff_format.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div class="champ-field js-stage-block" data-stage-block="playoffs">
+                        <label class="champ-label" for="{{ form.playoff_match_format.id_for_label }}">{{ form.playoff_match_format.label }}</label>
+                        {{ form.playoff_match_format }}
+                        {% for error in form.playoff_match_format.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div class="champ-field js-stage-block" data-stage-block="playoffs">
+                        <label class="champ-label" for="{{ form.final_match_format.id_for_label }}">{{ form.final_match_format.label }}</label>
+                        {{ form.final_match_format }}
+                        {% for error in form.final_match_format.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div class="champ-field js-stage-block" data-stage-block="playoffs">
+                        <div class="champ-check-row">
+                            <label class="champ-label mb-0" for="{{ form.third_place_match.id_for_label }}">{{ form.third_place_match.label }}</label>
+                            {{ form.third_place_match }}
+                        </div>
+                        {% for error in form.third_place_match.errors %}<p class="champ-error">{{ error }}</p>{% endfor %}
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <aside class="champ-panel">
+        <div class="champ-panel-header">
+            <h2 class="champ-panel-title">Regras rápidas</h2>
+        </div>
+        <div class="champ-panel-body">
+            <div class="champ-side-list">
+                <div class="champ-side-item">
+                    <span class="material-symbols-outlined">draft</span>
+                    <span>Novos campeonatos sempre começam como rascunho.</span>
+                </div>
+                <div class="champ-side-item">
+                    <span class="material-symbols-outlined">account_tree</span>
+                    <span>Ao mudar para em andamento, as partidas são geradas automaticamente.</span>
+                </div>
+                <div class="champ-side-item">
+                    <span class="material-symbols-outlined">lock</span>
+                    <span>Depois que partidas existem, a estrutura do campeonato fica bloqueada.</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const stageSelect = document.getElementById('{{ form.stage_format.id_for_label }}');
+    const playoffSelect = document.getElementById('{{ form.playoff_format.id_for_label }}');
+
+    function syncStageBlocks() {
+        const stage = stageSelect ? stageSelect.value : '';
+        const showGroups = stage === 'ROUND_ROBIN' || stage === 'GROUP_THEN_PLAYOFFS';
+        const showPlayoffs = stage !== 'ROUND_ROBIN';
+
+        document.querySelectorAll('[data-stage-block="groups"]').forEach((el) => {
+            el.classList.toggle('is-hidden', !showGroups);
+        });
+        document.querySelectorAll('[data-stage-block="playoffs"]').forEach((el) => {
+            el.classList.toggle('is-hidden', !showPlayoffs);
+        });
+
+        if (playoffSelect) {
+            if (stage === 'SINGLE_ELIMINATION') playoffSelect.value = 'SINGLE_ELIMINATION';
+            if (stage === 'DOUBLE_ELIMINATION') playoffSelect.value = 'DOUBLE_ELIMINATION';
+        }
+    }
+
+    if (stageSelect) {
+        stageSelect.addEventListener('change', syncStageBlocks);
+        syncStageBlocks();
+    }
+</script>
+{% endblock %}
+

@@ -1,0 +1,1161 @@
+{% extends "base/logged_base.html" %}
+{% load static %}
+
+{% block title %}Gamechamp{% endblock %}
+
+{# ── Heading ─────────────────────────────────────────────────────────────── #}
+{% block page_label %}{{ page_label }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block page_actions %}
+<a href="#" class="btn-app-primary" id="filterOpen">
+    <span class="material-symbols-outlined">filter_alt</span>
+    Aplicar Filtros
+</a>
+{% endblock %}
+
+{# ── Extra CSS ────────────────────────────────────────────────────────────── #}
+{% block extra_css %}
+<style>
+    /* ── Glass ──────────────────────────────────────────────────────────── */
+    .glass-panel {
+        background: rgba(23, 31, 51, 1);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);
+    }
+
+    /* ── Tournament card ────────────────────────────────────────────────── */
+    .tournament-card {
+        border-radius: 1rem;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tournament-card:hover {
+        border-color: rgba(208, 188, 255, 0.35);
+        box-shadow: 0 10px 32px rgba(139, 92, 246, 0.18);
+        transform: translateY(-3px);
+    }
+
+    .tournament-card.card-live {
+        border-top: 2px solid rgba(6, 182, 212, 0.5);
+    }
+
+    /* ── Card image / placeholder ───────────────────────────────────────── */
+    .card-img-wrap {
+        position: relative;
+        height: 192px;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+    /* Placeholder visual — replaces <img> */
+    .card-img-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card-img-placeholder::before {
+        /* Decorative large circle behind icon */
+        content: '';
+        position: absolute;
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        opacity: 0.12;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    /* Per-status gradients */
+    .card-ph-open {
+        background: linear-gradient(135deg, #1c1050 0%, #2d1b69 45%, #0d2444 100%);
+    }
+
+    .card-ph-open::before {
+        background: var(--color-primary);
+    }
+
+    .card-ph-live {
+        background: linear-gradient(135deg, #062240 0%, #093a52 50%, #041628 100%);
+    }
+
+    .card-ph-live::before {
+        background: var(--color-secondary);
+    }
+
+    .card-ph-finished {
+        background: linear-gradient(135deg, #131330 0%, #191937 50%, #0d0d22 100%);
+        filter: saturate(0.6);
+    }
+
+    .card-ph-finished::before {
+        background: var(--color-on-surface-variant);
+    }
+
+    .ph-icon {
+        font-size: 3.5rem !important;
+        opacity: 0.18;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-variation-settings: 'FILL' 1, 'wght' 400;
+    }
+
+    .ph-game-label {
+        font-family: var(--font-label);
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.22);
+        position: relative;
+        z-index: 1;
+        margin: 0;
+        text-align: center;
+        padding: 0 1rem;
+        /* Bottom-align inside the wrap, overlaid by card-name */
+        position: absolute;
+        bottom: 3.2rem;
+        left: 1rem;
+    }
+
+    .card-img-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top,
+                var(--color-background) 0%,
+                rgba(11, 19, 38, .2) 55%,
+                transparent 100%);
+    }
+
+    /* ── Card badge ─────────────────────────────────────────────────────── */
+    .card-badge {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        font-family: var(--font-label);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .card-badge.badge-live {
+        background: rgba(6, 182, 212, 0.85);
+        color: #fff;
+    }
+
+    .card-badge.badge-open {
+        background: rgba(139, 92, 246, 0.18);
+        border: 1px solid rgba(208, 188, 255, 0.3);
+        color: var(--color-primary);
+    }
+
+    .card-badge.badge-finished {
+        background: rgba(203, 195, 215, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--color-on-surface-variant);
+    }
+
+    .badge-live .pulse-dot {
+        width: 8px;
+        height: 8px;
+        background: #fff;
+        border-radius: 50%;
+        animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        50% {
+            opacity: .4;
+            transform: scale(.75);
+        }
+    }
+
+    .card-name {
+        position: absolute;
+        bottom: 1rem;
+        left: 1rem;
+        right: 1rem;
+        font-family: var(--font-headline);
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #fff;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, .6);
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* ── Card body ──────────────────────────────────────────────────────── */
+    .card-body-inner {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .card-stats {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .card-stat {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .card-stat-label {
+        font-family: var(--font-label);
+        font-size: 0.68rem;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-on-surface-variant);
+        margin: 0 0 2px;
+        white-space: nowrap;
+    }
+
+    .card-stat-value {
+        font-family: var(--font-headline);
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .color-primary {
+        color: var(--color-primary);
+    }
+
+    .color-secondary {
+        color: var(--color-secondary);
+    }
+
+    .color-white {
+        color: #fff;
+    }
+
+    .color-error {
+        color: var(--color-error);
+    }
+
+    .color-muted {
+        color: var(--color-on-surface-variant);
+    }
+
+    .card-stat-divider {
+        width: 1px;
+        height: 40px;
+        background: rgba(255, 255, 255, .1);
+        flex-shrink: 0;
+    }
+
+    /* ── Info rows ──────────────────────────────────────────────────────── */
+    .card-info-rows {
+        margin-bottom: 1.75rem;
+    }
+
+    .card-info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.8125rem;
+        color: var(--color-on-surface-variant);
+        margin-bottom: 0.5rem;
+    }
+
+    .card-info-row .row-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .card-info-row .row-label .material-symbols-outlined {
+        font-size: 18px;
+    }
+
+    .card-info-row .row-value {
+        color: #fff;
+        font-weight: 500;
+    }
+
+    /* ── Progress bar ───────────────────────────────────────────────────── */
+    .progress-bar-wrap {
+        width: 100%;
+        height: 6px;
+        background: var(--color-surface-container-highest);
+        border-radius: 9999px;
+        overflow: hidden;
+        margin-bottom: 0.625rem;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        border-radius: 9999px;
+        transition: width 0.5s ease;
+    }
+
+    .fill-primary {
+        background: var(--color-primary);
+    }
+
+    .fill-secondary {
+        background: var(--color-secondary);
+    }
+
+    /* ── Card CTA buttons ───────────────────────────────────────────────── */
+    .btn-card {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        font-family: var(--font-label);
+        font-size: 0.8125rem;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        transition: filter 0.15s ease, transform 0.1s ease, background-color 0.15s ease;
+        margin-top: auto;
+        border: none;
+    }
+
+    .btn-card:active {
+        transform: scale(0.96);
+    }
+
+    .btn-card .material-symbols-outlined {
+        font-size: 1.1rem;
+    }
+
+    .btn-card-live {
+        background: var(--color-secondary);
+        color: var(--color-on-secondary);
+    }
+
+    .btn-card-live:hover {
+        filter: brightness(1.1);
+    }
+
+    .btn-card-register {
+        background: transparent;
+        border: 1px solid rgba(208, 188, 255, .3);
+        color: var(--color-primary);
+    }
+
+    .btn-card-register:hover {
+        background: rgba(208, 188, 255, .08);
+    }
+
+    .btn-card-waitlist {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, .1);
+        color: var(--color-on-surface-variant);
+    }
+
+    .btn-card-waitlist[aria-disabled="true"] {
+        cursor: not-allowed;
+        filter: grayscale(1);
+    }
+
+    .btn-card-results {
+        background: rgba(45, 52, 73, .5);
+        border: 1px solid rgba(255, 255, 255, .05);
+        color: #fff;
+    }
+
+    .btn-card-results:hover {
+        background: rgba(255, 255, 255, .09);
+    }
+
+    .card-team-select {
+        width: 100%;
+        min-height: 38px;
+        margin-bottom: 0.6rem;
+        background: var(--color-surface-container-lowest);
+        border: 1px solid rgba(255, 255, 255, .1);
+        border-radius: 0.5rem;
+        color: var(--color-on-surface);
+        padding: 0.55rem 0.65rem;
+        font-size: 0.82rem;
+    }
+
+    /* ── Finished dim ───────────────────────────────────────────────────── */
+    .tournament-card.card-finished {
+        opacity: .82;
+    }
+
+    .tournament-card.card-finished .card-img-placeholder {
+        filter: grayscale(1);
+        transition: filter 0.7s ease;
+    }
+
+    .tournament-card.card-finished:hover .card-img-placeholder {
+        filter: grayscale(0);
+    }
+
+    /* ── Search bar ─────────────────────────────────────────────────────── */
+    .filter-search-wrap {
+        position: relative;
+        margin-bottom: 1.25rem;
+    }
+
+    .filter-search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.1rem;
+        color: var(--color-on-surface-variant);
+        pointer-events: none;
+    }
+
+    .filter-search {
+        width: 100%;
+        background: var(--color-surface-container-lowest);
+        border: 1px solid rgba(255, 255, 255, .1);
+        border-radius: 0.5rem;
+        padding: 0.6rem 0.75rem 0.6rem 2.5rem;
+        color: var(--color-on-surface);
+        font-family: var(--font-body);
+        font-size: 0.875rem;
+        transition: border-color 0.15s ease;
+    }
+
+    .filter-search::placeholder {
+        color: var(--color-on-surface-variant);
+    }
+
+    .filter-search:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, .2);
+    }
+
+    /* ── Filter modal ───────────────────────────────────────────────────── */
+    .filter-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        z-index: 200;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 5rem 1rem 1rem;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+
+    .filter-modal-backdrop.is-open {
+        opacity: 1;
+        pointer-events: all;
+    }
+
+    .filter-modal {
+        width: 100%;
+        max-width: 540px;
+        border-radius: 1rem;
+        padding: 1.75rem;
+        transform: translateY(-12px);
+        transition: transform 0.25s ease;
+    }
+
+    .filter-modal-backdrop.is-open .filter-modal {
+        transform: translateY(0);
+    }
+
+    .filter-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+    }
+
+    .filter-modal-title {
+        font-family: var(--font-headline);
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--color-on-surface);
+        margin: 0;
+    }
+
+    .filter-modal-close {
+        background: none;
+        border: none;
+        color: var(--color-on-surface-variant);
+        cursor: pointer;
+        padding: 0.25rem;
+        border-radius: 0.375rem;
+        display: flex;
+        align-items: center;
+        transition: color 0.15s ease, background 0.15s ease;
+    }
+
+    .filter-modal-close:hover {
+        color: var(--color-on-surface);
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .filter-modal-footer {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.75rem;
+    }
+
+    .btn-filter-clear {
+        flex: 1;
+        padding: 0.65rem 1rem;
+        border-radius: 0.5rem;
+        font-family: var(--font-label);
+        font-size: 0.8125rem;
+        font-weight: 500;
+        cursor: pointer;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, .1);
+        color: var(--color-on-surface-variant);
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-filter-clear:hover {
+        background: rgba(255, 255, 255, .05);
+        color: var(--color-on-surface);
+    }
+
+    .btn-filter-apply {
+        flex: 2;
+        padding: 0.65rem 1rem;
+        border-radius: 0.5rem;
+        font-family: var(--font-label);
+        font-size: 0.8125rem;
+        font-weight: 500;
+        cursor: pointer;
+        background: var(--color-primary);
+        border: none;
+        color: var(--color-on-primary);
+        transition: filter 0.15s ease;
+    }
+
+    .btn-filter-apply:hover {
+        filter: brightness(1.1);
+    }
+
+    .filter-label {
+        font-family: var(--font-label);
+        font-size: 0.68rem;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--color-on-surface-variant);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .filter-select {
+        width: 100%;
+        background: var(--color-surface-container-lowest);
+        border: 1px solid rgba(255, 255, 255, .1);
+        border-radius: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        color: var(--color-on-surface);
+        font-family: var(--font-body);
+        font-size: 0.875rem;
+        appearance: none;
+        -webkit-appearance: none;
+        cursor: pointer;
+        transition: border-color 0.15s ease;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, .2);
+    }
+
+    .filter-select option {
+        background: var(--color-surface-container);
+    }
+
+    .filter-status-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .btn-status {
+        flex: 1 1 auto;
+        min-width: max-content;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+        font-family: var(--font-body);
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        border: 1px solid rgba(255, 255, 255, .06);
+        background: var(--color-surface-container-lowest);
+        color: var(--color-on-surface-variant);
+    }
+
+    .btn-status.active {
+        background: rgba(45, 52, 73, .6);
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+    }
+
+    .btn-status:hover:not(.active) {
+        background: rgba(255, 255, 255, .05);
+    }
+
+    /* ── Grid ───────────────────────────────────────────────────────────── */
+    .tournaments-grid {
+        display: grid;
+        grid-template-columns: repeat(1, 1fr);
+        gap: 2rem;
+    }
+
+    @media (min-width: 768px) {
+        .tournaments-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (min-width: 1200px) {
+        .tournaments-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    /* ── Empty state ────────────────────────────────────────────────────── */
+    .empty-state {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        padding: 5rem 2rem;
+        border-radius: 1rem;
+        border: 1px dashed rgba(255, 255, 255, 0.1);
+        color: var(--color-on-surface-variant);
+        text-align: center;
+    }
+
+    .empty-state .material-symbols-outlined {
+        font-size: 3rem;
+        opacity: 0.3;
+        font-variation-settings: 'FILL' 1;
+    }
+
+    .empty-state-title {
+        font-family: var(--font-headline);
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--color-on-surface);
+        margin: 0;
+    }
+
+    .empty-state-desc {
+        font-size: 0.875rem;
+        margin: 0;
+        max-width: 320px;
+    }
+
+    /* ── Pagination ─────────────────────────────────────────────────────── */
+    .pagination-wrap {
+        margin-top: 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .page-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-label);
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+        border: 1px solid rgba(255, 255, 255, .06);
+        background: transparent;
+        color: var(--color-on-surface-variant);
+        text-decoration: none;
+    }
+
+    .page-btn:hover:not(.active) {
+        background: rgba(255, 255, 255, .05);
+        color: var(--color-on-surface);
+    }
+
+    .page-btn.active {
+        background: var(--color-primary);
+        color: #fff;
+        border-color: transparent;
+        pointer-events: none;
+    }
+
+    .page-btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+    }
+
+    .page-btn .material-symbols-outlined {
+        font-size: 1.1rem;
+    }
+
+    .page-ellipsis {
+        color: var(--color-on-surface-variant);
+        padding: 0 0.25rem;
+    }
+
+    /* ── FAB ────────────────────────────────────────────────────────────── */
+    .fab {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--color-primary);
+        color: var(--color-on-primary);
+        border: none;
+        box-shadow: 0 8px 30px rgba(139, 92, 246, .45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.15s ease;
+        z-index: 100;
+        text-decoration:none;
+    }
+
+    .fab:hover {
+        transform: scale(1.1);
+    }
+
+    .fab:active {
+        transform: scale(0.9);
+    }
+
+    .fab .material-symbols-outlined {
+        font-size: 1.75rem;
+    }
+
+    .fab-tooltip {
+        position: absolute;
+        right: calc(100% + 0.75rem);
+        background: var(--color-surface-container-high);
+        border: 1px solid rgba(255, 255, 255, .1);
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.8125rem;
+        color: var(--color-on-surface);
+        white-space: nowrap;
+        opacity: 0;
+        transform: translateX(8px);
+        pointer-events: none;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .fab:hover .fab-tooltip {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    .btn-card,
+    .page-btn {
+        text-decoration: none;
+    }
+
+    /* ── Scrollbar ──────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--color-surface-container-lowest);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: var(--color-surface-container-highest);
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--color-primary);
+    }
+</style>
+{% endblock %}
+
+{# ── Content ──────────────────────────────────────────────────────────────── #}
+{% block content %}
+
+<!-- ── Filter Modal ──────────────────────────────────────────────────────── -->
+<div class="filter-modal-backdrop" id="filterBackdrop">
+    <form method="get" class="filter-modal glass-panel" id="filterForm">
+
+        <div class="filter-modal-header">
+            <h2 class="filter-modal-title">Filtros</h2>
+            <button type="button" class="filter-modal-close" id="filterClose" aria-label="Fechar">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <label class="filter-label">Buscar Campeonato</label>
+        <div class="filter-search-wrap">
+            <span class="material-symbols-outlined filter-search-icon">search</span>
+            <input class="filter-search" type="search" name="q" placeholder="Digite o nome do campeonato..."
+                   value="{{ filters.q }}">
+        </div>
+
+        <div class="row g-4">
+
+            <div class="col-12 col-sm-6">
+                <label class="filter-label">Jogo</label>
+                <select class="filter-select" name="game">
+                    <option value="">Todos os Jogos</option>
+                    {% for game in game_options %}
+                    <option value="{{ game }}" {% if filters.game == game %}selected{% endif %}>{{ game }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-12 col-sm-6">
+                <label class="filter-label">Formato</label>
+                <select class="filter-select" name="stage_format">
+                    <option value="">Todos os Formatos</option>
+                    {% for option in stage_format_options %}
+                    <option value="{{ option.value }}" {% if filters.stage_format == option.value %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-12">
+                <label class="filter-label">Status</label>
+                <input type="hidden" name="status" id="filterStatusInput" value="{{ filters.status }}">
+                <div class="filter-status-group">
+                    <button type="button" class="btn-status {% if not filters.status %}active{% endif %}" data-status="">Todos</button>
+                    {% for option in status_options %}
+                    <button type="button" class="btn-status {% if filters.status == option.value %}active{% endif %}" data-status="{{ option.value }}">{{ option.label }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+
+        <div class="filter-modal-footer">
+            <button type="button" class="btn-filter-clear" id="filterClear">Limpar</button>
+            <button type="submit" class="btn-filter-apply" id="filterApply">Aplicar Filtros</button>
+        </div>
+
+    </form>
+</div>
+
+<!-- ── Tournament Grid ───────────────────────────────────────────────────── -->
+<div class="tournaments-grid">
+
+    {% for champ in page_obj %}
+
+
+    <div class="tournament-card glass-panel {{ champ.card_class }}">
+
+        {# ── Image / Placeholder ─────────────────────────────────── #}
+        <div class="card-img-wrap">
+            <div class="card-img-placeholder {{ champ.ph_class }}">
+                <span class="material-symbols-outlined ph-icon">emoji_events</span>
+            </div>
+            <p class="ph-game-label">{{ champ.game }}</p>
+            <div class="card-img-overlay"></div>
+
+            {# Badge #}
+            {% if champ.status == 'IN_PROGRESS' %}
+            <span class="card-badge badge-live">
+                <span class="pulse-dot"></span>
+                Ao Vivo
+            </span>
+            {% elif champ.status == 'OPEN' %}
+            <span class="card-badge badge-open">
+                Inscrições Abertas
+            </span>
+            {% elif champ.status == 'FINISHED' %}
+            <span class="card-badge badge-finished">
+                Finalizado
+            </span>
+            {% else %}
+            <span class="card-badge badge-finished">
+                Rascunho
+            </span>
+            {% endif %}
+
+            <h3 class="card-name">{{ champ.name }}</h3>
+        </div>
+
+        {# ── Body ────────────────────────────────────────────────── #}
+        <div class="card-body-inner">
+
+            {# Stats row #}
+            <div class="card-stats">
+                <div class="card-stat">
+                    <p class="card-stat-label">Jogo</p>
+                    <p class="card-stat-value color-white" title="{{ champ.game }}">{{ champ.game }}</p>
+                </div>
+                <div class="card-stat-divider"></div>
+                <div class="card-stat">
+                    <p class="card-stat-label">Formato</p>
+                    <p class="card-stat-value color-muted" title="{{ champ.get_stage_format_display }}"
+                        style="font-size:0.85rem;">
+                        {{ champ.get_stage_format_display }}
+                    </p>
+                </div>
+            </div>
+
+            {# Info rows #}
+            <div class="card-info-rows">
+
+                {# Teams filled — common to all statuses #}
+                <div class="card-info-row">
+                    <span class="row-label">
+                        <span class="material-symbols-outlined">group</span>
+                        Times Inscritos
+                    </span>
+                    <span class="row-value">{{ champ.approved_count }} / {{ champ.max_teams }}</span>
+                </div>
+                <div class="progress-bar-wrap">
+                    <div class="progress-bar-fill
+                            {% if champ.status == 'IN_PROGRESS' %}fill-secondary{% else %}fill-primary{% endif %}"
+                        style="width: {{ champ.occupancy_percentage }}%">
+                    </div>
+                </div>
+
+                {# Status-specific second row #}
+                {% if champ.status == 'OPEN' %}
+                <div class="card-info-row">
+                    <span class="row-label">
+                        <span class="material-symbols-outlined">calendar_today</span>
+                        Início Previsto
+                    </span>
+                    <span class="row-value">
+                        {% if champ.start_date %}
+                        {{ champ.start_date|date:"d M, Y" }}
+                        {% else %}
+                        A definir
+                        {% endif %}
+                    </span>
+                </div>
+
+                {% elif champ.status == 'IN_PROGRESS' %}
+                <div class="card-info-row">
+                    <span class="row-label">
+                        <span class="material-symbols-outlined">play_circle</span>
+                        Em Andamento
+                    </span>
+                    <span class="row-value color-secondary">
+                        Desde
+                        {% if champ.start_date %}
+                        {{ champ.start_date|date:"d M" }}
+                        {% else %}
+                        —
+                        {% endif %}
+                    </span>
+                </div>
+
+                {% elif champ.status == 'FINISHED' %}
+                <div class="card-info-row">
+                    <span class="row-label">
+                        <span class="material-symbols-outlined">emoji_events</span>
+                        Campeão
+                    </span>
+                    <span class="row-value
+                                {% if champ.champion %}color-secondary{% else %}color-muted{% endif %}">
+                        {% if champ.champion %}
+                            {{ champ.champion }}
+                        {% else %}
+                        —
+                        {% endif %}
+                    </span>
+                </div>
+                {% else %}
+                <div class="card-info-row">
+                    <span class="row-label">
+                        <span class="material-symbols-outlined">edit_note</span>
+                        Status
+                    </span>
+                    <span class="row-value color-muted">
+                        {{ champ.get_status_display }}
+                    </span>
+                </div>
+                {% endif %}
+
+            </div>{# /card-info-rows #}
+
+            {# CTA button #}
+            {% if champ.cta %}{% with cta=champ.cta %}
+            {% if cta.is_form %}
+            <form method="post" action="{{ cta.url }}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                {% if cta.team_options|length > 1 %}
+                <select name="team_id" class="card-team-select" aria-label="Escolha a equipe">
+                    {% for team in cta.team_options %}
+                    <option value="{{ team.pk }}">{{ team.name }}</option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <input type="hidden" name="team_id" value="{{ cta.team_id }}">
+                {% endif %}
+                <button type="submit" class="btn-card {{ cta.css }}">
+                    {{ cta.label }}
+                    <span class="material-symbols-outlined">{{ cta.icon }}</span>
+                </button>
+            </form>
+            {% else %}
+            <a {% if not cta.disabled %}href="{{ cta.url }}"{% endif %}
+               class="btn-card {{ cta.css }}"
+               {% if cta.disabled %}aria-disabled="true"{% endif %}>
+                {{ cta.label }}
+                <span class="material-symbols-outlined">{{ cta.icon }}</span>
+            </a>
+            {% endif %}
+            {% endwith %}{% endif %}
+
+        </div>{# /card-body-inner #}
+    </div>{# /tournament-card #}
+
+
+    {% empty %}
+    <div class="empty-state glass-panel">
+        <span class="material-symbols-outlined">emoji_events</span>
+        <p class="empty-state-title">Nenhum campeonato disponível</p>
+        <p class="empty-state-desc">
+            Nenhum campeonato encontrado no momento. Assim que houver novidades, elas aparecerão aqui.
+        </p>
+    </div>
+    {% endfor %}
+
+</div>{# /tournaments-grid #}
+
+<!-- ── Pagination ─────────────────────────────────────────────────────────── -->
+<div class="pagination-wrap">
+
+    {% if page_obj.has_previous %}
+        <a class="page-btn" href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ page_obj.previous_page_number }}">
+            <span class="material-symbols-outlined">chevron_left</span>
+        </a>
+    {% else %}
+        <button class="page-btn" disabled>
+            <span class="material-symbols-outlined">chevron_left</span>
+        </button>
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+
+        {% if num == page_obj.number %}
+            <button class="page-btn active">{{ num }}</button>
+
+        {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+            <a class="page-btn" href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ num }}">{{ num }}</a>
+
+        {% endif %}
+
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+        <a class="page-btn" href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ page_obj.next_page_number }}">
+            <span class="material-symbols-outlined">chevron_right</span>
+        </a>
+    {% else %}
+        <button class="page-btn" disabled>
+            <span class="material-symbols-outlined">chevron_right</span>
+        </button>
+    {% endif %}
+
+</div>
+
+<!-- ── FAB ───────────────────────────────────────────────────────────────── -->
+{% if show_fab %}
+<a href="{% url 'championship:management-championship-create' %}" class="fab" title="Criar Campeonato">
+    <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">add</span>
+    <span class="fab-tooltip">Criar Campeonato</span>
+</a>
+{% endif %}
+
+{% endblock %}
+
+{# ── Extra JS ─────────────────────────────────────────────────────────────── #}
+{% block extra_js %}
+<script>
+    const backdrop = document.getElementById('filterBackdrop');
+    const statusInput = document.getElementById('filterStatusInput');
+
+    function openFilter()  { backdrop.classList.add('is-open');    document.body.style.overflow = 'hidden'; }
+    function closeFilter() { backdrop.classList.remove('is-open'); document.body.style.overflow = ''; }
+
+    document.getElementById('filterOpen').addEventListener('click', e => { e.preventDefault(); openFilter(); });
+    document.getElementById('filterClose').addEventListener('click', closeFilter);
+
+    // Fechar ao clicar fora do modal
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) closeFilter(); });
+
+    // Fechar com Escape
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFilter(); });
+
+    // Limpar filtros
+    document.getElementById('filterClear').addEventListener('click', () => {
+        window.location.href = window.location.pathname;
+    });
+
+    // Status filter buttons
+    document.querySelectorAll('.btn-status').forEach(btn => {
+        btn.addEventListener('click', () => {
+            btn.closest('.filter-status-group')
+                .querySelectorAll('.btn-status')
+                .forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            statusInput.value = btn.dataset.status;
+        });
+    });
+</script>
+{% endblock %}

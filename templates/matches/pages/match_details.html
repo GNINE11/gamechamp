@@ -1,0 +1,292 @@
+{% extends "base/logged_base.html" %}
+{% load static %}
+
+{% block title %}
+{{ match.team_a.name }} vs {{ match.team_b.name }} | Gamechamp
+{% endblock title %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+<link rel="stylesheet" href="{% static 'css/matches.css' %}">
+{% endblock extra_css %}
+
+{% block page_heading %}{% endblock %}
+
+{% block content %}
+<section class="content-container">
+
+    <!-- ── Breadcrumb ──────────────────────────────────────────────────────── -->
+    <p class="page-heading-label mb-3">
+        <a href="#" class="auth-link">Campeonatos</a>
+        <span class="mx-1">/</span>
+        <a href="#" class="auth-link">
+            {{ match.championship.name }}
+        </a>
+        <span class="mx-1">/</span>
+        <span class="page-heading-label-current">Partida #{{ match.pk }}</span>
+    </p>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         HERO — placar principal
+    ════════════════════════════════════════════════════════════════════ -->
+    <div class="match-hero">
+        <div class="match-hero-inner">
+
+            <!-- Time A -->
+            <div class="hero-team home">
+                <div class="hero-team-glow">
+                    <div class="hero-team-glow-bg primary"></div>
+                    {% if match.team_a.logo %}
+                    <img class="hero-team-logo"
+                         src="{{ match.team_a.logo.url }}"
+                         alt="{{ match.team_a.name }}">
+                    {% else %}
+                    <span class="material-symbols-outlined" style="font-size:3rem;color:var(--color-primary)">shield</span>
+                    {% endif %}
+                </div>
+                <span class="hero-team-tag primary">Time A</span>
+                <h2 class="hero-team-name">{{ match.team_a.name }}</h2>
+            </div>
+
+            <!-- Placar -->
+            <div class="hero-score-block">
+
+                <div class="hero-score-numbers">
+                    <span class="hero-score-num {% if match.score_a >= match.score_b %}winner{% else %}loser{% endif %}">
+                        {{ match.score_a|default:"0" }}
+                    </span>
+                    <div class="hero-score-divider"></div>
+                    <span class="hero-score-num {% if match.score_b > match.score_a %}winner{% else %}loser{% endif %}">
+                        {{ match.score_b|default:"0" }}
+                    </span>
+                </div>
+
+                <span class="hero-score-format">Melhor de {{ match.best_of|default:"3" }}</span>
+            </div>
+
+            <!-- Time B -->
+            <div class="hero-team away">
+                <div class="hero-team-glow">
+                    <div class="hero-team-glow-bg secondary"></div>
+                    {% if match.team_b.logo %}
+                    <img class="hero-team-logo"
+                         src="{{ match.team_b.logo.url }}"
+                         alt="{{ match.team_b.name }}">
+                    {% else %}
+                    <span class="material-symbols-outlined" style="font-size:3rem;color:var(--color-secondary)">shield</span>
+                    {% endif %}
+                </div>
+                <span class="hero-team-tag secondary">Time B</span>
+                <h2 class="hero-team-name">{{ match.team_b.name }}</h2>
+            </div>
+
+        </div>
+    </div>
+    <!-- /match-hero -->
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         BENTO GRID — mapas + timeline | h2h + mvp + analistas
+    ════════════════════════════════════════════════════════════════════ -->
+    <div class="detail-grid">
+
+        <!-- ── Coluna larga: Mapas + Eventos ─────────────────────────────── -->
+        <div class="detail-col-wide" style="display:flex; flex-direction:column; gap:1.25rem;">
+
+            <!-- Mapas -->
+            <div class="auth-glass-card">
+
+                <div class="section-header">
+                    <span class="material-symbols-outlined icon-secondary">map</span>
+                    <h3 class="section-title">Histórico de Mapas</h3>
+                </div>
+
+                <div class="map-list">
+
+                    {% for map in match.maps.all %}
+                    <div class="map-detail-row {% if not map.was_played %}not-played{% endif %}">
+
+                        <!-- thumbnail do mapa -->
+                        <div class="map-thumb">
+                            {% if map.image %}
+                                <img src="{{ map.image.url }}" alt="{{ map.name }}">
+                            {% else %}
+                                <span class="material-symbols-outlined" style="color:var(--color-on-surface-variant);font-size:1.25rem">block</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- info -->
+                        <div class="map-detail-info">
+                            <p class="map-detail-name">{{ map.name }}</p>
+                            <p class="map-detail-sub">
+                                {% if map.was_played %}
+                                    Escolhido por {{ map.selected_by }}
+                                {% else %}
+                                    Não jogado
+                                {% endif %}
+                            </p>
+                        </div>
+
+                        <!-- placar do mapa + tag de resultado -->
+                        {% if map.was_played %}
+                        <div class="map-detail-scores">
+                            <span class="map-detail-score {% if map.score_a > map.score_b %}winner{% else %}loser{% endif %}">
+                                {{ map.score_a }}
+                            </span>
+                            <span class="map-detail-sep">vs</span>
+                            <span class="map-detail-score {% if map.score_b > map.score_a %}winner{% else %}loser{% endif %}">
+                                {{ map.score_b }}
+                            </span>
+                            <span class="match-tag {% if map.score_a > map.score_b %}tournament{% else %}ranked{% endif %} ms-2">
+                                {% if map.score_a > map.score_b %}{{ match.team_a.name|truncatechars:6 }} Win
+                                {% else %}{{ match.team_b.name|truncatechars:6 }} Win
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% else %}
+                        <span class="map-detail-sep">N/A</span>
+                        {% endif %}
+
+                    </div>
+                    {% empty %}
+                    <!-- fallback sem dados -->
+                    <p class="match-date text-center py-3">Nenhum mapa registrado.</p>
+                    {% endfor %}
+
+                </div>
+            </div>
+            <!-- /mapas -->
+        </div>
+        <!-- /detail-col-wide -->
+
+        <!-- ── Coluna estreita: H2H + MVP + Analistas ─────────────────────── -->
+        <div style="display:flex; flex-direction:column; gap:1.25rem;">
+
+            <!-- H2H -->
+            <div class="auth-glass-card h2h-card">
+
+                <div class="section-header" style="margin-bottom:1.25rem">
+                    <span class="material-symbols-outlined icon-secondary">compare_arrows</span>
+                    <h3 class="section-title">Head to Head</h3>
+                </div>
+
+                <div class="h2h-stat-row">
+                    <div class="h2h-stat">
+                        <span class="h2h-stat-value">{{ h2h.wins|default:"—" }}</span>
+                        <span class="h2h-stat-label">Vitórias</span>
+                    </div>
+                    <div class="h2h-divider"></div>
+                    <div class="h2h-stat">
+                        <span class="h2h-stat-value" style="color:var(--color-on-surface-variant)">
+                            {{ h2h.draws|default:"—" }}
+                        </span>
+                        <span class="h2h-stat-label">Empates</span>
+                    </div>
+                    <div class="h2h-divider"></div>
+                    <div class="h2h-stat">
+                        <span class="h2h-stat-value" style="color:var(--color-on-surface-variant)">
+                            {{ h2h.losses|default:"—" }}
+                        </span>
+                        <span class="h2h-stat-label">Derrotas</span>
+                    </div>
+                </div>
+
+                <div class="h2h-bar-label">
+                    <span>Aproveitamento Histórico</span>
+                    <span>{{ h2h.win_rate|default:"0" }}%</span>
+                </div>
+                <div class="h2h-bar-track">
+                    <div class="h2h-bar-fill" style="width:{{ h2h.win_rate|default:'0' }}%"></div>
+                </div>
+
+            </div>
+            <!-- /h2h -->
+
+            <!-- MVP -->
+            {% if match.mvp %}
+            <div class="auth-glass-card mvp-card">
+
+                <!-- ícone decorativo -->
+                <span class="material-symbols-outlined mvp-card-deco"
+                      style="font-variation-settings:'FILL' 1">workspace_premium</span>
+
+                <div class="section-header" style="margin-bottom:1.25rem">
+                    <span class="material-symbols-outlined icon-primary">military_tech</span>
+                    <h3 class="section-title">MVP da Partida</h3>
+                </div>
+
+                <div class="mvp-player-row">
+                    <div class="mvp-avatar">
+                        {% if match.mvp.avatar %}
+                            <img src="{{ match.mvp.avatar.url }}" alt="{{ match.mvp.username }}">
+                        {% else %}
+                            <span class="material-symbols-outlined"
+                                  style="font-size:2rem;color:var(--color-primary);display:block;text-align:center;line-height:4rem">
+                                person
+                            </span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <p class="mvp-player-name">{{ match.mvp.username }}</p>
+                        <p class="mvp-player-role">
+                            {{ match.mvp.role|default:"Jogador" }} |
+                            {{ match.mvp.team.name }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mvp-stats-grid">
+                    <div class="mvp-stat">
+                        <span class="mvp-stat-value">{{ match.mvp_stats.kd|default:"—" }}</span>
+                        <span class="mvp-stat-label">K / D</span>
+                    </div>
+                    <div class="mvp-stat">
+                        <span class="mvp-stat-value">{{ match.mvp_stats.adr|default:"—" }}</span>
+                        <span class="mvp-stat-label">ADR</span>
+                    </div>
+                    <div class="mvp-stat">
+                        <span class="mvp-stat-value">{{ match.mvp_stats.kast|default:"—" }}%</span>
+                        <span class="mvp-stat-label">KAST</span>
+                    </div>
+                </div>
+
+            </div>
+            {% endif %}
+            <!-- /mvp -->
+
+            <!-- Veredicto dos analistas -->
+            {% if match.analyst_note %}
+            <div class="auth-glass-card" style="background:rgba(23,31,51,.4)">
+
+                <div class="section-header" style="margin-bottom:1rem">
+                    <span class="material-symbols-outlined" style="color:var(--color-on-surface-variant)">forum</span>
+                    <h3 class="section-title">Veredicto dos Analistas</h3>
+                </div>
+
+                <p class="analyst-body">"{{ match.analyst_note.text }}"</p>
+
+                <div class="analyst-author">
+                    <div class="analyst-avatar"></div>
+                    <span class="analyst-name">{{ match.analyst_note.author|default:"Analista-Chefe" }}</span>
+                </div>
+
+            </div>
+            {% endif %}
+            <!-- /analistas -->
+
+            <!-- Ação: registrar/editar resultado -->
+            {% if can_submit %}
+            <a href="#"
+               class="btn-app-primary" style="justify-content:center; padding-block:.875rem; text-align:center;">
+                <span class="material-symbols-outlined" style="font-size:1.1rem">edit_note</span>
+                Registrar Resultado
+            </a>
+            {% endif %}
+
+        </div>
+        <!-- /coluna estreita -->
+
+    </div>
+    <!-- /detail-grid -->
+
+</section>
+{% endblock content %}

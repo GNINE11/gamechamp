@@ -1,0 +1,57 @@
+<header class="header">
+  <button class="header-hamburger" id="headerHamburger" aria-label="Abrir menu de navegação" data-bs-toggle="tooltip"
+    data-bs-placement="bottom" data-bs-title="Menu de navegação">
+    <span class="material-symbols-outlined">menu</span>
+  </button>
+
+  <span class="header-page-title">Gamechamp</span>
+
+  <div class="header-container-right">
+
+    <div id="headerUserMenu" class="header-user-menu">
+      <button id="headerUserButton" class="header-user-container" data-bs-toggle="tooltip" data-bs-placement="bottom"
+        data-bs-title="Conta e configurações">
+        <div class="header-user-text-container">
+          <span class="header-username-text">{{ request.user.username }}</span>
+          <span class="header-user-secondary-text">{{ request.user.first_name }}</span>
+        </div>
+
+        <div class="header-user-icon">
+          <img
+            src="https://api.dicebear.com/7.x/thumbs/svg?seed={{ request.user.username }}"
+            alt="Avatar de {{ request.user.username }}"
+            class="header-user-avatar-img"
+          >
+        </div>
+      </button>
+
+      <div class="header-user-dropdown">
+        <div class="header-dropdown-user-card">
+          <div class="header-user-icon header-dropdown-avatar">
+            <img
+              src="https://api.dicebear.com/7.x/thumbs/svg?seed={{ request.user.username }}"
+              alt="Avatar de {{ request.user.username }}"
+              class="header-user-avatar-img"
+            >
+          </div>
+          <div class="header-dropdown-user-info">
+            <span class="header-dropdown-name">{{ request.user.username }}</span>
+            <span class="header-dropdown-secondary">{{ request.user.first_name }}</span>
+          </div>
+        </div>
+
+        <a href="{% url 'accounts:profile' %}" class="header-user-dropdown-item">
+            <span class="material-symbols-outlined">person</span>
+            Perfil
+        </a>
+
+        <a href="{% url 'accounts:logout' %}" class="header-user-dropdown-item">
+            <span class="material-symbols-outlined">logout</span>
+            Sair
+        </a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Adicionar ao header.css: -->

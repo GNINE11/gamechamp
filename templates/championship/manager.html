@@ -1,0 +1,1184 @@
+{% extends "base/logged_base.html" %}
+{% load static %}
+
+{% block title %}Gerenciar — {{ championship.name }}{% endblock %}
+
+{% block page_label %}Gerenciamento{% endblock %}
+{% block page_title %}{{ championship.name }}{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'championship:management-championship-list' %}" class="btn-app-outline">
+    <span class="material-symbols-outlined">arrow_back</span>
+    Voltar
+</a>
+{% if is_owner %}
+<a href="{% url 'championship:management-championship-edit' championship.pk %}" class="btn-app-primary">
+    <span class="material-symbols-outlined">add</span>
+    Editar Campeonato
+</a>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+
+    /* ─── Glass panel ────────────────────────────────────────────── */
+    .glass-panel {
+        background: rgba(23, 31, 51, 0.7);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+        height: 100%;
+    }
+
+    .panel-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .panel-title {
+        font-family: var(--font-headline);
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--color-on-surface);
+        margin: 0;
+    }
+
+    .panel-subtitle {
+        font-size: 0.75rem;
+        color: var(--color-on-surface-variant);
+        margin: 0.15rem 0 0 0;
+    }
+
+    .panel-link {
+        font-family: var(--font-body);
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--color-primary);
+        text-decoration: none;
+        transition: opacity 0.15s;
+    }
+
+    .panel-link:hover {
+        opacity: 0.75;
+        color: var(--color-primary);
+    }
+
+    .panel-empty {
+        padding: 2.5rem 1.5rem;
+        text-align: center;
+        color: var(--color-on-surface-variant);
+        font-size: 0.85rem;
+    }
+
+    .panel-empty .material-symbols-outlined {
+        font-size: 2rem;
+        opacity: 0.35;
+        display: block;
+        margin: 0 auto 0.5rem;
+    }
+    
+    /* ─── Pending inscriptions table ─────────────────────────────── */
+    .table-scroll {
+        overflow-x: auto;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-outline-variant) transparent;
+    }
+
+    .table-scroll::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+
+    .table-scroll::-webkit-scrollbar-thumb {
+        background: var(--color-outline-variant);
+        border-radius: 4px;
+    }
+
+    .insc-table {
+        width: 100%;
+        min-width: 400px;
+        border-collapse: separate;
+        border-spacing: 0 4px;
+        padding: 0.5rem;
+    }
+
+    .insc-table thead th {
+        font-family: var(--font-label);
+        font-size: 0.6rem;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--color-on-surface-variant);
+        padding: 0.4rem 1rem;
+        text-align: left;
+    }
+
+    .insc-table thead th.text-end {
+        text-align: right;
+    }
+
+    .insc-table tbody tr {
+        background: rgba(19, 27, 46, 0.5);
+        transition: background 0.15s;
+    }
+
+    .insc-table tbody tr:hover {
+        background: var(--color-surface-container-high);
+    }
+
+    .insc-table tbody tr:hover .row-actions {
+        opacity: 1;
+    }
+
+    .insc-table td {
+        font-size: 0.82rem;
+        padding: 0.85rem 1rem;
+        color: var(--color-on-surface);
+        vertical-align: middle;
+    }
+
+    .insc-table td:first-child {
+        border-radius: 0.55rem 0 0 0.55rem;
+    }
+
+    .insc-table td:last-child {
+        border-radius: 0 0.55rem 0.55rem 0;
+        text-align: right;
+    }
+
+    .team-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 0.45rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-headline);
+        font-weight: 800;
+        font-size: 1rem;
+        color: #fff;
+        flex-shrink: 0;
+        background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    }
+
+    .team-avatar-name {
+        font-family: var(--font-body);
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--color-on-surface);
+        white-space: nowrap;
+    }
+
+    .team-avatar-time {
+        font-size: 0.7rem;
+        color: var(--color-on-surface-variant);
+        margin-top: 0.05rem;
+    }
+
+    .row-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.4rem;
+        opacity: 0;
+        transition: opacity 0.15s;
+    }
+
+    @media (max-width: 700px) {
+        .row-actions { opacity: 1; }
+    }
+
+    .action-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 0.4rem;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+    }
+
+    .action-btn .material-symbols-outlined {
+        font-size: 0.9rem;
+    }
+
+    .action-reject {
+        background: rgba(255, 180, 171, 0.08);
+        color: var(--color-error);
+    }
+
+    .action-reject:hover {
+        background: var(--color-error);
+        color: var(--color-on-error);
+    }
+
+    .action-approve {
+        background: rgba(6, 182, 212, 0.08);
+        color: var(--color-secondary);
+    }
+
+    .action-approve:hover {
+        background: var(--color-secondary);
+        color: var(--color-on-secondary);
+    }
+
+    /* ─── Match cards ────────────────────────────────────────────── */
+    .match-card {
+        background: var(--color-surface-container-low);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 0.65rem;
+        padding: 1.1rem;
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.2s;
+    }
+
+    .match-card:hover {
+        border-color: rgba(139, 92, 246, 0.25);
+    }
+
+    .match-card.is-live::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to right, rgba(6, 182, 212, 0.04), transparent);
+        pointer-events: none;
+    }
+
+    .match-card.is-finished {
+        opacity: 0.7;
+    }
+
+    .match-id {
+        font-family: var(--font-label);
+        font-size: 0.65rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        color: var(--color-secondary);
+        background: rgba(6, 182, 212, 0.1);
+        padding: 0.15rem 0.55rem;
+        border-radius: 4px;
+        display: inline-block;
+    }
+
+    .match-id.upcoming {
+        color: var(--color-on-surface-variant);
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .match-id.finished {
+        color: #4ade80;
+        background: rgba(34, 197, 94, 0.1);
+        border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .match-meta-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.6rem;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .match-meta-info {
+        font-family: var(--font-label);
+        font-size: 0.65rem;
+        color: var(--color-on-surface-variant);
+    }
+
+    .match-teams {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 0.85rem 0;
+        gap: 0.5rem;
+    }
+
+    .match-team-side {
+        text-align: center;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .match-team-tag {
+        font-family: var(--font-label);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        color: var(--color-on-surface);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .match-score {
+        font-family: var(--font-headline);
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: var(--color-on-surface);
+        line-height: 1;
+        display: block;
+        margin-top: 0.2rem;
+    }
+
+    .match-score.leader {
+        color: var(--color-secondary);
+    }
+
+    .match-vs {
+        font-family: var(--font-label);
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: var(--color-on-surface-variant);
+        letter-spacing: 0.1em;
+        flex-shrink: 0;
+    }
+
+    .match-actions {
+        display: flex;
+        gap: 0.4rem;
+        margin-top: 0.75rem;
+    }
+
+    .match-btn {
+        flex: 1;
+        padding: 0.5rem 0;
+        border: none;
+        border-radius: 0.45rem;
+        font-family: var(--font-body);
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+        background: var(--color-surface-container-high);
+        color: var(--color-on-surface-variant);
+    }
+
+    .match-btn:hover {
+        background: var(--color-surface-bright);
+        color: var(--color-on-surface);
+    }
+
+    .match-btn.cta {
+        background: rgba(6, 182, 212, 0.12);
+        color: var(--color-secondary);
+        border: 1px solid rgba(6, 182, 212, 0.25);
+    }
+
+    .match-btn.cta:hover {
+        background: rgba(6, 182, 212, 0.2);
+    }
+
+    .match-btn.danger {
+        background: rgba(255, 180, 171, 0.08);
+        color: var(--color-error);
+        border: 1px solid rgba(255, 180, 171, 0.2);
+    }
+
+    .match-btn.danger:hover {
+        background: rgba(255, 180, 171, 0.16);
+    }
+
+    .match-btn.reopen {
+        background: rgba(245, 158, 11, 0.10);
+        color: #f59e0b;
+        border: 1px solid rgba(245, 158, 11, 0.25);
+    }
+
+    .match-btn.reopen:hover {
+        background: rgba(245, 158, 11, 0.20);
+    }
+
+    .live-pulse {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .live-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--color-secondary);
+        animation: pulse-dot 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50%      { opacity: 0.4; transform: scale(0.75); }
+    }
+
+    /* ─── Staff item ─────────────────────────────────────────────── */
+    .staff-item {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        padding: 0.75rem;
+        border-radius: 0.55rem;
+        background: rgba(19, 27, 46, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: background 0.15s;
+    }
+
+    .staff-item:hover {
+        background: var(--color-surface-container-high);
+    }
+
+    .staff-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 0.5rem;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-headline);
+        font-weight: 800;
+        font-size: 0.95rem;
+        color: var(--color-primary);
+        background: rgba(139, 92, 246, 0.12);
+        border: 1px solid rgba(139, 92, 246, 0.25);
+        text-transform: uppercase;
+    }
+
+    .staff-avatar.is-mod {
+        color: var(--color-secondary);
+        background: rgba(6, 182, 212, 0.1);
+        border-color: rgba(6, 182, 212, 0.2);
+    }
+
+    .staff-name {
+        font-family: var(--font-body);
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--color-on-surface);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .staff-role {
+        font-family: var(--font-label);
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-top: 0.05rem;
+    }
+
+    .staff-role.role-owner { color: var(--color-primary); }
+    .staff-role.role-mod   { color: var(--color-secondary); }
+
+    .staff-manage-btn {
+        width: 100%;
+        padding: 0.65rem;
+        background: var(--color-surface-container-high);
+        border: none;
+        border-radius: 0.55rem;
+        color: var(--color-on-surface-variant);
+        font-family: var(--font-body);
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: background 0.15s, color 0.15s;
+        margin-top: 0.85rem;
+        text-decoration: none;
+    }
+
+    .staff-manage-btn:hover {
+        background: var(--color-surface-bright);
+        color: var(--color-on-surface);
+    }
+
+    /* ─── Resumo do torneio ──────────────────────────────────────── */
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.6rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        gap: 0.75rem;
+    }
+
+    .summary-row:last-of-type {
+        border-bottom: none;
+    }
+
+    .summary-label {
+        font-size: 0.8rem;
+        color: var(--color-on-surface-variant);
+        flex-shrink: 0;
+    }
+
+    .summary-value {
+        font-family: var(--font-label);
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--color-on-surface);
+        text-align: right;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .summary-value.accent { color: var(--color-secondary); }
+    .summary-value.gold   { color: #f59e0b; font-family: var(--font-headline); font-size: 0.9rem; font-weight: 800; }
+
+    /* ─── Layout grid ────────────────────────────────────────────── */
+    .manager-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    /* Linha 1: Inscrições | Staff | Resumo */
+    .top-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+        align-items: start;
+    }
+
+    @media (min-width: 1400px) {
+        .top-row {
+            grid-template-columns: repeat(3, 1fr);;
+            align-items: stretch;
+        }
+    }
+
+    /* Painéis da top-row devem ocupar 100% da altura da célula */
+    .top-row .glass-panel {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    /* Área rolável dos cards de Inscrições e Staff (sem max-height fixo) */
+    .top-row .panel-scroll-body {
+        flex: 1;
+        min-height: 0;
+        max-height: 350px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-outline-variant) transparent;
+    }
+
+    .top-row .panel-scroll-body::-webkit-scrollbar { width: 4px; }
+    .top-row .panel-scroll-body::-webkit-scrollbar-thumb {
+        background: var(--color-outline-variant);
+        border-radius: 4px;
+    }
+
+    /* Resumo: nunca rola, cresce com o conteúdo */
+    .top-row .resumo-body {
+        padding: 1.1rem;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Linha 2: Em Andamento | Próximas Partidas */
+    .matches-split-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+        max-height: 900px;
+        overflow: auto;
+    }
+
+    .matches-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.85rem;
+    }
+
+    @media (min-width: 800px) {
+        .matches-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (min-width: 1400px) {
+        .matches-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    /* ─── Score-edit drawer ──────────────────────────────────────── */
+    .backdrop {
+        position: fixed; inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        backdrop-filter: blur(4px);
+        z-index: 200;
+        opacity: 0; pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+
+    .backdrop.open { opacity: 1; pointer-events: all; }
+
+    .drawer {
+        position: fixed;
+        top: 0; right: 0;
+        height: 100%;
+        width: min(420px, 100vw);
+        background: var(--color-surface-container-low);
+        border-left: 1px solid rgba(255, 255, 255, 0.08);
+        z-index: 300;
+        display: flex; flex-direction: column;
+        transform: translateX(100%);
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .drawer.open { transform: translateX(0); }
+
+    .drawer-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 1.5rem 1.75rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        flex-shrink: 0;
+    }
+
+    .drawer-title {
+        font-family: var(--font-headline);
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--color-on-surface);
+        margin: 0;
+    }
+
+    .drawer-close {
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: var(--color-on-surface-variant);
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: background-color 0.15s ease;
+    }
+
+    .drawer-close:hover { background: rgba(255, 255, 255, 0.07); color: var(--color-on-surface); }
+
+    .drawer-body { flex: 1; overflow-y: auto; padding: 1.5rem 1.75rem; }
+
+    .drawer-footer {
+        padding: 1.25rem 1.75rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex; flex-direction: column; gap: 0.625rem;
+        flex-shrink: 0;
+    }
+
+    .game-row {
+        display: grid;
+        grid-template-columns: 28px 1fr 1fr;
+        gap: 0.5rem;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .game-row-label {
+        font-family: var(--font-label);
+        font-size: 0.7rem;
+        color: var(--color-on-surface-variant);
+        text-align: center;
+    }
+
+    .game-row input {
+        width: 100%;
+        background: var(--color-surface-container-lowest);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0.5rem;
+        padding: 0.5rem 0.625rem;
+        color: var(--color-on-surface);
+        font-family: var(--font-label);
+        font-size: 0.85rem;
+        text-align: center;
+        box-sizing: border-box;
+    }
+
+    .game-row input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+    }
+
+    .game-teams-label {
+        display: flex; justify-content: space-between;
+        font-family: var(--font-label);
+        font-size: 0.65rem;
+        letter-spacing: 0.08em;
+        color: var(--color-on-surface-variant);
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+        padding: 0 0 0 32px;
+    }
+
+    .btn-primary-full {
+        width: 100%;
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-container));
+        border: none; border-radius: 0.5rem;
+        color: #fff;
+        font-family: var(--font-body); font-size: 0.875rem; font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.15s ease;
+        display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+    }
+
+    .btn-primary-full:hover { opacity: 0.9; }
+
+    .btn-ghost-full {
+        width: 100%;
+        padding: 0.75rem 1.5rem;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.5rem;
+        color: var(--color-on-surface-variant);
+        font-family: var(--font-body); font-size: 0.875rem; font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-ghost-full:hover { background: rgba(255, 255, 255, 0.05); color: var(--color-on-surface); }
+
+    /* ─── Responsividade geral ───────────────────────────────────── */
+    @media (max-width: 600px) {
+        .panel-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .panel-link { align-self: flex-end; }
+
+        .drawer { width: 100vw; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ─── Main content layout ─────────────────────────────────────────── -->
+<div class="manager-layout">
+
+    <!-- ── Linha 1: Inscrições | Staff | Resumo ─────────────────────── -->
+    <div class="top-row">
+
+        <!-- Inscrições Pendentes -->
+        <div class="glass-panel">
+            <div class="panel-header">
+                <div>
+                    <h3 class="panel-title">Inscrições Pendentes</h3>
+                    <p class="panel-subtitle">Aprove ou recuse as equipes inscritas</p>
+                </div>
+                <span class="panel-link" style="color:var(--color-on-surface-variant); cursor:default;">
+                    {{ pending_registrations_count }} pendente{{ pending_registrations_count|pluralize }}
+                </span>
+            </div>
+
+            {% if pending_registrations %}
+            <div class="panel-scroll-body">
+                <div class="table-scroll">
+                    <table class="insc-table">
+                        <thead>
+                            <tr>
+                                <th>Equipe</th>
+                                <th class="text-end" style="padding-right:1.2rem;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reg in pending_registrations %}
+                            <tr>
+                                <td>
+                                    <div style="display:flex; align-items:center; gap:0.7rem;">
+                                        <div class="team-avatar">{{ reg.team.name|slice:":1"|upper }}</div>
+                                        <div>
+                                            <div class="team-avatar-name">{{ reg.team.name }}</div>
+                                            <div class="team-avatar-time">{{ reg.registered_at|timesince }} atrás</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="row-actions">
+                                        <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="reject_registration">
+                                            <input type="hidden" name="registration_id" value="{{ reg.pk }}">
+                                            <button type="submit" class="action-btn action-reject" title="Rejeitar">
+                                                <span class="material-symbols-outlined">close</span>
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="approve_registration">
+                                            <input type="hidden" name="registration_id" value="{{ reg.pk }}">
+                                            <button type="submit" class="action-btn action-approve" title="Aprovar">
+                                                <span class="material-symbols-outlined">check</span>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% else %}
+            <div class="panel-empty">
+                <span class="material-symbols-outlined">task_alt</span>
+                Nenhuma inscrição pendente.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Staff Management -->
+        <div class="glass-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">Membros da Staff</h3>
+            </div>
+            <div class="panel-scroll-body" style="padding:1.1rem; display:flex; flex-direction:column; gap:0.6rem;">
+
+                {% for member in staff_members %}
+                <div class="staff-item">
+                    <div class="staff-avatar {% if member.role == 'MODERATOR' %}is-mod{% endif %}">
+                        {{ member.user.username|slice:":1" }}
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div class="staff-name">{{ member.user.username }}</div>
+                        <div class="staff-role {% if member.role == 'OWNER' %}role-owner{% else %}role-mod{% endif %}">
+                            {{ member.get_role_display }}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p style="font-size:0.8rem; color:var(--color-on-surface-variant); margin:0;">Nenhum membro na staff.</p>
+                {% endfor %}
+
+                <a href="{% url 'championship:management-championship-staff' championship.pk %}" class="staff-manage-btn">
+                    <span class="material-symbols-outlined" style="font-size:1.1rem;">manage_accounts</span>
+                    Gerenciar Staff
+                </a>
+            </div>
+        </div>
+
+        <!-- Resumo do Torneio -->
+        <div class="glass-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">Resumo do Torneio</h3>
+            </div>
+            <div class="resumo-body">
+
+                <div class="summary-row">
+                    <span class="summary-label">Jogo</span>
+                    <span class="summary-value">{{ championship.game }}</span>
+                </div>
+
+                <div class="summary-row">
+                    <span class="summary-label">Status</span>
+                    <span class="summary-value">{{ championship.get_status_display }}</span>
+                </div>
+
+                <div class="summary-row">
+                    <span class="summary-label">Formato</span>
+                    <span class="summary-value">{{ championship.get_stage_format_display }}</span>
+                </div>
+
+                <div class="summary-row">
+                    <span class="summary-label">Equipes inscritas</span>
+                    <span class="summary-value accent">{{ championship.approved_count }} / {{ championship.max_teams }}</span>
+                </div>
+
+                <div class="summary-row">
+                    <span class="summary-label">Data de início</span>
+                    <span class="summary-value">
+                        {% if championship.start_date %}{{ championship.start_date|date:"d M, Y" }}{% else %}A definir{% endif %}
+                    </span>
+                </div>
+
+                <div class="summary-row">
+                    <span class="summary-label">Partidas</span>
+                    <span class="summary-value accent">{{ finished_count }} / {{ total_matches }}</span>
+                </div>
+
+                <div class="summary-row">
+                    <span class="summary-label">Ao vivo agora</span>
+                    <span class="summary-value {% if live_count %}accent{% endif %}">{{ live_count }}</span>
+                </div>
+
+                <div class="summary-row">
+                    <span class="summary-label">Próxima partida</span>
+                    <span class="summary-value">
+                        {% if next_match.scheduled_at %}{{ next_match.scheduled_at|date:"d M, Y" }}{% else %}A definir{% endif %}
+                    </span>
+                </div>
+
+                <div class="summary-row">
+                    <span class="summary-label">Campeão</span>
+                    <span class="summary-value gold">
+                        {% if championship.champion %}{{ championship.champion }}{% else %}—{% endif %}
+                    </span>
+                </div>
+
+            </div>
+        </div>
+
+    </div><!-- /top-row -->
+
+    <!-- ── Linha 2: Em Andamento | Próximas Partidas ─────────────────── -->
+    <div class="matches-split-row">
+
+        <!-- Partidas Em Andamento -->
+        <div class="glass-panel">
+            <div class="panel-header">
+                <h3 class="panel-title" style="display:flex; align-items:center; gap:0.6rem;">
+                    {% if live_matches %}
+                    <span class="live-pulse"><span class="live-dot"></span></span>
+                    {% endif %}
+                    Partidas em Andamento
+                </h3>
+                {% if live_matches %}
+                <span class="panel-link" style="color:var(--color-on-surface-variant); cursor:default;">
+                    {{ live_matches|length }} ao vivo
+                </span>
+                {% endif %}
+            </div>
+            <div style="padding:1.1rem; max-height: 400px; overflow: auto;">
+                {% if live_matches %}
+                <div class="matches-grid">
+                    {% for match in live_matches %}
+                    <div class="match-card is-live">
+                        <div class="match-meta-row">
+                            <span class="match-id">PARTIDA #{{ match.pk }} — {{ match.get_match_format_display }}</span>
+                            <span class="match-meta-info">{{ match.get_phase_display }}</span>
+                        </div>
+                        <div class="match-teams">
+                            <div class="match-team-side">
+                                <div class="match-team-tag">{{ match.team_a.name|default:"A definir" }}</div>
+                                <span class="match-score {% if match.score_a > match.score_b %}leader{% endif %}">{{ match.score_a }}</span>
+                            </div>
+                            <div class="match-vs">VS</div>
+                            <div class="match-team-side">
+                                <div class="match-team-tag">{{ match.team_b.name|default:"A definir" }}</div>
+                                <span class="match-score {% if match.score_b > match.score_a %}leader{% endif %}">{{ match.score_b }}</span>
+                            </div>
+                        </div>
+                        <div class="match-actions">
+                            <button type="button" class="match-btn cta" onclick="openScoreDrawer({{ match.pk }})">Ajustar Placar</button>
+                            <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}" style="flex:1;">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="set_match_status">
+                                <input type="hidden" name="match_id" value="{{ match.pk }}">
+                                <input type="hidden" name="new_status" value="FINISHED">
+                                <button type="submit" class="match-btn danger" style="width:100%;">Encerrar</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="panel-empty">
+                    <span class="material-symbols-outlined">sports_esports</span>
+                    Nenhuma partida ao vivo.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Próximas Partidas -->
+        <div class="glass-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">Próximas Partidas</h3>
+                {% if upcoming_matches %}
+                <span class="panel-link" style="color:var(--color-on-surface-variant); cursor:default;">
+                    {{ upcoming_matches|length }} agendada{{ upcoming_matches|length|pluralize }}
+                </span>
+                {% endif %}
+            </div>
+            <div style="padding:1.1rem; max-height: 400px; overflow: auto;">
+                {% if upcoming_matches %}
+                <div class="matches-grid">
+                    {% for match in upcoming_matches %}
+                    <div class="match-card">
+                        <div class="match-meta-row">
+                            <span class="match-id upcoming">PARTIDA #{{ match.pk }} — {{ match.get_match_format_display }}</span>
+                            <span class="match-meta-info">
+                                {% if match.scheduled_at %}{{ match.scheduled_at|date:"d M, Y" }}{% else %}Sem data{% endif %}
+                            </span>
+                        </div>
+                        <div class="match-teams" style="opacity:0.7;">
+                            <div class="match-team-side">
+                                <div class="match-team-tag">{{ match.team_a.name|default:"A definir" }}</div>
+                                <span class="match-score">0</span>
+                            </div>
+                            <div class="match-vs">VS</div>
+                            <div class="match-team-side">
+                                <div class="match-team-tag">{{ match.team_b.name|default:"A definir" }}</div>
+                                <span class="match-score">0</span>
+                            </div>
+                        </div>
+                        <div class="match-actions">
+                            <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}" style="flex:1;">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="set_match_status">
+                                <input type="hidden" name="match_id" value="{{ match.pk }}">
+                                <input type="hidden" name="new_status" value="ONGOING">
+                                <button type="submit" class="match-btn cta" style="width:100%;">Forçar Início</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="panel-empty">
+                    <span class="material-symbols-outlined">event</span>
+                    Nenhuma partida agendada.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div><!-- /matches-split-row -->
+
+    <!-- ── Linha 3: Partidas Concluídas (largura total) ───────────────── -->
+    <div class="glass-panel">
+        <div class="panel-header">
+            <h3 class="panel-title">Partidas Concluídas</h3>
+            {% if finished_matches %}
+            <span class="panel-link" style="color:var(--color-on-surface-variant); cursor:default;">
+                {{ finished_count }} encerrada{{ finished_count|pluralize }}
+            </span>
+            {% endif %}
+        </div>
+        <div style="padding:1.1rem; max-height: 400px; overflow: auto;">
+            {% if finished_matches %}
+            <div class="matches-grid">
+                {% for match in finished_matches %}
+                <div class="match-card is-finished">
+                    <div class="match-meta-row">
+                        <span class="match-id finished">PARTIDA #{{ match.pk }} — {{ match.get_match_format_display }}</span>
+                        <span class="match-meta-info" style="color:#4ade80;">ENCERRADA</span>
+                    </div>
+                    <div class="match-teams">
+                        <div class="match-team-side">
+                            <div class="match-team-tag">{{ match.team_a.name|default:"A definir" }}</div>
+                            <span class="match-score {% if match.winner_id == match.team_a_id %}leader{% endif %}">{{ match.score_a }}</span>
+                        </div>
+                        <div class="match-vs">VS</div>
+                        <div class="match-team-side">
+                            <div class="match-team-tag">{{ match.team_b.name|default:"A definir" }}</div>
+                            <span class="match-score {% if match.winner_id == match.team_b_id %}leader{% endif %}">{{ match.score_b }}</span>
+                        </div>
+                    </div>
+                    <div class="match-actions">
+                        <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}" style="flex:1;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="reopen_match">
+                            <input type="hidden" name="match_id" value="{{ match.pk }}">
+                            <button type="submit" class="match-btn reopen" style="width:100%;">
+                                Reabrir Partida
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="panel-empty">
+                <span class="material-symbols-outlined">check_circle</span>
+                Nenhuma partida encerrada ainda.
+            </div>
+            {% endif %}
+        </div>
+    </div><!-- /partidas concluídas -->
+
+</div><!-- /manager-layout -->
+
+<!-- ─── Backdrop + Drawers de placar ───────────────────────────────── -->
+<div class="backdrop" id="backdrop" onclick="closeAllDrawers()"></div>
+
+{% for match in live_matches|add:upcoming_matches %}
+<div class="drawer" id="scoreDrawer{{ match.pk }}">
+    <div class="drawer-header">
+        <h4 class="drawer-title">Placar — Partida #{{ match.pk }}</h4>
+        <button class="drawer-close" onclick="closeAllDrawers()">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+    </div>
+
+    <div class="drawer-body">
+        <form method="POST" action="{% url 'championship:management-championship-dashboard' championship.pk %}" id="scoreForm{{ match.pk }}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_match_scores">
+            <input type="hidden" name="match_id" value="{{ match.pk }}">
+
+            <div class="game-teams-label">
+                <span>{{ match.team_a.name|default:"Time A" }}</span>
+                <span>{{ match.team_b.name|default:"Time B" }}</span>
+            </div>
+
+            {% for game in match.game_rows %}
+            <div class="game-row">
+                <span class="game-row-label">G{{ game.game_number }}</span>
+                <input type="number" min="0" name="score_a" value="{{ game.score_a }}" placeholder="0">
+                <input type="number" min="0" name="score_b" value="{{ game.score_b }}" placeholder="0">
+                <input type="hidden" name="game_number" value="{{ game.game_number }}">
+                <input type="hidden" name="map_name" value="{{ game.map_name }}">
+            </div>
+            {% endfor %}
+
+            <p style="font-size:0.75rem; color:var(--color-on-surface-variant); margin-top:0.5rem; line-height:1.5;">
+                Deixe um game zerado/empatado (ex: 0x0) caso ainda não tenha sido jogado.
+                O vencedor da partida é definido automaticamente pelo número de games vencidos
+                ({{ match.get_match_format_display }}).
+            </p>
+        </form>
+    </div>
+
+    <div class="drawer-footer">
+        <button type="submit" form="scoreForm{{ match.pk }}" class="btn-primary-full">
+            <span class="material-symbols-outlined">save</span>
+            Salvar Placar
+        </button>
+        <button type="button" class="btn-ghost-full" onclick="closeAllDrawers()">Cancelar</button>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const backdrop = document.getElementById('backdrop');
+
+    function openScoreDrawer(matchId) {
+        closeAllDrawers();
+        const drawer = document.getElementById('scoreDrawer' + matchId);
+        if (drawer) {
+            drawer.classList.add('open');
+            backdrop.classList.add('open');
+        }
+    }
+
+    function closeAllDrawers() {
+        document.querySelectorAll('.drawer.open').forEach(el => el.classList.remove('open'));
+        backdrop.classList.remove('open');
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeAllDrawers();
+    });
+</script>
+{% endblock %}
